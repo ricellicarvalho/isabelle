@@ -1,0 +1,52 @@
+version: "3.8"
+
+services:
+  app:
+    user: "1000:1000"
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: isabelle_app
+    volumes:
+      - ./:/var/www
+    ports:
+      - "9003:9000"
+      - "5173:5173" # <--- PORTA DO VITE ADICIONADA AQUI
+    networks:
+      - network_isabelle
+
+  webserver:
+    image: nginx:alpine
+    container_name: nginx_isabelle
+    ports:
+      - "8005:80"
+    volumes:
+      - ./:/var/www
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d
+    depends_on:
+      - app
+    networks:
+      - network_isabelle
+
+  db:
+    image: mysql:8.0
+    container_name: db_isabelle
+    environment:
+      # O Docker vai ler os valores abaixo diretamente do arquivo .env
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "3309:3306"
+    volumes:
+      - dbdata:/var/lib/mysql
+    networks:
+      - network_isabelle
+
+networks:
+  network_isabelle:
+    driver: bridge
+
+volumes:
+  dbdata:
