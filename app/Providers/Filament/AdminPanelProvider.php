@@ -28,15 +28,49 @@ class AdminPanelProvider extends PanelProvider
             ->sidebarWidth('16rem')
             ->default()
             ->font('Kode Mono')
-            ->brandLogo(asset('images/logo.png'))
+            ->favicon(asset('images/favicon.ico'))
+            ->brandLogo(asset('images/logo2.png'))
             ->brandLogoHeight('4rem')
+            ->brandName('Instituto Alves Neves')
             ->id('admin')
             ->path('admin')
             ->login()
             ->passwordReset()
+            ->spa()
             ->profile()
             ->colors([
-                'primary' => Color::Amber,
+                // Definindo a sua cor customizada com o nome 'brand'
+                'brand' => [
+                    50 => 'oklch(0.97 0.02 282.7)',
+                    100 => 'oklch(0.94 0.04 282.7)',
+                    200 => 'oklch(0.89 0.07 282.7)',
+                    300 => 'oklch(0.82 0.11 282.7)',
+                    400 => 'oklch(0.71 0.17 282.7)',
+                    500 => 'oklch(0.589 0.232 282.7)', // Cor base (#8751d4)
+                    600 => 'oklch(0.50 0.210 282.7)',
+                    700 => 'oklch(0.42 0.185 282.7)',
+                    800 => 'oklch(0.34 0.150 282.7)',
+                    900 => 'oklch(0.27 0.110 282.7)',
+                    950 => 'oklch(0.20 0.070 282.7)',
+                ],
+                // DICA: Se você quiser que o painel use essa cor em tudo por padrão,
+                // você também pode atribuir ela ao 'primary':
+                'primary' => [
+                    50 => 'oklch(0.97 0.02 282.7)',
+                    100 => 'oklch(0.94 0.04 282.7)',
+                    200 => 'oklch(0.89 0.07 282.7)',
+                    300 => 'oklch(0.82 0.11 282.7)',
+                    400 => 'oklch(0.71 0.17 282.7)',
+                    500 => 'oklch(0.589 0.232 282.7)',
+                    600 => 'oklch(0.50 0.210 282.7)',
+                    700 => 'oklch(0.42 0.185 282.7)',
+                    800 => 'oklch(0.34 0.150 282.7)',
+                    900 => 'oklch(0.27 0.110 282.7)',
+                    950 => 'oklch(0.20 0.070 282.7)',
+                ],
+
+                // Alterando os cinzas padrão para o tom azulado (Slate)
+                'gray' => Color::Slate,
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
