@@ -37,7 +37,7 @@ class UsersTable
 
                 // Ícone para mostrar se é Admin
                 IconColumn::make('is_admin')
-                    ->label('Admin')
+                    ->label('Admin?')
                     ->boolean() // Transforma true/false em ícones de check/x
                     ->sortable(),
 
