@@ -6,7 +6,6 @@ use App\Filament\Resources\Users\Pages\CreateUser;
 use App\Filament\Resources\Users\Pages\EditUser;
 use App\Filament\Resources\Users\Pages\ListUsers;
 use App\Filament\Resources\Users\Schemas\UserForm;
-use App\Filament\Resources\Users\Pages\ViewUser;
 use App\Filament\Resources\Users\Tables\UsersTable;
 use App\Models\User;
 use BackedEnum;
@@ -19,6 +18,12 @@ class UserResource extends Resource
 {
     protected static ?string $model = User::class;
 
+    // Tradução do nome do menu e títulos
+    protected static ?string $modelLabel = 'usuário';
+
+    // Tradução do plural (usado no botão "Criar usuários" e no menu)
+    protected static ?string $pluralModelLabel = 'usuários';
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::Users;    
 
     //protected static ?int $navigationSort = 1;         
@@ -26,7 +31,7 @@ class UserResource extends Resource
     protected static ?string $recordTitleAttribute = 'name';
 
     // O texto que aparece no menu
-    protected static ?string $navigationLabel = 'Usuários'; 
+    //protected static ?string $navigationLabel = 'Usuários'; 
 
     // --- MÉTODOS DE NAVEGAÇÃO (Coloque aqui) ---
     public static function getNavigationBadgeTooltip(): ?string

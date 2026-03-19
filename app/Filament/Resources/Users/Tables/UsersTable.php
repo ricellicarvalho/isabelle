@@ -12,6 +12,10 @@ use Filament\Actions\EditAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\BulkActionGroup; 
 use Filament\Actions\DeleteBulkAction;
+use Filament\Tables\Enums\FiltersLayout;
+use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\QueryBuilder;
+use Illuminate\Database\Eloquent\Builder;
 
 class UsersTable
 {
@@ -28,18 +32,24 @@ class UsersTable
                 // Coluna de E-mail
                 TextColumn::make('email')
                     ->label('E-mail')
-                    ->searchable(),
+                    //->limit(20)
+                    ->searchable()
+                    ->sortable(),
 
                 // Coluna de Telefone (opcional)
                 TextColumn::make('phone')
                     ->label('Telefone')
-                    ->toggleable(isToggledHiddenByDefault: true), // Fica escondido por padrão, mas pode ser ativado
+                    ->searchable(),
+                    //->toggleable(isToggledHiddenByDefault: true), // Fica escondido por padrão, mas pode ser ativado
 
-                // Ícone para mostrar se é Admin
-                IconColumn::make('is_admin')
-                    ->label('Admin?')
-                    ->boolean() // Transforma true/false em ícones de check/x
-                    ->sortable(),
+                TextColumn::make('is_admin')
+                ->label('Admin?')
+				->badge()				
+                ->color(fn ($state) => $state === 1 ? 'success' : 'red')
+				->formatStateUsing(fn ($state) => match ($state) {
+					1 => 'Sim',
+					0 => 'Não',
+				}),                                
 
                 // Data de criação formatada
                 TextColumn::make('created_at')
@@ -47,9 +57,16 @@ class UsersTable
                     ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-            ])
+                
+                // Data de alteração formatada
+                TextColumn::make('updated_at')
+                    ->label('Alterado em')
+                    ->dateTime('d/m/Y H:i')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+            ])->deferColumnManager(false) // Remove o botão Aplicar colunas
             ->filters([
-                // Aqui você pode adicionar filtros, ex: Apenas Admins
+                Filter::make('is_admin')->toggle()->label('Admin?')->query(fn (Builder $query): Builder => $query->where('is_admin', true)),
             ])
             ->actions([
                 EditAction::make(),

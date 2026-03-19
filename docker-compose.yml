@@ -32,6 +32,8 @@ services:
     image: mysql:8.0
     container_name: db_isabelle
     environment:
+      # Fuso horário
+      TZ: America/Araguaina
       # O Docker vai ler os valores abaixo diretamente do arquivo .env
       MYSQL_DATABASE: ${DB_DATABASE}
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}

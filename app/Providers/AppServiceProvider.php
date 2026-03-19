@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use Filament\Support\Enums\TextSize;
+use Filament\Support\Facades\FilamentColor;
+use Filament\Tables\Columns\TextColumn;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +22,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        TextColumn::configureUsing(function (TextColumn $column) {
+			$column->size(TextSize::Medium);
+		});
+
+		FilamentColor::register([
+			'brand' => '#1e084a',
+			'red' => '#dc143c',
+			'custom_color' => '#27DAF5',
+		]);
     }
 }
