@@ -9,6 +9,7 @@ services:
         - uid=1000
         - user=dev
     container_name: isabelle_app
+    restart: always
     # O fuso horário agora é herdado do Dockerfile, mas manter aqui reforça a config
     environment:
       - TZ=America/Araguaina
@@ -21,9 +22,16 @@ services:
     networks:
       - network_isabelle
 
+    healthcheck:
+      test: ["CMD", "php", "artisan", "doctor"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   webserver:
     image: nginx:alpine
     container_name: nginx_isabelle
+    restart: always
     ports:
       - "8005:80"
     volumes:
@@ -37,6 +45,7 @@ services:
   db:
     image: mysql:8.0
     container_name: db_isabelle
+    restart: always
     environment:
       # Fuso horário
       TZ: America/Araguaina
