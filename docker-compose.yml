@@ -2,16 +2,22 @@ version: "3.8"
 
 services:
   app:
-    user: "1000:1000"
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        - uid=1000
+        - user=dev
     container_name: isabelle_app
+    # O fuso horário agora é herdado do Dockerfile, mas manter aqui reforça a config
+    environment:
+      - TZ=America/Araguaina
     volumes:
       - ./:/var/www
     ports:
       - "9003:9000"
       - "5173:5173" # <--- PORTA DO VITE ADICIONADA AQUI
+    working_dir: /var/www
     networks:
       - network_isabelle
 

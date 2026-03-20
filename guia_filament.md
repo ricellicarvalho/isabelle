@@ -89,3 +89,52 @@ Os arquivos de tradução estarão disponíveis nos seguintes caminhos:
 - `lang/vendor/filament-tables/pt_BR` (Mensagens de busca, filtros e paginação)
 - `lang/vendor/filament-actions/pt_BR` (Mensagens de confirmação de exclusão, botões de ação)
 - `lang/vendor/filament-forms/pt_BR` (Rótulos internos de componentes de formulário)
+
+---
+
+## 6. Uso do Tinker (Diagnóstico e Configuração Profissional)
+
+### 🔍 Verificando sincronização de horários (PHP, Banco e SO)
+
+Para garantir que o PHP (Laravel), o banco de dados (MySQL) e o sistema operacional estão sincronizados corretamente (mesmo timezone), utilize o Tinker:
+
+```bash
+php artisan tinker
+```
+
+Execute o seguinte comando:
+
+```php
+echo "Horário PHP: " . now()->toDateTimeString() . "\n" . "Horário DB:  " . DB::select('SELECT NOW() as agora')[0]->agora;
+```
+
+👉 Isso permite verificar rapidamente se há divergência de horário entre aplicação e banco.
+
+---
+
+### ⚙️ Configurando o Tinker (PsySH) para uso profissional
+
+Para evitar travamentos ao lidar com objetos grandes (muito comum no Laravel e Filament) e melhorar a experiência no terminal, configure o PsySH com limites e visual mais limpo.
+
+Execute este comando dentro do container:
+
+```bash
+cat <<EOF > /home/dev/.config/psysh/config.php
+<?php
+
+return [
+    'startupMessage' => '<info>Bem-vindo ao Tinker - Project Isabelle</info>',
+    'updateCheck' => 'never',
+    'useUnicode' => true,
+    'depth' => 3,
+    'maxItems' => 100,
+];
+EOF
+```
+
+### 💡 Benefícios dessa configuração:
+
+- Evita travamentos ao exibir objetos grandes
+- Limita profundidade de arrays/objetos (`depth`)
+- Limita quantidade de itens exibidos (`maxItems`)
+- Interface mais limpa e profissional
