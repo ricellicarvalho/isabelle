@@ -1,6 +1,6 @@
-# 🚀 Ambiente Laravel 12 com Docker
+# 🚀 Sistema Instituto Alves Neves 
 
-Este repositório é um guia passo a passo para configurar o Laravel 12 com Docker utilizando um setup customizado.
+Este repositório é um guia passo a passo para configurar o sistemapara rodar localmente em modo desenvolvimento.
 
 ## ✅ Pré-requisitos
 
@@ -48,11 +48,11 @@ Edite o `.env` e configure a conexão com MySQL:
 
 ```dotenv
 DB_CONNECTION=mysql
-DB_HOST=mysql_db_app
+DB_HOST=mysqldb
 DB_PORT=3306
-DB_DATABASE=laravel
-DB_USERNAME=laravel
-DB_PASSWORD=secret
+DB_DATABASE=xxxxxx
+DB_USERNAME=xxxxx
+DB_PASSWORD=xxxxxx
 ```
 
 > 💡 Essas credenciais devem corresponder ao que está definido no `docker-compose.yml`.
