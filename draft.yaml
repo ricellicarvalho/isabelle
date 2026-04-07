@@ -1,0 +1,259 @@
+###############################################################################
+# Sistema de Gestão Isabelle – ERP NR-1
+# Laravel Blueprint – draft.yaml
+# Gera: Models, Migrations e Factories (sem Controllers)
+# Sistema single-tenant (uma empresa). Portal do Cliente isolado por User.
+###############################################################################
+
+models:
+
+  # =========================================================================
+  # CRM / CLIENTES
+  # =========================================================================
+
+  Client:
+    tipo_pessoa: enum:pj,pf default:pj
+    cnpj_cpf: string:18 unique
+    razao_social: string
+    nome_fantasia: string nullable
+    inscricao_estadual: string nullable
+    inscricao_municipal: string nullable
+    # Endereço
+    endereco: string nullable
+    numero: string:20 nullable
+    complemento: string nullable
+    bairro: string nullable
+    cidade: string nullable
+    uf: string:2 nullable
+    cep: string:10 nullable
+    # Contato
+    telefone: string:20 nullable
+    email: string nullable
+    contato_nome: string nullable
+    contato_telefone: string:20 nullable
+    # NR-1 (RN07)
+    nr1_status: enum:pendente,em_andamento,regularizada default:pendente
+    nr1_checklist: json nullable
+    # Portal do Cliente – vínculo com User para acesso ao portal
+    portal_user_id: foreignId:user nullable
+    status: enum:ativo,inativo default:ativo
+    observacoes: text nullable
+    # Auditoria
+    created_by: foreignId
+    deleted_by: foreignId nullable
+    timestamps: true
+    softDeletes: true
+    relationships:
+      belongsTo: User:portal_user_id, User:created_by, User:deleted_by
+      hasMany: Contract, Receivable, Event, ClientDocument
+
+  # =========================================================================
+  # CONTRATOS
+  # =========================================================================
+
+  Contract:
+    client_id: foreignId cascadeOnDelete
+    category_id: foreignId
+    # Dados do contrato
+    numero: string unique
+    tipo_servico: enum:nr1,palestra,consultoria,treinamento,outro default:nr1
+    descricao: text nullable
+    valor_total: decimal:10,2
+    forma_pagamento: enum:boleto,pix,transferencia,dinheiro,cartao default:boleto
+    quantidade_parcelas: integer unsigned default:1
+    # Vigência
+    data_inicio: date
+    data_fim: date
+    # Status e ciclo de vida (RN10)
+    status: enum:rascunho,ativo,finalizado,cancelado default:rascunho
+    # PDF
+    arquivo_pdf: string nullable
+    observacoes: text nullable
+    # Auditoria
+    created_by: foreignId
+    deleted_by: foreignId nullable
+    timestamps: true
+    softDeletes: true
+    relationships:
+      belongsTo: Client, Category, User:created_by, User:deleted_by
+      hasMany: Receivable, Event
+
+  # =========================================================================
+  # PLANO DE CONTAS (Árvore Hierárquica – RN03)
+  # =========================================================================
+
+  Category:
+    parent_id: foreignId:category nullable
+    codigo: string
+    descricao: string
+    tipo: enum:receita,custo,despesa
+    order: integer unsigned default:0
+    ativo: boolean default:true
+    # Auditoria
+    created_by: foreignId
+    deleted_by: foreignId nullable
+    timestamps: true
+    softDeletes: true
+    relationships:
+      belongsTo: Category:parent_id, User:created_by, User:deleted_by
+      hasMany: Category:parent_id, Contract, Receivable, Payable, Pricing
+
+  # =========================================================================
+  # FINANCEIRO – CONTAS A RECEBER (RN01, RN10)
+  # =========================================================================
+
+  Receivable:
+    client_id: foreignId
+    contract_id: foreignId nullable
+    category_id: foreignId
+    descricao: string
+    valor: decimal:10,2
+    data_vencimento: date
+    data_pagamento: date nullable
+    valor_pago: decimal:10,2 nullable
+    forma_pagamento: enum:boleto,pix,transferencia,dinheiro,cartao nullable
+    numero_parcela: integer unsigned default:1
+    status: enum:pendente,pago,cancelado,vencido default:pendente
+    observacoes: text nullable
+    # Auditoria
+    created_by: foreignId
+    deleted_by: foreignId nullable
+    timestamps: true
+    softDeletes: true
+    relationships:
+      belongsTo: Client, Contract, Category, User:created_by, User:deleted_by
+      hasMany: BankBoleto
+
+  # =========================================================================
+  # FINANCEIRO – CONTAS A PAGAR
+  # =========================================================================
+
+  Payable:
+    category_id: foreignId
+    fornecedor: string nullable
+    descricao: string
+    valor: decimal:10,2
+    data_vencimento: date
+    data_pagamento: date nullable
+    valor_pago: decimal:10,2 nullable
+    forma_pagamento: enum:boleto,pix,transferencia,dinheiro,cartao nullable
+    status: enum:pendente,pago,cancelado,vencido default:pendente
+    observacoes: text nullable
+    # Auditoria
+    created_by: foreignId
+    deleted_by: foreignId nullable
+    timestamps: true
+    softDeletes: true
+    relationships:
+      belongsTo: Category, User:created_by, User:deleted_by
+
+  # =========================================================================
+  # BOLETOS (RN02, RN11, RN12, RN14, RN16)
+  # =========================================================================
+
+  BankBoleto:
+    receivable_id: foreignId
+    remessa_id: foreignId:bank_remessa nullable
+    nosso_numero: string unique
+    numero_documento: string nullable
+    carteira: string:10 nullable
+    codigo_barras: string nullable
+    linha_digitavel: string nullable
+    data_vencimento: date
+    valor: decimal:10,2
+    status: enum:pendente,emitido,pago,cancelado,baixado default:pendente
+    instrucao_remessa: string nullable
+    # Auditoria
+    created_by: foreignId
+    deleted_by: foreignId nullable
+    timestamps: true
+    softDeletes: true
+    relationships:
+      belongsTo: Receivable, BankRemessa:remessa_id, User:created_by, User:deleted_by
+
+  # =========================================================================
+  # REMESSAS BANCÁRIAS (RN13, RN15)
+  # =========================================================================
+
+  BankRemessa:
+    sequencial_arquivo: integer unsigned
+    data_geracao: datetime
+    caminho_arquivo: string
+    quantidade_titulos: integer unsigned default:0
+    valor_total: decimal:12,2 default:0
+    layout: enum:cnab240,cnab400 default:cnab400
+    status: enum:gerado,enviado,processado default:gerado
+    # Auditoria
+    created_by: foreignId
+    deleted_by: foreignId nullable
+    timestamps: true
+    softDeletes: true
+    relationships:
+      belongsTo: User:created_by, User:deleted_by
+      hasMany: BankBoleto:remessa_id
+
+  # =========================================================================
+  # EVENTOS / AGENDA (RN09)
+  # =========================================================================
+
+  Event:
+    client_id: foreignId
+    contract_id: foreignId nullable
+    user_id: foreignId
+    titulo: string
+    descricao: text nullable
+    tipo: enum:avaliacao_nr1,devolutiva,treinamento,palestra,reuniao,outro default:outro
+    data_inicio: datetime
+    data_fim: datetime nullable
+    dia_inteiro: boolean default:false
+    local: string nullable
+    status: enum:agendado,realizado,cancelado default:agendado
+    bloquear_agenda: boolean default:false
+    cor: string:7 nullable
+    # Auditoria
+    created_by: foreignId
+    deleted_by: foreignId nullable
+    timestamps: true
+    softDeletes: true
+    relationships:
+      belongsTo: Client, Contract, User, User:created_by, User:deleted_by
+
+  # =========================================================================
+  # PRECIFICAÇÃO
+  # =========================================================================
+
+  Pricing:
+    category_id: foreignId
+    nome: string
+    descricao: text nullable
+    custo_direto: decimal:10,2 default:0
+    custo_indireto: decimal:10,2 default:0
+    margem_lucro: decimal:5,2 default:0
+    preco_venda: decimal:10,2 default:0
+    observacoes: text nullable
+    # Auditoria
+    created_by: foreignId
+    deleted_by: foreignId nullable
+    timestamps: true
+    softDeletes: true
+    relationships:
+      belongsTo: Category, User:created_by, User:deleted_by
+
+  # =========================================================================
+  # PORTAL DO CLIENTE – DOCUMENTOS
+  # =========================================================================
+
+  ClientDocument:
+    client_id: foreignId cascadeOnDelete
+    titulo: string
+    tipo: enum:laudo,foto,relatorio,matriz_risco,certificado,outro default:outro
+    caminho_arquivo: string
+    descricao: text nullable
+    visivel_portal: boolean default:true
+    # Auditoria
+    created_by: foreignId
+    deleted_by: foreignId nullable
+    timestamps: true
+    softDeletes: true
+    relationships:
+      belongsTo: Client, User:created_by, User:deleted_by

@@ -1,23 +1,22 @@
 version: "3.8"
 
 services:
-  app:
+  isabelle_app: # Serviço renomeado para evitar qualquer ambiguidade
     build:
       context: .
       dockerfile: Dockerfile
       args:
         - uid=1000
-        - user=dev
+        - user=ricelli
     container_name: isabelle_app
     restart: always
-    # O fuso horário agora é herdado do Dockerfile, mas manter aqui reforça a config
     environment:
       - TZ=America/Araguaina
     volumes:
       - ./:/var/www
     ports:
-      - "9003:9000"
-      - "5173:5173" # <--- PORTA DO VITE ADICIONADA AQUI
+      - "9004:9000"
+      - "5174:5173"
     working_dir: /var/www
     networks:
       - network_isabelle
@@ -28,34 +27,32 @@ services:
       timeout: 10s
       retries: 3
 
-  webserver:
+  isabelle_webserver:
     image: nginx:alpine
-    container_name: nginx_isabelle
+    container_name: isabelle_nginx
     restart: always
     ports:
-      - "8005:80"
+      - "8006:80"
     volumes:
       - ./:/var/www
       - ./docker/nginx/conf.d:/etc/nginx/conf.d
     depends_on:
-      - app
+      - isabelle_app
     networks:
       - network_isabelle
 
-  db:
+  isabelle_database:
     image: mysql:8.0
-    container_name: db_isabelle
+    container_name: isabelle_db # Nome exato conforme solicitado
     restart: always
     environment:
-      # Fuso horário
       TZ: America/Araguaina
-      # O Docker vai ler os valores abaixo diretamente do arquivo .env
       MYSQL_DATABASE: ${DB_DATABASE}
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       MYSQL_USER: ${DB_USERNAME}
       MYSQL_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "3309:3306"
+      - "3310:3306"
     volumes:
       - dbdata:/var/lib/mysql
     networks:

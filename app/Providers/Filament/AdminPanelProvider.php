@@ -6,12 +6,14 @@ use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use App\Filament\Widgets\FinanceStatsOverview;
+use App\Filament\Widgets\OverdueReceivablesTable;
+use Filament\Navigation\NavigationGroup;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\Widgets\AccountWidget;
-use Filament\Widgets\FilamentInfoWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
@@ -25,7 +27,7 @@ class AdminPanelProvider extends PanelProvider
     {
         return $panel
             ->sidebarCollapsibleOnDesktop()
-            ->sidebarWidth('16rem')
+            ->sidebarWidth('17rem')
             ->default()
             ->font('Kode Mono')
             ->favicon(asset('images/favicon.ico'))
@@ -72,6 +74,12 @@ class AdminPanelProvider extends PanelProvider
                 // Alterando os cinzas padrão para o tom azulado (Slate)
                 'gray' => Color::Slate,
             ])
+            ->navigationGroups([
+                NavigationGroup::make('CRM'),
+                NavigationGroup::make('Financeiro'),
+                NavigationGroup::make('Relatórios'),
+                NavigationGroup::make('Configurações')->collapsed(),
+            ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
@@ -80,7 +88,8 @@ class AdminPanelProvider extends PanelProvider
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
                 AccountWidget::class,
-                FilamentInfoWidget::class,
+                FinanceStatsOverview::class,
+                OverdueReceivablesTable::class,
             ])
             ->middleware([
                 EncryptCookies::class,

@@ -38,7 +38,33 @@ Sistema de gestão focado em consultoria psicossocial e conformidade com a norma
 - _Contas a Pagar_: FK obrigatória (Origem de Custos/Despesas no DRE).
 - _Precificação_: FK obrigatória para natureza do custo/serviço orçado.
 
-## 4. Regras de Negócio (RN)
+## 4. Padrão de Modelagem (draft.yaml)
+Ao gerar ou sugerir alterações no arquivo `draft.yaml`, siga rigorosamente os padrões abaixo. O objetivo é gerar apenas a camada de dados (Models, Migrations, Factories). **Não gerar Controllers**, pois a interface é gerida pelos Resources do Filament. 
+
+### 4.1. Bloco de Auditoria Obrigatório
+Todas as entidades devem possuir o bloco de auditoria para rastreabilidade e segurança:
+    # Auditoria
+    created_by: foreignId
+    deleted_by: foreignId nullable
+    timestamps: true
+    softDeletes: true
+
+### 4.2 Exemplo de Estrutura de Entidade
+models:
+  ExemploModelo:
+    team_id: foreignId cascadeOnDelete
+    nome: string
+    status: enum:ativo,inativo default:ativo
+    # Auditoria
+    created_by: foreignId
+    deleted_by: foreignId nullable
+    timestamps: true
+    softDeletes: true
+    relationships:
+      belongsTo: Team, User:created_by, User:deleted_by
+
+
+## 5. Regras de Negócio (RN)
 
 - **RN01 - Geração Automática:** Ao definir as parcelas no Contrato, o sistema deve gerar automaticamente os registros correspondentes no 'Contas a Receber'.
 - **RN02 - Fluxo de Boletos:** Se a forma de pagamento for 'Boleto', o sistema deve gerar o arquivo para o cliente e permitir a geração de 'Arquivo de Remessa' em lote para o banco.
@@ -64,13 +90,13 @@ Sistema de gestão focado em consultoria psicossocial e conformidade com a norma
 - **RN15 - Padronização de Layout:** O sistema deve suportar a configuração de layouts CNAB 240 ou 400, dependendo da homologação com a agência bancária da empresa.
 - **RN16 - Automatização de Valores:** O valor e a data de vencimento do boleto devem ser herdados automaticamente da parcela do Contas a Receber, mas podem permitir edição manual (com log de auditoria) antes da emissão da remessa.
 
-## 5. Implementação no Filament (UX/UI)
+## 6. Implementação no Filament (UX/UI)
 
 - **ReceivableResource:** Deve conter uma `Action` personalizada para "Gerar Boleto", criando o registro em `BankBoleto`.
 - **BankRemessaResource:** Menu dedicado para gerenciar os lotes de arquivos enviados ao banco.
 - **Portal do Cliente:** Utilizar o plugin `File Manager` para upload/download de laudos e fotos.
 
-## 6. Definição de Pronto (DoD)
+## 7. Definição de Pronto (DoD)
 
 - Código seguindo os padrões PSR-12.
 - Migrations geradas via Blueprint.
@@ -79,7 +105,7 @@ Sistema de gestão focado em consultoria psicossocial e conformidade com a norma
 - Interface utilizando componentes nativos do Filament para manter a consistência.
 - Relatórios exportáveis em PDF/Excel quando solicitado.
 
-## 7. Documentação de Referência
+## 8. Documentação de Referência
 
 - Filament: https://filamentphp.com/docs/5.x/introduction/overview (documentação Oficial do Filamentphp).
 - Filament Demo: https://demo.filamentphp.com/ (Email address: admin@filamentphp.com Password: demo.Filament@2021!).
@@ -88,3 +114,17 @@ Sistema de gestão focado em consultoria psicossocial e conformidade com a norma
 - Filament-tree: https://filamentphp.com/plugins/solution-forest-tree (Deve ser utilizado para criar a hierárquia do Plano de Contas).
 - File Manager: https://filamentphp.com/plugins/mwguerra-file-manager (Deve ser utilizado no módulo Portal do cliente para disponibilizar arquivos).
 - FullCalendar: https://filamentphp.com/plugins/saade-fullcalendar (Deve ser utilizado na criação do Evento/Agenda).
+
+## 9. Escopo e Restrições Iniciais
+
+### 9.1. Fora de Escopo (Temporariamente)
+Os seguintes módulos **não** devem ser implementados nesta fase inicial:
+- **NFSe:** Não implementar integração com Nota Fiscal Eletrônica agora.
+- **Permissões de Usuários:** Não implementar níveis de acesso complexos ou perfis variados (Shield) nesta etapa, exceto a separação entre Administrador e Cliente.
+
+### 9.2. Regras do Portal do Cliente
+O Portal do Cliente deve ser uma área restrita com as seguintes diretrizes:
+- **Autenticação:** Acesso obrigatório via login (e-mail) e senha.
+- **Isolamento de Dados (Multitenancy):** O cliente deve visualizar estritamente os dados vinculados ao seu cadastro (contratos, laudos, fotos e boletos).
+- **Origem dos Dados:** Todas as informações visíveis no portal são cadastradas previamente pelos usuários do sistema (Administradores/Consultores) no painel principal.
+- **Funcionalidade:** Foco em consulta e download de documentos via plugin File Manager.

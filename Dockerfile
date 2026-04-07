@@ -25,10 +25,9 @@ ENV LC_ALL pt_BR.UTF-8
 
 # 2. Argumentos para bater com o usuário (ID 1000) 
 ARG uid=1000
-ARG user=dev
+ARG user=ricelli
 
 # 3. Criar usuário do sistema e pastas para Tinker/Composer 
-# Isso evita o erro "Writing to directory /.config/psysh is not allowed"
 RUN useradd -G www-data,root -u $uid -d /home/$user $user && \
     mkdir -p /home/$user/.composer /home/$user/.config/psysh && \
     touch /home/$user/.config/psysh/config.php && \
@@ -48,8 +47,7 @@ ENV HOME=/home/$user
 ENV PSYSH_CONFIG=/home/$user/.config/psysh/config.php
 ENV TZ=America/Araguaina
 
-# 8. Mudar para o usuário criado antes de rodar o processo. 
-# Essa linha diz ao Docker: "A partir de agora, não use mais o root; use o usuário 1000".
+# 8. Mudar para o usuário criado antes de rodar o processo.
 USER $user
 
 EXPOSE 9000
