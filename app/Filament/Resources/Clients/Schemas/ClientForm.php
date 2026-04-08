@@ -2,9 +2,12 @@
 
 namespace App\Filament\Resources\Clients\Schemas;
 
+use Filament\Forms\Components\Checkbox;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
@@ -139,19 +142,55 @@ class ClientForm
                         Tab::make('NR-1')
                             ->icon(Heroicon::ClipboardDocumentCheck)
                             ->components([
-                                Section::make('Conformidade NR-1')
-                                    ->columns(2)
+                                Section::make('Checklist de Conformidade NR-1')
+                                    ->description('RN07: O status "Regularizada" é definido automaticamente quando todos os itens estão concluídos.')
+                                    ->columns(1)
+                                    ->components([
+                                        Checkbox::make('nr1_checklist.avaliacao')
+                                            ->label('✅ Avaliação Psicossocial realizada')
+                                            ->live(),
+
+                                        Checkbox::make('nr1_checklist.devolutiva')
+                                            ->label('✅ Devolutiva entregue ao cliente')
+                                            ->live(),
+
+                                        Checkbox::make('nr1_checklist.plano')
+                                            ->label('✅ Plano de Ação elaborado')
+                                            ->live(),
+
+                                        Checkbox::make('nr1_checklist.treinamento')
+                                            ->label('✅ Treinamento realizado')
+                                            ->live(),
+
+                                        Checkbox::make('nr1_checklist.relatorio')
+                                            ->label('✅ Relatório Final entregue')
+                                            ->live(),
+
+                                        Placeholder::make('nr1_progresso')
+                                            ->label('Progresso')
+                                            ->content(function (Get $get): string {
+                                                $itens = ['avaliacao', 'devolutiva', 'plano', 'treinamento', 'relatorio'];
+                                                $checklist = $get('nr1_checklist') ?? [];
+                                                $done = count(array_filter($itens, fn ($i) => ! empty($checklist[$i])));
+                                                $pct = (int) round(($done / count($itens)) * 100);
+
+                                                return "{$done}/5 itens concluídos ({$pct}%)";
+                                            }),
+                                    ]),
+
+                                Section::make('Status NR-1')
+                                    ->columns(1)
                                     ->components([
                                         Select::make('nr1_status')
                                             ->label('Status NR-1')
                                             ->options([
-                                                'pendente' => 'Pendente',
+                                                'pendente'     => 'Pendente',
                                                 'em_andamento' => 'Em Andamento',
                                                 'regularizada' => 'Regularizada',
                                             ])
                                             ->default('pendente')
                                             ->native(false)
-                                            ->columnSpanFull(),
+                                            ->helperText('Atualizado automaticamente conforme o checklist.'),
                                     ]),
 
                                 Section::make('Observações')

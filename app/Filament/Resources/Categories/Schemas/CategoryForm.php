@@ -18,6 +18,7 @@ class CategoryForm
             ->components([
                 Section::make('Plano de Contas')
                     ->columns(2)
+                    ->columnSpanFull()
                     ->components([
                         SelectTree::make('parent_id')
                             ->label('Conta Pai')

@@ -1,0 +1,112 @@
+Milestone 2 — Financeiro Base e Ciclo de Vida do Contrato
+
+  O foco é transformar o Contrato em algo que gera automaticamente o financeiro e respeita as regras de negócio do ciclo de vida
+  (RN01, RN10).
+
+  O que será implementado
+
+  1. ReceivableResource (Contas a Receber)
+
+  CRUD no Filament para gerenciar parcelas a receber.
+
+  - Form com Tabs: Identificação (cliente, contrato, categoria, descrição) | Valores (valor, valor pago, parcela) | Pagamento
+  (vencimento, data pagamento, forma, status)
+  - Tabela com badges de status (pendente/pago/cancelado/vencido), filtros por cliente, status, período de vencimento
+  - Coluna de "atraso" calculada (dias vencidos)
+  - Vínculo com Cliente, Contrato e Categoria
+
+  2. PayableResource (Contas a Pagar)
+
+  CRUD no Filament para despesas/custos.
+
+  - Form com Tabs: Identificação (fornecedor, descrição, categoria) | Valores | Pagamento
+  - Tabela com badges de status, filtros por categoria e período
+  - Vínculo obrigatório com Categoria do Plano de Contas (Custos/Despesas)
+
+  3. RN01 + RN10.1 — Geração automática de Receivables
+
+  Lógica disparada quando um Contrato é criado como ativo ou alterado para ativo.
+
+  - Implementação: Observer no Contract (ContractObserver) ou listener no Filament Page
+  - Comportamento:
+    - Calcula valor_parcela = valor_total / quantidade_parcelas
+    - Gera N parcelas em receivables, com vencimentos mensais a partir de data_inicio
+    - Cada parcela herda: client_id, contract_id, category_id, forma_pagamento, created_by
+    - numero_parcela sequencial, descrição padrão "Parcela X/Y - Contrato {numero}"
+    - Status inicial: pendente
+
+  4. RN10.2 — Estorno automático no cancelamento
+
+  Quando o status do Contrato muda para cancelado:
+
+  - Localiza todos os receivables vinculados com status pendente
+  - Atualiza para cancelado em massa
+  - Parcelas já pagas permanecem inalteradas (intervenção manual)
+
+  5. RN10.3 — Bloqueio de exclusão
+
+  - Antes de excluir um Contrato, verificar se há receivables com status pago
+  - Se houver, lançar exceção ou bloquear via Observer (deleting)
+  - Mostrar notificação Filament explicando o motivo
+
+  6. RN05 — Quitação em Lote (Bulk Action)
+
+  Bulk Action Marcar como Pago em ReceivableResource e PayableResource:
+
+  - Atualiza status para pago/recebido
+  - Preenche data_pagamento com hoje
+  - Preenche valor_pago com valor da parcela
+  - Notificação de sucesso com a contagem
+
+  7. Relation Manager: Receivables no Contract
+
+  Adicionar uma aba/painel "Parcelas" dentro do EditContract mostrando os receivables gerados, em modo read-only ou com edição inline
+   limitada.
+
+  O que NÃO entra no Milestone 2 (fica para os próximos)
+
+  - Boletos e Remessas CNAB (Milestone 3)
+  - Notificações de vencimento (RN08) — vai junto com o módulo de alertas
+  - DRE e relatórios — Milestone 4
+  - Faturamento em lote (RN04) — depende do fluxo de boletos
+
+  Arquivos que serão criados/alterados
+
+  - app/Filament/Resources/Receivables/* (Resource + Schemas + Tables + Pages)
+  - app/Filament/Resources/Payables/* (Resource + Schemas + Tables + Pages)
+  - app/Observers/ContractObserver.php (geração + estorno + bloqueio)
+  - app/Providers/AppServiceProvider.php (registrar observer)
+  - app/Filament/Resources/Contracts/RelationManagers/ReceivablesRelationManager.php
+  - Atualização do ContractResource para registrar o RelationManager
+
+  -------------------------------------------------------------------------------------------------------------------------
+  
+  Milestone 2 — Concluído
+
+  Implementado:
+
+  1. ContractObserver (app/Observers/ContractObserver.php) registrado em AppServiceProvider
+    - RN01 — geração automática de parcelas no created (se status=ativo)
+    - RN10.1 — gera parcelas quando contrato é ativado
+    - RN10.2 — cancela receivables pendentes quando contrato é cancelado
+    - RN10.3 — bloqueia exclusão de contrato com parcelas pagas
+  2. ReceivableResource (Financeiro, sort 2)
+    - Form com 3 Tabs (Identificação, Valores, Pagamento)
+    - Coluna calculada dias_atraso (badge danger)
+    - Filtros: status, cliente, categoria, "vencidas (não pagas)"
+    - RN05 — BulkAction marcarPago
+    - Badge de navegação (pendentes)
+  3. PayableResource (Financeiro, sort 3) — mesmo padrão (fornecedor em vez de cliente)
+  4. ReceivablesRelationManager registrado em ContractResource
+    - Aba "Parcelas" no EditContract com mesma coluna dias_atraso e BulkAction de quitação
+
+  Smoke test E2E (executado com sucesso):
+  Contract created. Receivables: 3
+   - P1 R$1000.00 venc 06/04/2026 pendente
+   - P2 R$1000.00 venc 06/05/2026 pendente
+   - P3 R$1000.00 venc 06/06/2026 pendente
+  After cancel. Pendentes: 0 Cancelados: 3
+  Block OK: Não é possível excluir um contrato com parcelas já pagas...
+
+  Pode validar acessando o painel: criar um contrato com status ativo e abrir a aba "Parcelas" no EditContract. Aguardo seu OK para
+  avançar para o Milestone 3.

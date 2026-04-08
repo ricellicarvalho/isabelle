@@ -1,0 +1,93 @@
+Milestone 3 — Plano de Contas Hierárquico + Bancário Base
+
+  Objetivo: entregar a infraestrutura financeira/contábil que destrava DRE, fluxo de caixa, boletos e remessas (Milestones 4 e 5).
+
+  O que será feito
+
+  1. Plano de Contas com árvore hierárquica (RN03)
+  - Instalar solution-forest/filament-tree e codewithdennis/filament-select-tree
+  - Refatorar CategoryResource para usar TreeWidget/TreeResource — listagem visual em árvore arrastável (drag-and-drop reorder)
+  - Substituir o Select simples de parent_id no form pelo SelectTree (impede ciclos e respeita hierarquia)
+  - Adicionar coluna order na migration de categories (necessária para o plugin tree) — gerar migration adicional
+  - Helper no model Category::getFullCodigoAttribute() — exibe código hierárquico (ex: "1.1.2")
+  - Atualizar ReceivableResource/PayableResource/ContractResource para usar SelectTree ao escolher categoria
+
+  2. BankBoleto — Resource base (sem geração CNAB ainda)
+  - BankBoletoResource em grupo "Financeiro" (sort 4)
+  - Form com Tabs: Identificação (receivable_id, numero_documento, carteira), Valores (valor, data_vencimento), Códigos
+  (nosso_numero, codigo_barras, linha_digitavel), Status
+  - Vínculo obrigatório com Receivable (RN11)
+  - Action customizada "Gerar Boleto" no ReceivableResource — cria registro BankBoleto herdando valor e data_vencimento da parcela
+  (RN16)
+  - Geração automática de nosso_numero sequencial único (RN12) — implementação simples por ora (incremental), o CNAB real fica para
+  Milestone 5
+  - Coluna valor, data_vencimento, status (pendente/emitido/pago/cancelado) com badges
+  - Filtros: status, carteira, intervalo de datas
+
+  3. BankRemessa — Resource base (sem CNAB ainda)
+  - BankRemessaResource em grupo "Financeiro" (sort 5)
+  - Listagem read-only: sequencial_arquivo, data_geracao, quantidade_titulos, valor_total
+  - RelationManager BoletosRelationManager mostrando boletos vinculados à remessa
+  - Sem criação manual — registros surgirão via Bulk Action no Milestone 5
+
+  4. RelationManagers cruzados
+  - BankBoletosRelationManager no ReceivableResource (mostra boletos da parcela)
+
+  5. Smoke test
+  - Criar contrato → gerar receivables → executar action "Gerar Boleto" → verificar BankBoleto criado com nosso_numero único
+
+  Arquivos que serão criados/alterados
+
+  - composer.json (novos plugins)
+  - database/migrations/xxxx_add_order_to_categories_table.php
+  - app/Models/Category.php (accessor)
+  - app/Filament/Resources/Categories/* (refatoração para tree)
+  - app/Filament/Resources/Contracts/Schemas/ContractForm.php (SelectTree)
+  - app/Filament/Resources/Receivables/Schemas/ReceivableForm.php (SelectTree)
+  - app/Filament/Resources/Payables/Schemas/PayableForm.php (SelectTree)
+  - app/Filament/Resources/BankBoletos/* (6 arquivos novos)
+  - app/Filament/Resources/BankRemessas/* (6 arquivos novos)
+  - app/Filament/Resources/Receivables/RelationManagers/BankBoletosRelationManager.php
+  - app/Filament/Resources/BankRemessas/RelationManagers/BoletosRelationManager.php
+  - app/Filament/Resources/Receivables/Tables/ReceivablesTable.php (action "Gerar Boleto")
+
+  Fora de escopo (fica para Milestone 5)
+
+  - Geração efetiva de arquivo CNAB 240/400 (RN13/RN15)
+  - Bulk Action "Gerar Arquivo de Remessa"
+  - Cálculo real de código de barras e linha digitável (apenas placeholders por enquanto)
+
+  Posso prosseguir?
+  
+  ------------------------------------------------------------------------------------------------------------------------
+  
+  Milestone 3 — Concluído
+
+  Implementado:
+
+  1. Plugins instalados: solution-forest/filament-tree v4 + codewithdennis/filament-select-tree v4
+  2. Category agora usa ModelTree (overrides para parent_id nullable: defaultParentKey, scopeIsRoot, getHighestOrderNumber); accessor
+   codigo_completo
+  3. config/filament-tree.php — column_name.title = descricao
+  4. ListCategories refatorada como TreePage (drag-and-drop, depth máx. 4)
+  5. SelectTree substituiu Select em: CategoryForm, ContractForm, ReceivableForm, PayableForm (campo parent_id/category_id)
+  6. BankBoletoService — generateNossoNumero() (RN12) e createFromReceivable() (RN16)
+  7. BankBoletoResource completo (Form 3 Tabs: Identificação / Valores / Códigos Bancários; tabela com badges, filtros por
+  status/carteira; navegação badge para pendentes; sort 4)
+  8. BankRemessaResource read-only (sort 5; canCreate=false; BoletosRelationManager mostrando boletos vinculados)
+  9. BankBoletosRelationManager registrado em ReceivableResource (boletos da parcela)
+  10. Action "Gerar Boleto" em ReceivablesTable — visível só para pendente/vencido, cria BankBoleto herdando valor e vencimento
+
+  Smoke test E2E executado:
+  Receivables: 2
+  Boleto NN: 00000000001 valor R$1000.00 venc 07/04/2026
+  Receivable->bankBoletos count: 1
+
+  Pode validar:
+  - Plano de Contas → árvore com drag-and-drop
+  - Contratos / Contas a Receber / Contas a Pagar → seletor de categoria agora é em árvore
+  - Contas a Receber → action "Gerar Boleto" em parcelas pendentes
+  - Boletos (novo menu) → listagem + edição
+  - Remessas Bancárias (novo menu) → vazio (criação só no Milestone 5)
+
+  Aguardo seu OK para o Milestone 4.

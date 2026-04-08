@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "66c33ffa1611582e6adf44e96f720639",
+    "content-hash": "362c3cb1559bfad50fe7bfe6f86e63b4",
     "packages": [
         {
             "name": "barryvdh/laravel-dompdf",
@@ -4273,6 +4273,79 @@
             "time": "2026-01-02T08:56:05+00:00"
         },
         {
+            "name": "mwguerra/filemanager",
+            "version": "v2.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/mwguerra/filemanager.git",
+                "reference": "494c88242e1c50c4a94dce6ef5eb3d9a12c9582a"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/mwguerra/filemanager/zipball/494c88242e1c50c4a94dce6ef5eb3d9a12c9582a",
+                "reference": "494c88242e1c50c4a94dce6ef5eb3d9a12c9582a",
+                "shasum": ""
+            },
+            "require": {
+                "filament/filament": "^5.0",
+                "illuminate/contracts": "^12.0|^13.0",
+                "php": "^8.2",
+                "spatie/laravel-package-tools": "^1.16"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^10.0",
+                "pestphp/pest": "^3.0",
+                "pestphp/pest-plugin-laravel": "^3.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "MWGuerra\\FileManager\\FileManagerServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "files": [
+                    "src/helpers.php"
+                ],
+                "psr-4": {
+                    "MWGuerra\\FileManager\\": "src/",
+                    "MWGuerra\\FileManager\\Database\\Seeders\\": "database/seeders/",
+                    "MWGuerra\\FileManager\\Database\\Factories\\": "database/factories/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Marcelo W. Guerra",
+                    "email": "contact@mwguerra.com",
+                    "homepage": "https://mwguerra.com",
+                    "role": "Developer"
+                }
+            ],
+            "description": "A full-featured file manager package for Laravel and Filament v5 with dual operating modes, drag-and-drop uploads, S3/MinIO support, and comprehensive security features.",
+            "homepage": "https://github.com/mwguerra/filemanager",
+            "keywords": [
+                "filament",
+                "file-manager",
+                "laravel",
+                "media-library",
+                "minio",
+                "s3",
+                "storage",
+                "upload"
+            ],
+            "support": {
+                "issues": "https://github.com/mwguerra/filemanager/issues",
+                "source": "https://github.com/mwguerra/filemanager"
+            },
+            "time": "2026-03-18T18:56:42+00:00"
+        },
+        {
             "name": "nesbot/carbon",
             "version": "3.11.3",
             "source": {
@@ -5906,6 +5979,80 @@
                 "source": "https://github.com/ramsey/uuid/tree/4.9.2"
             },
             "time": "2025-12-14T04:43:48+00:00"
+        },
+        {
+            "name": "saade/filament-fullcalendar",
+            "version": "v4.0.0-beta6",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/saade/filament-fullcalendar.git",
+                "reference": "c0968c1d297e2dd5b937b0cffa29d800138dc3e1"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/saade/filament-fullcalendar/zipball/c0968c1d297e2dd5b937b0cffa29d800138dc3e1",
+                "reference": "c0968c1d297e2dd5b937b0cffa29d800138dc3e1",
+                "shasum": ""
+            },
+            "require": {
+                "filament/filament": "^4.0|^5.0",
+                "illuminate/contracts": "^10.0|^11.0|^12.0|^13.0",
+                "php": "^8.2",
+                "spatie/laravel-package-tools": "^1.92.7"
+            },
+            "require-dev": {
+                "nunomaduro/collision": "^7.0|^8.0",
+                "nunomaduro/larastan": "^2.0",
+                "phpstan/extension-installer": "^1.1",
+                "phpstan/phpstan-deprecation-rules": "^1.0|^2.0",
+                "phpstan/phpstan-phpunit": "^1.0|^2.0",
+                "spatie/laravel-ray": "^1.26"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Saade\\FilamentFullCalendar\\FilamentFullCalendarServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "files": [
+                    "src/helpers.php"
+                ],
+                "psr-4": {
+                    "Saade\\FilamentFullCalendar\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Saade",
+                    "email": "saade@outlook.com.br",
+                    "role": "Developer"
+                }
+            ],
+            "description": "The Most Popular JavaScript Calendar integrated with Filament 💛",
+            "homepage": "https://github.com/saade/filament-fullcalendar",
+            "keywords": [
+                "filament-fullcalendar",
+                "laravel",
+                "saade"
+            ],
+            "support": {
+                "issues": "https://github.com/saade/filament-fullcalendar/issues",
+                "source": "https://github.com/saade/filament-fullcalendar/tree/v4.0.0-beta6"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/saade",
+                    "type": "github"
+                }
+            ],
+            "time": "2026-03-25T19:19:41+00:00"
         },
         {
             "name": "sabberworm/php-css-parser",
@@ -13650,7 +13797,9 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": {
+        "saade/filament-fullcalendar": 10
+    },
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {

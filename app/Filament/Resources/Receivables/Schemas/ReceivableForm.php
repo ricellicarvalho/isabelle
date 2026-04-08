@@ -12,6 +12,7 @@ use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Filament\Support\RawJs;
 
 class ReceivableForm
 {
@@ -67,9 +68,11 @@ class ReceivableForm
                                         TextInput::make('valor')
                                             ->label('Valor')
                                             ->required()
-                                            ->numeric()
                                             ->prefix('R$')
-                                            ->minValue(0),
+                                            ->mask(RawJs::make('$money($input, \',\', \'.\', 2)'))
+                                            ->stripCharacters('.')
+                                            ->dehydrateStateUsing(fn ($state) => filled($state) ? (float) str_replace(',', '.', $state) : null)
+                                            ->rule('gte:0'),
 
                                         TextInput::make('numero_parcela')
                                             ->label('Número da Parcela')
@@ -79,9 +82,11 @@ class ReceivableForm
 
                                         TextInput::make('valor_pago')
                                             ->label('Valor Pago')
-                                            ->numeric()
                                             ->prefix('R$')
-                                            ->minValue(0),
+                                            ->mask(RawJs::make('$money($input, \',\', \'.\', 2)'))
+                                            ->stripCharacters('.')
+                                            ->dehydrateStateUsing(fn ($state) => filled($state) ? (float) str_replace(',', '.', $state) : null)
+                                            ->rule('gte:0'),
                                     ]),
                             ]),
 

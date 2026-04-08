@@ -1,0 +1,131 @@
+Milestone 4 — Relatórios Financeiros + Faturamento em Lote
+
+  Objetivo: entregar a camada de inteligência financeira (DRE, Fluxo de Caixa) e a operação de cobrança em escala (RN04 - Faturamento
+   em Lote), aproveitando tudo que foi construído nos Milestones 2 e 3.
+
+  O que será feito
+
+  1. DRE — Demonstrativo de Resultados
+  - Página customizada Pages/DreReport em grupo "Relatórios" (novo navigation group)
+  - Filtros: período (mês/ano), comparativo opcional com período anterior
+  - Estrutura hierárquica baseada no Plano de Contas:
+    - Receitas (do tipo=receita) — soma de receivables com status pago no período (por data_pagamento)
+    - (–) Custos (do tipo=custo) — soma de payables pagos
+    - = Lucro Bruto
+    - (–) Despesas (do tipo=despesa) — soma de payables pagos
+    - = Lucro/Prejuízo Líquido
+  - Cada categoria pai mostra subtotal recursivo (filhos somados)
+  - Indicador de margem percentual (Lucro Líquido / Receita Total)
+  - Componentes Filament: Section, Stack, badges coloridos por positivo/negativo
+  - Exportação PDF via barryvdh/laravel-dompdf (instalar) — botão de header com layout limpo
+  - Service App\Services\DreService — método generate(Carbon $inicio, Carbon $fim): array retornando árvore com totais; reutilizável
+  para PDF e tela
+
+  2. Fluxo de Caixa
+  - Página customizada Pages/CashFlowReport em "Relatórios"
+  - Filtros: período (data inicial / data final), regime (caixa = data_pagamento | competência = data_vencimento)
+  - Tabela com colunas: Data | Descrição | Categoria | Tipo (Entrada/Saída) | Valor | Saldo Acumulado
+  - Linha de cabeçalho com Saldo Inicial (configurável; por enquanto 0 ou input manual)
+  - Totalizadores: Total Entradas, Total Saídas, Saldo Final
+  - Service App\Services\CashFlowService::generate(...) — unifica receivables e payables ordenados por data
+  - Exportação Excel via maatwebsite/excel (instalar)
+
+  3. RN04 — Faturamento em Lote (na listagem de Contratos)
+  - BulkAction faturar em ContractsTable:
+    - Visível para contratos ativo ou pendente_faturamento
+    - Modal com confirmação + opção "marcar contratos como faturados"
+    - Para cada contrato selecionado, garante que os receivables existem (se contrato foi criado em status diferente de ativo, o
+  Observer não gerou — agora gera)
+    - Conta quantas parcelas foram criadas e exibe notification
+  - Action complementar gerarBoletosLote na BulkAction de ReceivablesTable:
+    - Para parcelas selecionadas com forma_pagamento=boleto e sem boleto vinculado, cria via
+  BankBoletoService::createFromReceivable()
+    - Notification com contagem
+
+  4. Dashboard com Widgets Financeiros (substitui o dashboard padrão)
+  - App\Filament\Widgets\FinanceStatsOverview — StatsOverviewWidget com 4 cards:
+    - Receitas do Mês (recebidas + a receber)
+    - Despesas do Mês (pagas + a pagar)
+    - Saldo Projetado (Receitas - Despesas)
+    - Inadimplência (parcelas vencidas, em R$ + contagem)
+  - App\Filament\Widgets\OverdueReceivablesTable — TableWidget mostrando top 10 parcelas vencidas com link rápido para o registro
+  - Registrar widgets no AdminPanelProvider
+
+  5. Permissão básica de visibilidade (RN06 preparatório)
+  - Embora Shield esteja fora de escopo, adicionar uma flag simples em User (já existe is_admin?) ou método helper para futura
+  segregação. Implementação: apenas comentário/TODO no código indicando onde Shield entrará no futuro. Sem mudança estrutural.
+
+  6. Smoke test
+  - Criar dataset: contrato com 3 parcelas (1 paga, 1 vencida, 1 pendente) + 2 payables (1 pago de despesa, 1 pago de custo)
+  - Executar DreService::generate() para o mês corrente → validar totais
+  - Executar CashFlowService::generate() → validar saldo acumulado
+
+  Arquivos que serão criados/alterados
+
+  - composer.json (novos pacotes: barryvdh/laravel-dompdf, maatwebsite/excel)
+  - app/Services/DreService.php (novo)
+  - app/Services/CashFlowService.php (novo)
+  - app/Filament/Pages/DreReport.php (novo)
+  - app/Filament/Pages/CashFlowReport.php (novo)
+  - resources/views/filament/pages/dre-report.blade.php (novo)
+  - resources/views/filament/pages/cash-flow-report.blade.php (novo)
+  - resources/views/pdf/dre.blade.php (novo)
+  - app/Exports/CashFlowExport.php (novo)
+  - app/Filament/Widgets/FinanceStatsOverview.php (novo)
+  - app/Filament/Widgets/OverdueReceivablesTable.php (novo)
+  - app/Filament/Resources/Contracts/Tables/ContractsTable.php (RN04 BulkAction)
+  - app/Filament/Resources/Receivables/Tables/ReceivablesTable.php (BulkAction gerarBoletosLote)
+  - app/Providers/Filament/AdminPanelProvider.php (registrar widgets + grupo "Relatórios")
+
+  Fora de escopo (ficam para outros milestones)
+
+  - Geração CNAB real e remessa em lote (M5)
+  - Eventos/Agenda (M6)
+  - Portal do Cliente (M7)
+  - Precificação (M8)
+  - Alertas RN08 (M9 - notificações scheduled)
+
+  Posso prosseguir?
+  
+  ----------------------------------------------------------------------------------------------------------------------
+  Milestone 4 — Concluído
+
+  Implementado:
+
+  1. Pacotes instalados: barryvdh/laravel-dompdf v3.1, maatwebsite/excel v3.1
+  2. DreService — gera DRE hierárquico (regime caixa) navegando o Plano de Contas; soma recursivamente subtotais; calcula Lucro
+  Bruto, Lucro Líquido e margem %
+  3. CashFlowService — unifica receivables + payables ordenados por data; suporta regime caixa (data_pagamento) ou competencia
+  (data_vencimento); calcula saldo acumulado linha-a-linha
+  4. Página DreReport (Relatórios, sort 1) — filtros de período reativo (live()), 4 cards de resumo, tabela hierárquica colorida por
+  seção, header action Exportar PDF (template pdf/dre.blade.php em DejaVu Sans)
+  5. Página CashFlowReport (Relatórios, sort 2) — filtros: período + regime + saldo inicial; tabela com saldo acumulado; header
+  action Exportar Excel via CashFlowExport
+  6. Widgets do Dashboard:
+    - FinanceStatsOverview — 4 stats (Receitas do Mês, Despesas do Mês, Saldo Projetado, Inadimplência)
+    - OverdueReceivablesTable — top parcelas vencidas com link direto
+  7. AdminPanelProvider — navigationGroups ordenados (CRM → Financeiro → Relatórios), widgets registrados, removido
+  FilamentInfoWidget
+  8. RN04 — BulkAction faturar em ContractsTable — para cada contrato selecionado, ativa (se rascunho) ou força geração de
+  receivables (se ativo sem parcelas); ignora cancelados
+  9. BulkAction gerarBoletosLote em ReceivablesTable — gera boletos para parcelas selecionadas com forma_pagamento=boleto que ainda
+  não tenham boleto
+  10. ContractObserver::generateReceivables promovido a public para reuso em Bulk Actions
+
+  Smoke test E2E executado:
+  Antes faturar: 0 parcelas
+  Após faturar: 3 parcelas
+  DRE rec=1000 cust=200 desp=100 liq=700
+  Boletos gerados: 2
+  CF entradas=1000 saidas=300 final=5700
+  PDF size: 878524 bytes
+  XLSX size: 6380 bytes
+
+  Pode validar no painel:
+  - Dashboard — 4 cards de stats + tabela de vencidas
+  - Relatórios → DRE — filtros reativos + Exportar PDF
+  - Relatórios → Fluxo de Caixa — regime caixa/competência + Exportar Excel
+  - Contratos — selecionar múltiplos → "Faturar (gerar parcelas)"
+  - Contas a Receber — selecionar parcelas pendentes (boleto) → "Gerar Boletos"
+
+  Aguardo seu OK para o Milestone 5.

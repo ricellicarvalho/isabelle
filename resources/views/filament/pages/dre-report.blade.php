@@ -1,7 +1,7 @@
 <x-filament-panels::page>
-    <x-filament-panels::form wire:submit="generateReport">
+    <form wire:submit.prevent="generateReport">
         {{ $this->form }}
-    </x-filament-panels::form>
+    </form>
 
     @if ($report)
         @php

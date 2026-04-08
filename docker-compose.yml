@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - uid=1000
+        - uid=${APP_UID:-1000}
         - user=ricelli
     container_name: isabelle_app
     restart: always

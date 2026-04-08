@@ -23,6 +23,8 @@ class CategoryResource extends Resource
 
     protected static ?string $pluralModelLabel = 'plano de contas';
 
+    protected static ?string $navigationLabel = 'Plano de Contas';
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::ListBullet;
 
     protected static string|UnitEnum|null $navigationGroup = 'Financeiro';

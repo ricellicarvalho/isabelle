@@ -46,6 +46,35 @@ class Client extends Model
         ];
     }
 
+    /**
+     * RN07 — Retorna se todos os itens obrigatórios do checklist NR-1 estão concluídos.
+     */
+    public function nr1ChecklistCompleto(): bool
+    {
+        $checklist = $this->nr1_checklist ?? [];
+        $itens = ['avaliacao', 'devolutiva', 'plano', 'treinamento', 'relatorio'];
+
+        foreach ($itens as $item) {
+            if (empty($checklist[$item])) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * RN07 — Percentual de conclusão do checklist NR-1 (0-100).
+     */
+    public function nr1ChecklistProgresso(): int
+    {
+        $checklist = $this->nr1_checklist ?? [];
+        $itens = ['avaliacao', 'devolutiva', 'plano', 'treinamento', 'relatorio'];
+        $concluidos = count(array_filter($itens, fn ($i) => ! empty($checklist[$i])));
+
+        return (int) round(($concluidos / count($itens)) * 100);
+    }
+
     public function portalUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'portal_user_id');

@@ -6,6 +6,7 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use App\Models\Client;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
@@ -50,16 +51,27 @@ class ClientsTable
                     ->label('UF')
                     ->sortable(),
 
+                TextColumn::make('nr1_checklist_progresso')
+                    ->label('Checklist NR-1')
+                    ->state(fn (Client $record): string => $record->nr1ChecklistProgresso() . '%')
+                    ->badge()
+                    ->color(fn (Client $record): string => match (true) {
+                        $record->nr1ChecklistProgresso() === 100 => 'success',
+                        $record->nr1ChecklistProgresso() > 0     => 'warning',
+                        default                                  => 'danger',
+                    })
+                    ->sortable(false),
+
                 TextColumn::make('nr1_status')
                     ->label('NR-1')
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
-                        'pendente' => 'danger',
+                        'pendente'     => 'danger',
                         'em_andamento' => 'warning',
                         'regularizada' => 'success',
                     })
                     ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'pendente' => 'Pendente',
+                        'pendente'     => 'Pendente',
                         'em_andamento' => 'Em Andamento',
                         'regularizada' => 'Regularizada',
                     }),

@@ -2,17 +2,20 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Widgets\CalendarWidget;
+use App\Filament\Widgets\FinanceStatsOverview;
+use App\Filament\Widgets\OverdueReceivablesTable;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use App\Filament\Widgets\FinanceStatsOverview;
-use App\Filament\Widgets\OverdueReceivablesTable;
+use Saade\FilamentFullCalendar\FilamentFullCalendarPlugin;
 use Filament\Navigation\NavigationGroup;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\Support\Enums\Width;
 use Filament\Widgets\AccountWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -28,6 +31,7 @@ class AdminPanelProvider extends PanelProvider
         return $panel
             ->sidebarCollapsibleOnDesktop()
             ->sidebarWidth('17rem')
+            ->maxContentWidth(Width::Full)
             ->default()
             ->font('Kode Mono')
             ->favicon(asset('images/favicon.ico'))
@@ -40,6 +44,13 @@ class AdminPanelProvider extends PanelProvider
             ->passwordReset()
             ->spa()
             ->profile()
+            ->plugins([
+                FilamentFullCalendarPlugin::make()
+                    ->selectable()
+                    ->editable()
+                    ->timezone('America/Araguaina')
+                    ->locale('pt-br'),
+            ])
             ->colors([
                 // Definindo a sua cor customizada com o nome 'brand'
                 'brand' => [
@@ -90,6 +101,7 @@ class AdminPanelProvider extends PanelProvider
                 AccountWidget::class,
                 FinanceStatsOverview::class,
                 OverdueReceivablesTable::class,
+                CalendarWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,

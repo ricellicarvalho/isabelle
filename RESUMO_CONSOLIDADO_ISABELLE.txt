@@ -1,0 +1,341 @@
+================================================================================
+  RESUMO CONSOLIDADO — SISTEMA ISABELLE (ERP NR-1)
+  Gerado em: 2026-04-07  |  Para uso na próxima sessão de desenvolvimento
+================================================================================
+
+--------------------------------------------------------------------------------
+1. VISÃO GERAL
+--------------------------------------------------------------------------------
+Sistema de gestão para consultoria psicossocial e conformidade NR-1.
+Uma única empresa (sem multitenancy/Team). Portal separado para clientes finais.
+
+Stack:
+  - PHP 8.2 / Laravel 12
+  - FilamentPHP v5 (painel admin em /admin, painel portal em /portal)
+  - MySQL 8.0 (container: isabelle_db, porta 3310)
+  - Node/Vite (porta 5174)
+  - Nginx (porta 8006) → PHP-FPM (porta 9004)
+  - Container app: isabelle_app
+
+Login admin: admin@isabelle.com.br / password
+
+--------------------------------------------------------------------------------
+2. PLUGINS INSTALADOS (composer.json)
+--------------------------------------------------------------------------------
+  filament/filament                    ^5.0
+  solution-forest/filament-tree        ^4.0   → Plano de Contas (ListCategories como TreePage)
+  codewithdennis/filament-select-tree  ^4.0   → SelectTree em formulários de categoria
+  saade/filament-fullcalendar          ^4.0@beta (v4.0.0-beta6) → CalendarWidget + EventResource
+  eduardokum/laravel-boleto            ^0.1.0 → PDF de boletos + CNAB (com workarounds Bradesco)
+  barryvdh/laravel-dompdf              ^3.1   → Export PDF (DRE, Precificação)
+  maatwebsite/excel                    ^3.1   → Export Excel (Fluxo de Caixa)
+  mwguerra/filemanager                 ^2.0   → File manager (usado pelo Portal)
+
+Dev: laravel-shift/blueprint, laravel-lang/common
+
+NOTA: composer.json possui audit.ignore para PKSA-21fb-n1x5-5nf7
+(advisory de segurança em league/commonmark que não afeta o sistema)
+
+--------------------------------------------------------------------------------
+3. STATUS DOS MILESTONES
+--------------------------------------------------------------------------------
+
+M1 ✅ — Fundação
+  - Seeder: admin user + 12 categorias padrão (Receitas/Custos/Despesas)
+  - ClientResource, CategoryResource, ContractResource
+
+M2 ✅ — Financeiro Base / Ciclo de Vida do Contrato
+  - ReceivableResource + PayableResource
+  - ContractObserver (RN01/RN10.1/RN10.2/RN10.3)
+  - ReceivablesRelationManager em ContractResource
+
+M3 ✅ — Plano de Contas Hierárquico + Bancário Base
+  - CategoryResource como TreePage (drag-and-drop)
+  - SelectTree em Contratos, Receivables, Payables
+  - BankBoletoResource + BankRemessaResource (base)
+  - BankBoletoService (generateNossoNumero RN12, createFromReceivable RN16)
+  - BankBoletosRelationManager em ReceivableResource
+
+M4 ✅ — Relatórios + Dashboard + Faturamento em Lote
+  - DreService + CashFlowService
+  - DreReport page + CashFlowReport page
+  - Export PDF (DRE) + Export Excel (Fluxo de Caixa)
+  - Widgets: FinanceStatsOverview + OverdueReceivablesTable
+  - BulkAction "Faturar em Lote" em ContractsTable (RN04)
+  - BulkAction "Gerar Boletos em Lote" em ReceivablesTable
+
+M5 ✅ — Boletos PDF + Remessas CNAB
+  - BankAccount model + Resource (em Configurações)
+  - BankBoletoService::renderPdf() + buildLibBoleto() usando eduardokum/laravel-boleto
+  - CnabRemessaService (RN13/RN14/RN15) — gera arquivo .rem, salva em storage/app/remessas/
+  - Workarounds Bradesco: app/Services/Boleto/Bancos/Bradesco.php (FEBRABAN 4015)
+                          app/Services/Boleto/Cnab/BradescoRemessa.php (typo getAcencia)
+  - Action "Baixar PDF" em BankBoletosTable (row) e EditBankBoleto (header)
+  - BulkAction "Gerar Arquivo de Remessa" em BankBoletosTable
+  - Action "Baixar Arquivo" em BankRemessasTable e ViewBankRemessa (header)
+  - ReceivableObserver (RN14) — cancela boletos ao cancelar receivable
+
+M6 ✅ — Eventos/Agenda + NR-1
+  - EventResource (CRM, sort 3): tipos, responsável, bloqueio de agenda (RN09), cor
+  - CalendarWidget: widget no Dashboard — fetchEvents com cores por tipo
+  - FilamentFullCalendarPlugin registrado no AdminPanelProvider
+  - ClientObserver (RN07): sincroniza nr1_status no saving (pendente/em_andamento/regularizada)
+  - ClientForm: checkboxes por item (avaliacao, devolutiva, plano, treinamento, relatorio)
+               + Placeholder de progresso percentual
+  - ClientsTable: coluna badge "Checklist NR-1" com %
+
+M7 ✅ — PricingResource (Calculadora de Margem)
+  - PricingResource (Relatórios, sort 3)
+  - Fórmula: preco_venda = custo_total / (1 - margem/100)
+  - Recálculo automático live(onBlur) com afterStateUpdated
+  - Export PDF via DomPDF (resources/views/pdf/pricing.blade.php)
+
+M8 ✅ — Portal do Cliente
+  - PortalPanelProvider → painel em /portal
+  - EnsurePortalClient middleware (verifica portal_user_id no Client)
+  - Portal Resources (read-only, isolados por client_id):
+      ContractResource: listagem + ViewRecord
+      BankBoletoResource: listagem + download PDF (pendente/emitido)
+      ClientDocumentResource: listagem + download arquivo (visivel_portal=true)
+  - ClientDocumentResource no painel admin (CRM, sort 4) — consultores fazem upload
+  - Migration create_file_system_items_table executada (mwguerra/filemanager)
+
+--------------------------------------------------------------------------------
+4. ENTIDADES E MIGRATIONS (banco sincronizado)
+--------------------------------------------------------------------------------
+Todas as migrations estão com status "Ran". Entidades:
+
+  users                      → app/Models/User.php
+  clients                    → app/Models/Client.php       (nr1_checklist JSON, portal_user_id)
+  contracts                  → app/Models/Contract.php
+  categories                 → app/Models/Category.php     (hierárquica, ModelTree)
+  receivables                → app/Models/Receivable.php
+  payables                   → app/Models/Payable.php
+  bank_boletos               → app/Models/BankBoleto.php   (instrucao_remessa, nosso_numero unique)
+  bank_remessas              → app/Models/BankRemessa.php
+  bank_accounts              → app/Models/BankAccount.php  (reserveNossoNumero com lock)
+  events                     → app/Models/Event.php        (dia_inteiro, bloquear_agenda, cor)
+  pricings                   → app/Models/Pricing.php      (custo_direto, custo_indireto, margem_lucro, preco_venda)
+  client_documents           → app/Models/ClientDocument.php (visivel_portal, caminho_arquivo)
+  file_system_items          → (tabela interna do mwguerra/filemanager)
+
+NÃO existe entidade "Supplier/Fornecedor" — ver item 6 (pendências).
+O campo "fornecedor" em Payables é uma string livre (campo texto), sem FK.
+
+--------------------------------------------------------------------------------
+5. ESTRUTURA DE ARQUIVOS RELEVANTES
+--------------------------------------------------------------------------------
+
+app/
+  Filament/
+    Resources/
+      BankAccounts/          → BankAccountResource (Configurações, sort 1)
+      BankBoletos/           → BankBoletoResource  (Financeiro, sort 4)
+      BankRemessas/          → BankRemessaResource (Financeiro, sort 5)
+      Categories/            → CategoryResource    (Financeiro, sort 1 — TreePage)
+      ClientDocuments/       → ClientDocumentResource (CRM, sort 4)
+      Clients/               → ClientResource      (CRM, sort 1)
+      Contracts/             → ContractResource    (CRM, sort 2)
+      Events/                → EventResource       (CRM, sort 3)
+      Payables/              → PayableResource     (Financeiro, sort 3)
+      Pricings/              → PricingResource     (Relatórios, sort 3)
+      Receivables/           → ReceivableResource  (Financeiro, sort 2)
+      Users/                 → UserResource        (Configurações, sort 2)
+    Pages/
+      DreReport.php          → Relatórios, sort 1
+      CashFlowReport.php     → Relatórios, sort 2
+    Widgets/
+      FinanceStatsOverview.php
+      OverdueReceivablesTable.php
+      CalendarWidget.php     → FullCalendarWidget com fetchEvents()
+    Portal/
+      Resources/
+        ContractResource.php
+        BankBoletoResource.php
+        ClientDocumentResource.php
+        ContractResource/Pages/{ListContracts,ViewContract}.php
+        BankBoletoResource/Pages/ListBankBoletos.php
+        ClientDocumentResource/Pages/ListClientDocuments.php
+  Http/
+    Middleware/
+      EnsurePortalClient.php → Bloqueia acesso ao portal sem client vinculado
+  Models/                    → (todos listados acima)
+  Observers/
+    ClientObserver.php       → RN07: sincroniza nr1_status
+    ContractObserver.php     → RN01/RN10.1/RN10.2/RN10.3
+    ReceivableObserver.php   → RN14: cancela boletos ao cancelar receivable
+  Providers/
+    AppServiceProvider.php   → registra Client/Contract/ReceivableObserver
+    Filament/
+      AdminPanelProvider.php → painel /admin (inclui FilamentFullCalendarPlugin)
+      PortalPanelProvider.php → painel /portal
+  Services/
+    BankBoletoService.php    → renderPdf, buildLibBoleto, generateNossoNumero, createFromReceivable
+    CnabRemessaService.php   → generate() (RN13/RN14/RN15)
+    DreService.php
+    CashFlowService.php
+    Boleto/
+      Bancos/Bradesco.php    → workaround FEBRABAN 4015
+      Cnab/BradescoRemessa.php → workaround typo getAcencia
+
+resources/views/
+  pdf/
+    dre.blade.php
+    pricing.blade.php
+  filament/pages/
+    dre-report.blade.php
+    cash-flow-report.blade.php
+
+bootstrap/providers.php      → registra AdminPanelProvider + PortalPanelProvider
+
+--------------------------------------------------------------------------------
+6. CORREÇÕES PENDENTES (PRIORIDADE NA PRÓXIMA SESSÃO)
+--------------------------------------------------------------------------------
+
+[P1] ERRO DE TIPO — Get/Set no Filament v5
+---------------------------------------------
+PROBLEMA: Em alguns formulários, o import do Get e Set está usando o namespace
+antigo (Filament\Forms\Get / Filament\Forms\Set), que pode conflitar com a
+assinatura esperada pelo Filament v5. Verificar e corrigir:
+
+  Arquivos a verificar:
+    app/Filament/Resources/Clients/Schemas/ClientForm.php
+    app/Filament/Resources/Events/Schemas/EventForm.php
+    app/Filament/Resources/Pricings/Schemas/PricingForm.php
+
+  Ação: Confirmar se os imports corretos são:
+    use Filament\Forms\Get;
+    use Filament\Forms\Set;
+  Ou se devem ser:
+    use Filament\Schemas\Components\Utilities\Get;
+    use Filament\Schemas\Components\Utilities\Set;
+  (O Filament v5 pode ter movido esses helpers)
+
+[P2] ERRO DE COMPONENTE — filament-panels::form nos Relatórios
+----------------------------------------------------------------
+PROBLEMA: DreReport e CashFlowReport lançam:
+  "Unable to locate component [filament-panels::form]"
+
+CAUSA PROVÁVEL: As páginas customizadas usam Blade direto com @livewire ou
+tentam usar o componente de form do painel de forma incorreta no Filament v5.
+
+  Arquivos:
+    app/Filament/Pages/DreReport.php
+    app/Filament/Pages/CashFlowReport.php
+    resources/views/filament/pages/dre-report.blade.php
+    resources/views/filament/pages/cash-flow-report.blade.php
+
+  Ação: Revisar as páginas e views. Em Filament v5, páginas customizadas com
+  formulários devem usar Schema/Form via método form(Schema $schema) ou então
+  não usar o componente <x-filament-panels::form> nas views Blade.
+
+[P3] UI/LAYOUT — Formulários em largura total
+----------------------------------------------
+PROBLEMA: Alguns formulários não ocupam a largura total disponível.
+
+  Arquivos a ajustar (adicionar ->columns(['default' => 1, 'xl' => 2]) ou
+  remover colunas desnecessárias):
+    app/Filament/Resources/Clients/Schemas/ClientForm.php      → OK (já usa Tabs)
+    app/Filament/Resources/ClientDocuments/Schemas/ClientDocumentForm.php
+    app/Filament/Resources/Categories/Schemas/CategoryForm.php
+    app/Filament/Resources/Pricings/Schemas/PricingForm.php
+
+  Ação: Garantir que o Schema raiz não limita a largura. Em Filament v5,
+  usar ->columns(2) no Schema diretamente ou envolver em Section::make()->columns(2).
+
+[P4] UI/FORMATAÇÃO — Campos monetários e labels
+-------------------------------------------------
+  - Receivables: campos valor, valor_pago devem exibir prefixo "R$" no form
+  - Payables: mesmo ajuste
+  - BankBoletos: campo valor com prefixo "R$"
+  - Verificar se TextInput::make('valor')->prefix('R$') já foi adicionado;
+    se não, adicionar nos respectivos Schemas.
+  - Adicionar máscara para valors monetários nos campos: valor, valor_pago de Receivables e Payables
+
+[P5] I18N — "List Categories" sem tradução
+-------------------------------------------
+  A página ListCategories (TreePage) exibe o título em inglês.
+  Ação: Em CategoryResource, adicionar:
+    protected static ?string $navigationLabel = 'Plano de Contas';
+  E garantir que o título da página esteja em português via getTitle() override.
+
+[P6] MODELAGEM — Entidade Supplier (Fornecedor)
+-------------------------------------------------
+PROBLEMA: O campo "fornecedor" em Payables é apenas uma string. Para o sistema
+ter rastreabilidade de fornecedores (relatórios, DRE por fornecedor), é
+necessário criar a entidade Supplier.
+
+  Ação na próxima sessão:
+  1. Adicionar ao draft.yaml:
+     suppliers:
+       nome: string
+       cnpj_cpf: string nullable
+       email: string nullable
+       telefone: string nullable
+       observacoes: text nullable
+       created_by: foreignId
+       deleted_by: foreignId nullable
+       timestamps: true
+       softDeletes: true
+       relationships:
+         hasMany: Payable
+
+  2. Adicionar supplier_id (FK nullable) na tabela payables via nova migration
+  3. Atualizar Payable model com $fillable e belongsTo Supplier
+  4. Criar SupplierResource (Configurações ou CRM)
+  5. Atualizar PayableForm para SelectTree ou Select de Supplier
+
+[P7] UX — CalendarWidget no Dashboard vs. menu Eventos
+--------------------------------------------------------
+PROBLEMA: O CalendarWidget aparece no Dashboard junto com os widgets financeiros,
+o que polui a tela principal. O ideal é movê-lo para uma página dedicada dentro
+do menu "Eventos" (CRM).
+
+  Ação:
+  1. Remover CalendarWidget da lista de widgets do AdminPanelProvider
+  2. Criar app/Filament/Pages/CalendarPage.php (Page customizada que embute o widget)
+     ou usar EventResource com uma tab de calendário
+  3. Alternativa mais simples: criar uma Page em CRM → Agenda que renderiza o
+     CalendarWidget diretamente como widget da página
+
+--------------------------------------------------------------------------------
+7. PRÓXIMOS MILESTONES (pós-correções)
+--------------------------------------------------------------------------------
+
+M9 — RN08: Alertas de Vencimento
+  - Laravel Scheduler + Notification (database/mail)
+  - 30, 15 e 7 dias antes do vencimento de contratos
+  - Notificação in-app no Filament (sino) + e-mail opcional
+
+M10 — Parser de Retorno CNAB (Arquivo de Retorno Bancário)
+  - Leitura de arquivos .ret enviados pelo banco
+  - Atualização automática de boletos para status "pago" com data_pagamento
+
+M11 — Shield / Permissões Granulares
+  - bezhansalleh/filament-shield
+  - Perfis: Administrador, Consultor, Operacional (RN06 — Operacional sem acesso Financeiro)
+
+--------------------------------------------------------------------------------
+8. COMANDOS ÚTEIS
+--------------------------------------------------------------------------------
+
+  # Entrar no container app
+  docker exec -it isabelle_app bash
+
+  # Artisan dentro do container
+  docker exec isabelle_app php artisan migrate:status
+  docker exec isabelle_app php artisan migrate --force
+  docker exec isabelle_app php artisan db:seed --force
+  docker exec isabelle_app php artisan config:clear
+  docker exec isabelle_app php artisan view:clear
+  docker exec isabelle_app php artisan route:list --path=admin
+
+  # Instalar pacote
+  docker exec isabelle_app composer require vendor/pacote:"^x.y"
+
+  # Verificar rotas do portal
+  docker exec isabelle_app php artisan route:list --path=portal
+
+================================================================================
+  FIM DO RESUMO
+================================================================================

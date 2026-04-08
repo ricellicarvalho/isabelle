@@ -1,0 +1,80 @@
+Milestone 5 — Geração de Boletos PDF e Remessas CNAB
+
+  Objetivo: completar o ciclo bancário implementando a emissão real de boletos (PDF para o cliente) e a geração de arquivos CNAB para
+   envio ao banco, fechando todas as RNs do módulo bancário (RN02, RN12, RN13, RN14, RN15).
+
+  O que será feito
+
+  1. Configuração bancária da empresa
+  - Nova entidade BankAccount (cadastro único) — uma migration + model + Resource simples
+  - Campos: banco (código: 001 Banco do Brasil, 237 Bradesco, 341 Itaú, 104 CEF, 033 Santander), agencia, agencia_dv, conta,
+  conta_dv, carteira, convenio, cedente_nome, cedente_documento, layout_remessa (240/400), proximo_nosso_numero,
+  proximo_sequencial_remessa
+  - Resource em "Configurações" (novo grupo) — singleton-like (apenas 1 registro)
+
+  2. Pacote eduardokum/laravel-boleto
+  - Instalação do pacote (padrão de fato no ecossistema PHP para boletos brasileiros)
+  - Suporte nativo a múltiplos bancos, geração de PDF, código de barras, linha digitável e CNAB 240/400
+
+  3. BankBoletoService — refatoração completa (RN12 real)
+  - generateNossoNumero(BankAccount $account) — incrementa proximo_nosso_numero da conta com lock pessimista (garante unicidade)
+  - buildBoleto(BankBoleto $record) — instancia o boleto do pacote com dados da empresa + cliente + parcela; calcula código de barras
+   + linha digitável reais
+  - renderPdf(BankBoleto $record): string — retorna binário do PDF
+  - createFromReceivable() agora usa a BankAccount ativa
+
+  4. Action "Baixar PDF" no BankBoletoResource
+  - Action linha-a-linha no Table; gera o boleto via service e faz download
+  - Action no header do EditBankBoleto também
+
+  5. RN13 — BulkAction "Gerar Arquivo de Remessa"
+  - Em BankBoletosTable:
+    - Filtra apenas boletos com status pendente (ou cancelado que ainda não foram para remessa, RN14)
+    - Cria registro BankRemessa com sequencial_arquivo incremental, data_geracao=now, quantidade_titulos, valor_total, layout
+    - Gera o arquivo CNAB via eduardokum/laravel-boleto, salva em storage/app/remessas/
+    - Atualiza boletos pendentes para emitido; boletos cancelados ganham instrução de "Baixa de Título" (RN14)
+    - Vincula todos via remessa_id
+    - Notification + link para baixar o arquivo
+
+  6. Action "Baixar Arquivo" em BankRemessaResource
+  - Tanto na listagem quanto em ViewBankRemessa — download direto do arquivo CNAB já salvo
+
+  7. RN14 — Cancelamento de boletos
+  - Quando BankBoleto é setado para cancelado manualmente OU via RN10.2 (cancelamento de contrato → receivables cancelados → boletos
+  correspondentes cancelados): registrar instrucao_remessa = 'BAIXA' para entrar na próxima remessa
+  - Adicionar Observer em Receivable que, quando status muda para cancelado, marca boletos vinculados como cancelado com instrução
+  BAIXA
+
+  8. Smoke test E2E
+  - Criar BankAccount (Bradesco 237, layout 400)
+  - Criar contrato → receivables → gerar boletos
+  - Renderizar PDF de um boleto (validar bytes > 0 e header %PDF)
+  - Executar bulk gerar remessa → validar arquivo CNAB criado, boletos atualizados para emitido, BankRemessa com sequencial, dados
+  batendo
+  - Cancelar uma parcela → boleto vai para cancelado com instrucao_remessa=BAIXA
+  - Gerar nova remessa → boleto cancelado entra com baixa
+
+  Arquivos que serão criados/alterados
+
+  - composer.json — eduardokum/laravel-boleto
+  - database/migrations/xxxx_create_bank_accounts_table.php (novo)
+  - database/migrations/xxxx_add_instrucao_remessa_to_bank_boletos.php — verificar se já existe; sim, já tem o campo
+  - app/Models/BankAccount.php (novo)
+  - app/Filament/Resources/BankAccounts/* (Resource completo, 6 arquivos)
+  - app/Services/BankBoletoService.php — refatorado (mantém API mas usa BankAccount + pacote)
+  - app/Services/CnabRemessaService.php (novo) — encapsula geração do arquivo CNAB
+  - app/Observers/ReceivableObserver.php (novo) — RN14
+  - app/Providers/AppServiceProvider.php — registra ReceivableObserver
+  - app/Filament/Resources/BankBoletos/Tables/BankBoletosTable.php — Action "Baixar PDF" + BulkAction "Gerar Remessa"
+  - app/Filament/Resources/BankRemessas/Tables/BankRemessasTable.php — Action "Baixar Arquivo"
+  - app/Filament/Resources/BankRemessas/Pages/ViewBankRemessa.php — header action download
+  - database/seeders/DatabaseSeeder.php — adicionar BankAccount de exemplo (Bradesco)
+
+  Fora de escopo (para outros milestones)
+
+  - Arquivo de Retorno CNAB (parser dos retornos do banco que confirmam pagamentos) — fica para um Milestone futuro (M9 ou separado)
+  - Múltiplas BankAccounts simultâneas — por enquanto sistema assume apenas 1 conta ativa
+  - Eventos/Agenda (M6)
+  - Portal do Cliente (M7)
+
+  Posso prosseguir?

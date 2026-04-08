@@ -2,8 +2,10 @@
 
 namespace App\Providers;
 
+use App\Models\Client;
 use App\Models\Contract;
 use App\Models\Receivable;
+use App\Observers\ClientObserver;
 use App\Observers\ContractObserver;
 use App\Observers\ReceivableObserver;
 use Filament\Support\Enums\TextSize;
@@ -26,6 +28,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Client::observe(ClientObserver::class);
         Contract::observe(ContractObserver::class);
         Receivable::observe(ReceivableObserver::class);
 

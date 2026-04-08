@@ -1,0 +1,180 @@
+  Tarefa 1: draft.yaml - Criado
+
+  O arquivo /home/casa/dev/isabelle/draft.yaml contém 11 entidades:
+
+  ┌────────────────┬───────────────────────────────────────────────────────────┐
+  │    Entidade    │                         Descrição                         │
+  ├────────────────┼───────────────────────────────────────────────────────────┤
+  │ Team           │ Multitenancy - empresa dona dos dados, config bancária    │
+  ├────────────────┼───────────────────────────────────────────────────────────┤
+  │ Client         │ Clientes (PJ/PF), checklist NR-1 (JSON), vínculo portal   │
+  ├────────────────┼───────────────────────────────────────────────────────────┤
+  │ Contract       │ Contratos com vigência, parcelas, status de ciclo de vida │
+  ├────────────────┼───────────────────────────────────────────────────────────┤
+  │ Category       │ Plano de Contas hierárquico (self-referencing parent_id)  │
+  ├────────────────┼───────────────────────────────────────────────────────────┤
+  │ Receivable     │ Contas a Receber, vinculado a contrato e categoria        │
+  ├────────────────┼───────────────────────────────────────────────────────────┤
+  │ Payable        │ Contas a Pagar, vinculado a categoria                     │
+  ├────────────────┼───────────────────────────────────────────────────────────┤
+  │ BankBoleto     │ Boletos com nosso_numero único, vinculado a receivable    │
+  ├────────────────┼───────────────────────────────────────────────────────────┤
+  │ BankRemessa    │ Lotes de remessa CNAB 240/400                             │
+  ├────────────────┼───────────────────────────────────────────────────────────┤
+  │ Event          │ Agenda/FullCalendar com bloqueio de data                  │
+  ├────────────────┼───────────────────────────────────────────────────────────┤
+  │ Pricing        │ Precificação com margens, vinculado a categoria           │
+  ├────────────────┼───────────────────────────────────────────────────────────┤
+  │ ClientDocument │ Documentos do portal do cliente (File Manager)            │
+  └────────────────┴───────────────────────────────────────────────────────────┘
+
+  Todas as entidades possuem o bloco de auditoria obrigatório (created_by, deleted_by, timestamps, softDeletes) e team_id para
+  isolamento multitenancy.
+
+  ---
+  Tarefa 2: Plano de Desenvolvimento
+
+  Milestone 1 - Fundação e Multitenancy
+
+  ▎ Base de dados, autenticação e isolamento por Team
+
+  - Instalar Laravel Blueprint (composer require --dev laravel-shift/blueprint)
+  - Validar e executar php artisan blueprint:build para gerar Models, Migrations e Factories
+  - Executar php artisan migrate
+  - Configurar o Model User com relação belongsTo: Team (adicionar team_id ao User existente)
+  - Implementar Global Scope de Team para isolamento automático de dados (trait BelongsToTeam)
+  - Criar Seeder inicial (Team, User admin, Categorias padrão do Plano de Contas)
+  - Configurar Filament Panel com autenticação e tenant awareness
+
+  Milestone 2 - CRM e Contratos
+
+  ▎ Gestão de Clientes e Contratos com geração automática de Receivables
+
+  - ClientResource no Filament (CRUD completo com campos de endereço e contato)
+  - ContractResource com formulário de parcelas e seleção de categoria (Select Tree)
+  - RN01/RN10.1 - Observer ou Action no Contract: ao ativar, gerar automaticamente as parcelas em Receivable
+  - RN10.2 - Ao cancelar contrato, cancelar parcelas pendentes automaticamente
+  - RN10.3 - Bloquear exclusão de contrato com parcelas pagas
+  - RN04 - Bulk Action "Faturar em Lote" na listagem de contratos
+  - RN08 - Notification scheduled para alertas de vencimento (30, 15, 7 dias)
+
+  Milestone 3 - Financeiro (Receivables, Payables, Boletos)
+
+  ▎ Contas a Receber/Pagar, Boletos e Remessas
+
+  - ReceivableResource com Action "Gerar Boleto" (RN02, RN11)
+  - PayableResource (CRUD com vínculo a Category)
+  - RN05 - Bulk Action "Quitação em Lote" em Receivables e Payables
+  - BankBoletoResource com geração de nosso_numero único (RN12)
+  - RN13 - Bulk Action "Gerar Arquivo de Remessa" (seleciona pendentes, gera CNAB, atualiza status)
+  - BankRemessaResource para gerenciamento dos lotes
+  - RN14 - Ao cancelar contrato/receivable, marcar boleto como cancelado
+  - RN15 - Suporte a layout CNAB 240/400 configurável por Team
+  - RN16 - Herança automática de valor/vencimento do Receivable para o Boleto
+
+  Milestone 4 - Plano de Contas e DRE
+
+  ▎ Hierarquia contábil e relatórios financeiros
+
+  - CategoryResource usando Filament Tree para visualização hierárquica (RN03)
+  - Integrar Filament Select Tree nos formulários de Contract, Receivable, Payable e Pricing
+  - PricingResource com cálculo automático de preço de venda (custo + margem)
+  - Implementar geração de DRE (mensal/anual) baseado nas categorias do Plano de Contas
+  - Exportação de DRE e Precificação em PDF/Excel
+
+  Milestone 5 - Eventos/Agenda e NR-1
+
+  ▎ Agenda integrada e checklist de conformidade
+
+  - EventResource integrado com FullCalendar (RN09)
+  - Bloqueio de data na agenda do colaborador para Avaliações NR-1
+  - RN07 - Lógica de status NR-1 condicional ao checklist (100% = Regularizada)
+  - Dashboard com indicadores de riscos psicossociais e status NR-1
+
+  Milestone 6 - Portal do Cliente
+
+  ▎ Área restrita com isolamento de dados
+
+  - Criar Filament Panel separado para o Portal (/portal)
+  - Autenticação via portal_user_id do Client (login por email/senha)
+  - Isolamento de dados: Client vê apenas seus contratos, documentos e boletos
+  - Integrar File Manager para upload/download de laudos e fotos
+  - ClientDocumentResource no painel admin para gestão dos documentos
+  - Visualização read-only de contratos e boletos no portal
+
+  ---
+  Fora de Escopo (conforme restrições)
+
+  - NFSe / Nota Fiscal Eletrônica
+  - Permissões granulares via Shield (apenas Admin vs Cliente nesta fase)
+
+  ---
+  O draft.yaml está pronto para sua validação. Quando aprovar, os próximos passos serão:
+
+  composer require --dev laravel-shift/blueprint
+  php artisan blueprint:build
+  php artisan migrate
+  
+  
+  -------------------------------------------------------------------------------------------------------------------------------------------------
+  
+   Antes deu aprovar o draft.yml preciso retirar uma dúvida: porque é necessário ter uma entidade Team │ Multitenancy? Pois esse
+sistema não será utilizado por várias empresas não. Esse sistema será para uma empresa só controlar seus contratos e os clientes
+dela. Ou seja, estou fazendo esse sistema exclusivamente para uma pessoa que me contratou para fazer. Talvez o multi-tenancy faça
+sentido para controlar o Portal do cliente, caso não seja possível implementar o isolamento de outra maneira maissimples.
+
+● Ótima pergunta. Você tem razão — Team/Multitenancy é desnecessário para o seu caso.
+
+  Por que eu adicionei (e por que não faz sentido)
+
+  O CLAUDE.md menciona team_id no exemplo de modelagem, mas isso é um template genérico. Como o sistema é para uma única empresa,
+  adicionar team_id em todas as tabelas seria complexidade sem benefício — filtros globais, scopes, seed de team em tudo, etc.
+
+  Isolamento do Portal do Cliente
+
+  O isolamento do portal é simples sem multitenancy:
+
+  - O Client já tem portal_user_id (FK para User)
+  - No painel do Portal, basta um scope: Client::where('portal_user_id', auth()->id())
+  - O usuário do portal só vê contratos, documentos e boletos do seu Client
+  - Isso é apenas um filtro por usuário autenticado, não multitenancy
+
+  Ou seja: um Panel separado no Filament (/portal) com um middleware que resolve o Client pelo User logado. Simples e direto.
+
+  O que muda no draft.yaml
+
+  - Remover a entidade Team inteira
+  - Remover team_id de todas as entidades
+  - Manter portal_user_id no Client para o portal
+
+  Quer que eu atualize o draft.yaml com essas mudanças?
+  
+ =============================================================PASSOS DA IMPLEMENTAÇÃO=========================================================================
+ Agora quais são os próximos passos?
+
+● Com base no plano de desenvolvimento que traçamos, o próximo milestone é construir a base do Filament e os primeiros Resources.
+  Seguindo a prioridade:
+
+  Próximos Passos - Milestone 1 (continuação)
+
+  1. Configurar o Filament Panel Admin - verificar se o painel já está funcional e acessível
+  2. Criar um Seeder inicial - User admin + Categorias padrão do Plano de Contas (Receitas, Custos, Despesas)
+  3. Criar os Filament Resources na ordem:
+    - ClientResource (CRUD completo - CRM)
+    - CategoryResource (Plano de Contas com interface de árvore)
+    - ContractResource (com seleção de cliente e categoria)
+
+  Milestone 2 - Financeiro
+
+  4. ReceivableResource + lógica de geração automática ao ativar contrato (RN01/RN10)
+  5. PayableResource
+  6. Regras de ciclo de vida do contrato (cancelamento, bloqueio de exclusão)
+
+  Milestones seguintes
+
+  7. Boletos e Remessas (BankBoleto, BankRemessa)
+  8. Eventos/Agenda com FullCalendar
+  9. Precificação e DRE
+  10. Portal do Cliente (panel separado)
+
+ 

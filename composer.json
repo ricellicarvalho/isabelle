@@ -14,6 +14,8 @@
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1",
         "maatwebsite/excel": "^3.1",
+        "mwguerra/filemanager": "^2.0",
+        "saade/filament-fullcalendar": "^4.0@beta",
         "solution-forest/filament-tree": "^4.0"
     },
     "require-dev": {
@@ -91,6 +93,9 @@
         "allow-plugins": {
             "pestphp/pest-plugin": true,
             "php-http/discovery": true
+        },
+        "audit": {
+            "ignore": ["PKSA-21fb-n1x5-5nf7"]
         }
     },
     "minimum-stability": "stable",
