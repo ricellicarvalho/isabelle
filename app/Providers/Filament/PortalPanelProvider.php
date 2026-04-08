@@ -21,9 +21,10 @@ class PortalPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
-        return $panel
+        $panel = $panel
             ->id('portal')
             ->path('portal')
+            ->authGuard('portal')
             ->login()
             ->brandName('Portal do Cliente')
             ->brandLogo(asset('images/logo2.png'))
@@ -41,6 +42,8 @@ class PortalPanelProvider extends PanelProvider
             ->discoverWidgets(in: app_path('Filament/Portal/Widgets'), for: 'App\Filament\Portal\Widgets')
             ->widgets([])
             ->middleware([
+                // Define o cookie de sessão exclusivo do Portal antes do StartSession.
+                \App\Http\Middleware\SetSessionCookieName::class.':isabelle_portal_session',
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,
@@ -55,5 +58,12 @@ class PortalPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
             ]);
+
+        // Vincula o painel Portal ao subdomínio quando configurado em produção.
+        if ($domain = env('PORTAL_PANEL_DOMAIN')) {
+            $panel->domain($domain);
+        }
+
+        return $panel;
     }
 }

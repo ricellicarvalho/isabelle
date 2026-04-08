@@ -1,0 +1,48 @@
+# =============================================================================
+# docker-compose.prod.yml — PRODUÇÃO
+# Carregado MANUALMENTE com:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Diferenças em relação a dev:
+#   - Sem container de banco (MySQL é nativo no host).
+#   - Container app conecta ao MySQL nativo via host.docker.internal:3306
+#     (DB_HOST=host.docker.internal definido no .env de produção).
+#   - Bind-mount do código (deploy via git pull no host) — sem rebuild para
+#     atualizar arquivos .blade/.php. Para mudanças de Dockerfile, rebuild.
+#   - Nginx exposto em :80 e :443 com vhosts para os subdomínios:
+#       admin.institutoalvesneves.com.br
+#       portal.institutoalvesneves.com.br
+#   - Volumes adicionais para certificados Let's Encrypt.
+#   - Limites de recursos para estabilidade.
+# =============================================================================
+
+services:
+  isabelle_app:
+    extra_hosts:
+      # Permite que o container acesse o MySQL nativo do host (Linux).
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./:/var/www
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 256M
+
+  isabelle_webserver:
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./:/var/www
+      - ./docker/nginx/prod.conf.d:/etc/nginx/conf.d
+      # Certificados Let's Encrypt (rodar certbot no host e montar aqui).
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 256M

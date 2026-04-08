@@ -1,0 +1,41 @@
+# =============================================================================
+# docker-compose.override.yml — DESENVOLVIMENTO
+# Carregado automaticamente pelo Docker Compose junto com docker-compose.yml.
+# Adiciona: banco MySQL local, ports expostos, bind-mount do código,
+#           vhost nginx de dev (default.conf).
+# =============================================================================
+
+services:
+  isabelle_app:
+    volumes:
+      - ./:/var/www
+    ports:
+      - "9004:9000"
+      - "5174:5173"
+
+  isabelle_webserver:
+    ports:
+      - "8006:80"
+    volumes:
+      - ./:/var/www
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d
+
+  isabelle_database:
+    image: mysql:8.0
+    container_name: isabelle_db
+    restart: unless-stopped
+    environment:
+      TZ: America/Araguaina
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "3310:3306"
+    volumes:
+      - dbdata:/var/lib/mysql
+    networks:
+      - network_isabelle
+
+volumes:
+  dbdata:

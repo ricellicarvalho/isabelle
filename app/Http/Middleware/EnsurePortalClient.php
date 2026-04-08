@@ -16,7 +16,8 @@ class EnsurePortalClient
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $user = Auth::user();
+        $guard = Auth::guard('portal');
+        $user = $guard->user();
 
         if (! $user) {
             return $next($request);
@@ -25,7 +26,7 @@ class EnsurePortalClient
         $client = Client::where('portal_user_id', $user->id)->first();
 
         if (! $client) {
-            Auth::logout();
+            $guard->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 

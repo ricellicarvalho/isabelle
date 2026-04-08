@@ -27,7 +27,7 @@ class AdminPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
-        return $panel
+        $panel = $panel
             ->sidebarCollapsibleOnDesktop()
             ->sidebarWidth('17rem')
             ->maxContentWidth(Width::Full)
@@ -39,10 +39,13 @@ class AdminPanelProvider extends PanelProvider
             ->brandName('Instituto Alves Neves')
             ->id('admin')
             ->path('admin')
+            ->authGuard('web')
             ->login()
             ->passwordReset()
             ->spa()
             ->profile()
+            ->databaseNotifications()
+            ->databaseNotificationsPolling('60s')
             ->plugins([
                 FilamentFullCalendarPlugin::make()
                     ->selectable()
@@ -102,6 +105,8 @@ class AdminPanelProvider extends PanelProvider
                 OverdueReceivablesTable::class,
             ])
             ->middleware([
+                // Define o cookie de sessão exclusivo do painel Admin antes do StartSession.
+                \App\Http\Middleware\SetSessionCookieName::class.':isabelle_admin_session',
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,
@@ -115,5 +120,12 @@ class AdminPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
             ]);
+
+        // Vincula o painel Admin ao subdomínio quando configurado em produção.
+        if ($domain = env('ADMIN_PANEL_DOMAIN')) {
+            $panel->domain($domain);
+        }
+
+        return $panel;
     }
 }

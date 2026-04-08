@@ -1,7 +1,12 @@
-version: "3.8"
+# =============================================================================
+# docker-compose.yml — BASE
+# Configuração comum a TODOS os ambientes (dev e prod).
+# Não inclui banco de dados (em prod, MySQL é nativo no host).
+# Para dev, o serviço `isabelle_database` é adicionado por docker-compose.override.yml.
+# =============================================================================
 
 services:
-  isabelle_app: # Serviço renomeado para evitar qualquer ambiguidade
+  isabelle_app:
     build:
       context: .
       dockerfile: Dockerfile
@@ -9,18 +14,12 @@ services:
         - uid=${APP_UID:-1000}
         - user=ricelli
     container_name: isabelle_app
-    restart: always
+    restart: unless-stopped
     environment:
       - TZ=America/Araguaina
-    volumes:
-      - ./:/var/www
-    ports:
-      - "9004:9000"
-      - "5174:5173"
     working_dir: /var/www
     networks:
       - network_isabelle
-
     healthcheck:
       test: ["CMD", "php", "artisan", "doctor"]
       interval: 30s
@@ -30,37 +29,12 @@ services:
   isabelle_webserver:
     image: nginx:alpine
     container_name: isabelle_nginx
-    restart: always
-    ports:
-      - "8006:80"
-    volumes:
-      - ./:/var/www
-      - ./docker/nginx/conf.d:/etc/nginx/conf.d
+    restart: unless-stopped
     depends_on:
       - isabelle_app
-    networks:
-      - network_isabelle
-
-  isabelle_database:
-    image: mysql:8.0
-    container_name: isabelle_db # Nome exato conforme solicitado
-    restart: always
-    environment:
-      TZ: America/Araguaina
-      MYSQL_DATABASE: ${DB_DATABASE}
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-      MYSQL_USER: ${DB_USERNAME}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-    ports:
-      - "3310:3306"
-    volumes:
-      - dbdata:/var/lib/mysql
     networks:
       - network_isabelle
 
 networks:
   network_isabelle:
     driver: bridge
-
-volumes:
-  dbdata:

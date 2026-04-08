@@ -1,6 +1,7 @@
 ================================================================================
   RESUMO CONSOLIDADO — SISTEMA ISABELLE (ERP NR-1)
-  Atualizado em: 2026-04-07  |  Correções P1-P7 concluídas. Próximo: M9 (RN08).
+  Atualizado em: 2026-04-08  |  M9 (RN08) + Setup PROD multi-painel concluídos.
+  Próximo: M10 (Retorno CNAB).
 ================================================================================
 
 --------------------------------------------------------------------------------
@@ -89,6 +90,16 @@ M7 ✅ — PricingResource (Calculadora de Margem)
   - Fórmula: preco_venda = custo_total / (1 - margem/100)
   - Recálculo automático live(onBlur) com afterStateUpdated
   - Export PDF via DomPDF (resources/views/pdf/pricing.blade.php)
+
+M9 ✅ — Alertas de Vencimento (RN08)
+  - app/Notifications/ContractExpiringNotification.php (canais database+mail)
+  - app/Console/Commands/SendExpirationAlerts.php (alerts:expiring)
+  - app/Models/NotificationLog.php + migration create_notification_logs_table
+    (idempotência: unique notifiable+alert_type+days_before+sent_date)
+  - routes/console.php → Schedule alerts:expiring dailyAt('08:00')
+  - AdminPanelProvider → ->databaseNotifications()->databaseNotificationsPolling('60s')
+  - Thresholds: 30, 15, 7 dias antes de data_fim (somente contratos status=ativo)
+  - Destinatários: User::where('is_admin', true)
 
 M8 ✅ — Portal do Cliente
   - PortalPanelProvider → painel em /portal
@@ -288,9 +299,9 @@ histórico. Pode ser removido futuramente com migration de backfill.
 7. PRÓXIMOS MILESTONES
 --------------------------------------------------------------------------------
 
->>> PRÓXIMO PASSO: M9 — Alertas de Vencimento (RN08) <<<
+>>> PRÓXIMO PASSO: M10 — Parser de Retorno CNAB <<<
 
-M9 — RN08: Alertas de Vencimento  ⏭️ EM SEGUIDA
+M9 — RN08: Alertas de Vencimento  ✅ CONCLUÍDO
   Objetivo: notificações automáticas 30, 15 e 7 dias antes do vencimento
   de contratos (e idealmente também de receivables/payables).
 

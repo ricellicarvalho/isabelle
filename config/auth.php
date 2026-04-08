@@ -40,6 +40,14 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+
+        // Guard dedicado ao Portal do Cliente. Usa o mesmo provider 'users'
+        // (mesma tabela), mas como guard separado garante que Auth::guard('portal')
+        // mantenha estado independente do guard 'web' (admin) durante o request.
+        'portal' => [
+            'driver' => 'session',
+            'provider' => 'users',
+        ],
     ],
 
     /*
