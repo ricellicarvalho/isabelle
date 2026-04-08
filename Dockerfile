@@ -23,12 +23,17 @@ ENV LANG pt_BR.UTF-8
 ENV LANGUAGE pt_BR:pt
 ENV LC_ALL pt_BR.UTF-8
 
-# 2. Argumentos para bater com o usuário (ID 1000) 
+# 2. Argumentos para bater com o usuário do host (UID/GID).
+#    Sobrescreva via build args ou .env (APP_UID, APP_GID, APP_USER).
 ARG uid=1000
+ARG gid=1000
 ARG user=ricelli
 
-# 3. Criar usuário do sistema e pastas para Tinker/Composer 
-RUN useradd -G www-data,root -u $uid -d /home/$user $user && \
+# 3. Criar grupo + usuário com UID/GID exatos do host (evita conflito de
+#    permissões em bind-mounts). Se o GID já existir no base image, faz fallback
+#    renomeando o grupo existente para o nome do usuário.
+RUN (groupadd -g $gid $user 2>/dev/null || groupmod -n $user $(getent group $gid | cut -d: -f1)) && \
+    useradd -G www-data,root -u $uid -g $gid -d /home/$user -m -s /bin/bash $user && \
     mkdir -p /home/$user/.composer /home/$user/.config/psysh && \
     touch /home/$user/.config/psysh/config.php && \
     chown -R $user:$user /home/$user

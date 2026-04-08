@@ -11,8 +11,10 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
+        # Vêm do .env (APP_UID/APP_GID/APP_USER). Defaults para dev em WSL.
         - uid=${APP_UID:-1000}
-        - user=ricelli
+        - gid=${APP_GID:-1000}
+        - user=${APP_USER:-ricelli}
     container_name: isabelle_app
     restart: unless-stopped
     environment:

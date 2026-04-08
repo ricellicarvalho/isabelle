@@ -105,8 +105,6 @@ class AdminPanelProvider extends PanelProvider
                 OverdueReceivablesTable::class,
             ])
             ->middleware([
-                // Define o cookie de sessão exclusivo do painel Admin antes do StartSession.
-                \App\Http\Middleware\SetSessionCookieName::class.':isabelle_admin_session',
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,
@@ -122,7 +120,8 @@ class AdminPanelProvider extends PanelProvider
             ]);
 
         // Vincula o painel Admin ao subdomínio quando configurado em produção.
-        if ($domain = env('ADMIN_PANEL_DOMAIN')) {
+        // Usar config() (não env()) pois env() retorna null após config:cache.
+        if ($domain = config('panels.admin_domain')) {
             $panel->domain($domain);
         }
 

@@ -42,8 +42,6 @@ class PortalPanelProvider extends PanelProvider
             ->discoverWidgets(in: app_path('Filament/Portal/Widgets'), for: 'App\Filament\Portal\Widgets')
             ->widgets([])
             ->middleware([
-                // Define o cookie de sessão exclusivo do Portal antes do StartSession.
-                \App\Http\Middleware\SetSessionCookieName::class.':isabelle_portal_session',
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,
@@ -60,7 +58,8 @@ class PortalPanelProvider extends PanelProvider
             ]);
 
         // Vincula o painel Portal ao subdomínio quando configurado em produção.
-        if ($domain = env('PORTAL_PANEL_DOMAIN')) {
+        // Usar config() (não env()) pois env() retorna null após config:cache.
+        if ($domain = config('panels.portal_domain')) {
             $panel->domain($domain);
         }
 
