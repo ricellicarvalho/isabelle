@@ -13,6 +13,7 @@ class Payable extends Model
 
     protected $fillable = [
         'category_id',
+        'supplier_id',
         'fornecedor',
         'descricao',
         'valor',
@@ -39,6 +40,11 @@ class Payable extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
+    }
+
+    public function supplier(): BelongsTo
+    {
+        return $this->belongsTo(Supplier::class);
     }
 
     public function createdBy(): BelongsTo

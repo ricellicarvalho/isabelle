@@ -23,7 +23,7 @@ class PayablesTable
         return $table
             ->defaultSort('data_vencimento', 'asc')
             ->columns([
-                TextColumn::make('fornecedor')
+                TextColumn::make('supplier.nome')
                     ->label('Fornecedor')
                     ->searchable()
                     ->sortable()

@@ -28,9 +28,34 @@ class PayableForm
                                 Section::make('Dados da Conta')
                                     ->columns(2)
                                     ->components([
-                                        TextInput::make('fornecedor')
+                                        Select::make('supplier_id')
                                             ->label('Fornecedor')
-                                            ->maxLength(255),
+                                            ->relationship('supplier', 'nome')
+                                            ->searchable()
+                                            ->preload()
+                                            ->native(false)
+                                            ->createOptionForm([
+                                                TextInput::make('nome')
+                                                    ->label('Nome / Razão Social')
+                                                    ->required()
+                                                    ->maxLength(255),
+                                                TextInput::make('cnpj_cpf')
+                                                    ->label('CNPJ/CPF')
+                                                    ->maxLength(18),
+                                                TextInput::make('telefone')
+                                                    ->label('Telefone')
+                                                    ->tel()
+                                                    ->maxLength(20),
+                                                TextInput::make('email')
+                                                    ->label('E-mail')
+                                                    ->email()
+                                                    ->maxLength(255),
+                                            ])
+                                            ->createOptionUsing(function (array $data): int {
+                                                $data['created_by'] = auth()->id();
+
+                                                return \App\Models\Supplier::create($data)->id;
+                                            }),
 
                                         SelectTree::make('category_id')
                                             ->label('Categoria (Plano de Contas)')

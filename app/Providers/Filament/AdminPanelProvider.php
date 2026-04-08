@@ -2,7 +2,6 @@
 
 namespace App\Providers\Filament;
 
-use App\Filament\Widgets\CalendarWidget;
 use App\Filament\Widgets\FinanceStatsOverview;
 use App\Filament\Widgets\OverdueReceivablesTable;
 use Filament\Http\Middleware\Authenticate;
@@ -101,7 +100,6 @@ class AdminPanelProvider extends PanelProvider
                 AccountWidget::class,
                 FinanceStatsOverview::class,
                 OverdueReceivablesTable::class,
-                CalendarWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,

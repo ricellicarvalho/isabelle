@@ -1,6 +1,6 @@
 ================================================================================
   RESUMO CONSOLIDADO — SISTEMA ISABELLE (ERP NR-1)
-  Gerado em: 2026-04-07  |  Para uso na próxima sessão de desenvolvimento
+  Atualizado em: 2026-04-07  |  Correções P1-P7 concluídas. Próximo: M9 (RN08).
 ================================================================================
 
 --------------------------------------------------------------------------------
@@ -189,127 +189,141 @@ resources/views/
 bootstrap/providers.php      → registra AdminPanelProvider + PortalPanelProvider
 
 --------------------------------------------------------------------------------
-6. CORREÇÕES PENDENTES (PRIORIDADE NA PRÓXIMA SESSÃO)
+6. CORREÇÕES P1-P7 (✅ TODAS CONCLUÍDAS EM 2026-04-07)
 --------------------------------------------------------------------------------
 
-[P1] ERRO DE TIPO — Get/Set no Filament v5
+[P1] ✅ Get/Set no Filament v5
+-------------------------------
+Imports trocados de `Filament\Forms\{Get,Set}` (inexistente em v5) para
+`Filament\Schemas\Components\Utilities\{Get,Set}` em:
+  - app/Filament/Resources/Clients/Schemas/ClientForm.php
+  - app/Filament/Resources/Events/Schemas/EventForm.php
+  - app/Filament/Resources/Pricings/Schemas/PricingForm.php
+  - app/Filament/Widgets/CalendarWidget.php (bônus, também estava errado)
+
+[P2] ✅ filament-panels::form nos Relatórios
 ---------------------------------------------
-PROBLEMA: Em alguns formulários, o import do Get e Set está usando o namespace
-antigo (Filament\Forms\Get / Filament\Forms\Set), que pode conflitar com a
-assinatura esperada pelo Filament v5. Verificar e corrigir:
+O componente `<x-filament-panels::form>` não existe em Filament v5.
+Substituído por `<form wire:submit.prevent="generateReport">` em:
+  - resources/views/filament/pages/dre-report.blade.php
+  - resources/views/filament/pages/cash-flow-report.blade.php
+O `{{ $this->form }}` continua funcionando porque `Filament\Pages\Page` herda
+`InteractsWithSchemas`, que descobre automaticamente `form(Schema $schema)`.
 
-  Arquivos a verificar:
-    app/Filament/Resources/Clients/Schemas/ClientForm.php
-    app/Filament/Resources/Events/Schemas/EventForm.php
-    app/Filament/Resources/Pricings/Schemas/PricingForm.php
+[P3] ✅ Formulários em largura total
+-------------------------------------
+Solução em duas camadas:
+  1. Painel: adicionado `->maxContentWidth(Width::Full)` no AdminPanelProvider
+     (antes limitava a 7xl ~80rem em monitores wide).
+  2. Forms com Section raiz: adicionado `->columnSpanFull()` no Section em:
+     - app/Filament/Resources/Categories/Schemas/CategoryForm.php
+     - app/Filament/Resources/ClientDocuments/Schemas/ClientDocumentForm.php
+  ClientForm já funcionava porque o Tabs raiz tinha `->columnSpanFull()`.
 
-  Ação: Confirmar se os imports corretos são:
-    use Filament\Forms\Get;
-    use Filament\Forms\Set;
-  Ou se devem ser:
-    use Filament\Schemas\Components\Utilities\Get;
-    use Filament\Schemas\Components\Utilities\Set;
-  (O Filament v5 pode ter movido esses helpers)
+[P4] ✅ Máscara monetária BRL
+------------------------------
+Padrão aplicado em 5 campos (Receivable.valor, Receivable.valor_pago,
+Payable.valor, Payable.valor_pago, BankBoleto.valor):
 
-[P2] ERRO DE COMPONENTE — filament-panels::form nos Relatórios
-----------------------------------------------------------------
-PROBLEMA: DreReport e CashFlowReport lançam:
-  "Unable to locate component [filament-panels::form]"
+  ->prefix('R$')
+  ->mask(RawJs::make('$money($input, \',\', \'.\', 2)'))
+  ->stripCharacters('.')
+  ->dehydrateStateUsing(fn ($state) => filled($state)
+      ? (float) str_replace(',', '.', $state)
+      : null)
+  ->rule('gte:0')
 
-CAUSA PROVÁVEL: As páginas customizadas usam Blade direto com @livewire ou
-tentam usar o componente de form do painel de forma incorreta no Filament v5.
+`->numeric()` foi removido (conflita com a string mascarada `1.234,56`);
+validação numérica reaplicada via `->rule('gte:0')` após o dehydrate.
 
-  Arquivos:
-    app/Filament/Pages/DreReport.php
-    app/Filament/Pages/CashFlowReport.php
-    resources/views/filament/pages/dre-report.blade.php
-    resources/views/filament/pages/cash-flow-report.blade.php
+[P5] ✅ "Plano de Contas" em PT
+--------------------------------
+- CategoryResource.php → adicionado `$navigationLabel = 'Plano de Contas'`
+- ListCategories.php → overrides `getTitle()`, `getHeading()`, `getNavigationLabel()`
+Os 3 overrides foram necessários porque o `TreePage` do solution-forest herda
+a resolução padrão do Filament que gera título a partir do nome da classe.
 
-  Ação: Revisar as páginas e views. Em Filament v5, páginas customizadas com
-  formulários devem usar Schema/Form via método form(Schema $schema) ou então
-  não usar o componente <x-filament-panels::form> nas views Blade.
+[P6] ✅ Entidade Supplier
+--------------------------
+Migrations:
+  - 2026_04_07_214335_create_suppliers_table
+  - 2026_04_07_214336_add_supplier_id_to_payables_table (FK nullable, nullOnDelete)
 
-[P3] UI/LAYOUT — Formulários em largura total
-----------------------------------------------
-PROBLEMA: Alguns formulários não ocupam a largura total disponível.
+Modelos:
+  - app/Models/Supplier.php (HasMany Payable + auditoria)
+  - app/Models/Payable.php → adicionado `supplier_id` ao $fillable + relação supplier()
 
-  Arquivos a ajustar (adicionar ->columns(['default' => 1, 'xl' => 2]) ou
-  remover colunas desnecessárias):
-    app/Filament/Resources/Clients/Schemas/ClientForm.php      → OK (já usa Tabs)
-    app/Filament/Resources/ClientDocuments/Schemas/ClientDocumentForm.php
-    app/Filament/Resources/Categories/Schemas/CategoryForm.php
-    app/Filament/Resources/Pricings/Schemas/PricingForm.php
+SupplierResource (CRM, sort 5, ícone Truck):
+  - app/Filament/Resources/Suppliers/SupplierResource.php
+  - Schemas/SupplierForm.php
+  - Tables/SuppliersTable.php (badge payables_count)
+  - Pages/{ListSuppliers,CreateSupplier,EditSupplier}.php
 
-  Ação: Garantir que o Schema raiz não limita a largura. Em Filament v5,
-  usar ->columns(2) no Schema diretamente ou envolver em Section::make()->columns(2).
+PayableForm: `TextInput('fornecedor')` substituído por `Select('supplier_id')`
+com `relationship('supplier', 'nome')` + `createOptionForm` para cadastro inline.
+PayablesTable: coluna `fornecedor` substituída por `supplier.nome`.
 
-[P4] UI/FORMATAÇÃO — Campos monetários e labels
--------------------------------------------------
-  - Receivables: campos valor, valor_pago devem exibir prefixo "R$" no form
-  - Payables: mesmo ajuste
-  - BankBoletos: campo valor com prefixo "R$"
-  - Verificar se TextInput::make('valor')->prefix('R$') já foi adicionado;
-    se não, adicionar nos respectivos Schemas.
-  - Adicionar máscara para valors monetários nos campos: valor, valor_pago de Receivables e Payables
+NOTA: O campo legado `fornecedor` (string) permanece no modelo/DB para preservar
+histórico. Pode ser removido futuramente com migration de backfill.
 
-[P5] I18N — "List Categories" sem tradução
--------------------------------------------
-  A página ListCategories (TreePage) exibe o título em inglês.
-  Ação: Em CategoryResource, adicionar:
-    protected static ?string $navigationLabel = 'Plano de Contas';
-  E garantir que o título da página esteja em português via getTitle() override.
-
-[P6] MODELAGEM — Entidade Supplier (Fornecedor)
--------------------------------------------------
-PROBLEMA: O campo "fornecedor" em Payables é apenas uma string. Para o sistema
-ter rastreabilidade de fornecedores (relatórios, DRE por fornecedor), é
-necessário criar a entidade Supplier.
-
-  Ação na próxima sessão:
-  1. Adicionar ao draft.yaml:
-     suppliers:
-       nome: string
-       cnpj_cpf: string nullable
-       email: string nullable
-       telefone: string nullable
-       observacoes: text nullable
-       created_by: foreignId
-       deleted_by: foreignId nullable
-       timestamps: true
-       softDeletes: true
-       relationships:
-         hasMany: Payable
-
-  2. Adicionar supplier_id (FK nullable) na tabela payables via nova migration
-  3. Atualizar Payable model com $fillable e belongsTo Supplier
-  4. Criar SupplierResource (Configurações ou CRM)
-  5. Atualizar PayableForm para SelectTree ou Select de Supplier
-
-[P7] UX — CalendarWidget no Dashboard vs. menu Eventos
---------------------------------------------------------
-PROBLEMA: O CalendarWidget aparece no Dashboard junto com os widgets financeiros,
-o que polui a tela principal. O ideal é movê-lo para uma página dedicada dentro
-do menu "Eventos" (CRM).
-
-  Ação:
-  1. Remover CalendarWidget da lista de widgets do AdminPanelProvider
-  2. Criar app/Filament/Pages/CalendarPage.php (Page customizada que embute o widget)
-     ou usar EventResource com uma tab de calendário
-  3. Alternativa mais simples: criar uma Page em CRM → Agenda que renderiza o
-     CalendarWidget diretamente como widget da página
+[P7] ✅ CalendarPage dedicada
+------------------------------
+- app/Filament/Pages/CalendarPage.php (CRM → Agenda, sort 4)
+- resources/views/filament/pages/calendar-page.blade.php
+- AdminPanelProvider: removido `CalendarWidget::class` da lista de widgets
+- CalendarWidget refatorado:
+    * Método `config()` define initialView=dayGridMonth, headerToolbar com
+      Mês/Semana/Dia (default Mês), height=`calc(100vh - 14rem)` (sem scroll),
+      buttonText em PT, expandRows, navLinks, nowIndicator
+    * `onEventDrop()` e `onEventResize()` overridden — pré-preenchem o record
+      em memória com novas datas antes de mountAction('edit'), permitindo
+      arrastar e clicar Salvar
+    * `getFormSchema()` envolto em `Grid::make(2)`, campos longos com
+      `columnSpanFull()`
+    * headerActions/modalActions/viewAction com labels PT
+      (Novo Evento / Criar Evento / Editar Evento / Visualizar Evento /
+       Excluir Evento + botões Salvar/Cancelar/Excluir/Fechar)
 
 --------------------------------------------------------------------------------
-7. PRÓXIMOS MILESTONES (pós-correções)
+7. PRÓXIMOS MILESTONES
 --------------------------------------------------------------------------------
 
-M9 — RN08: Alertas de Vencimento
-  - Laravel Scheduler + Notification (database/mail)
-  - 30, 15 e 7 dias antes do vencimento de contratos
-  - Notificação in-app no Filament (sino) + e-mail opcional
+>>> PRÓXIMO PASSO: M9 — Alertas de Vencimento (RN08) <<<
+
+M9 — RN08: Alertas de Vencimento  ⏭️ EM SEGUIDA
+  Objetivo: notificações automáticas 30, 15 e 7 dias antes do vencimento
+  de contratos (e idealmente também de receivables/payables).
+
+  Plano de implementação:
+  1. Criar Notification class:
+     - app/Notifications/ContractExpiringNotification.php
+     - Canais: ['database', 'mail'] (mail opcional via .env)
+     - Conteúdo: número do contrato, cliente, dias restantes, valor
+  2. Criar comando Artisan:
+     - app/Console/Commands/SendExpirationAlerts.php
+     - Query contratos com data_fim em [+30, +15, +7 dias]
+     - Dispatch da notification para usuários do tipo Admin/Consultor
+     - Idempotência: tabela `notification_logs` ou flag em contracts
+       para não enviar duplicado no mesmo dia
+  3. Registrar no scheduler:
+     - routes/console.php (Laravel 12 usa essa convenção, não Kernel)
+     - Schedule::command('alerts:expiring')->dailyAt('08:00')
+  4. Habilitar sino do Filament:
+     - AdminPanelProvider->databaseNotifications()
+     - Já carrega notificações do tipo database automaticamente
+  5. (Opcional) Estender para Receivables (boletos a vencer) e Payables
+
+  Arquivos a criar/alterar:
+    app/Notifications/ContractExpiringNotification.php          (novo)
+    app/Console/Commands/SendExpirationAlerts.php               (novo)
+    routes/console.php                                          (registrar schedule)
+    app/Providers/Filament/AdminPanelProvider.php               (databaseNotifications)
+    database/migrations/..._create_notifications_table.php      (php artisan notifications:table)
 
 M10 — Parser de Retorno CNAB (Arquivo de Retorno Bancário)
   - Leitura de arquivos .ret enviados pelo banco
   - Atualização automática de boletos para status "pago" com data_pagamento
+  - Pode reaproveitar eduardokum/laravel-boleto (já instalado)
 
 M11 — Shield / Permissões Granulares
   - bezhansalleh/filament-shield
