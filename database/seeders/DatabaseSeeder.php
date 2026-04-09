@@ -61,8 +61,11 @@ class DatabaseSeeder extends Seeder
         Category::create(['parent_id' => $despesas->id, 'codigo' => '3.3', 'descricao' => 'Internet e Telefonia', 'tipo' => 'despesa', 'order' => 3, 'created_by' => $by]);
         Category::create(['parent_id' => $despesas->id, 'codigo' => '3.4', 'descricao' => 'Despesas Administrativas', 'tipo' => 'despesa', 'order' => 4, 'created_by' => $by]);
 
+        // Demo data (clientes, contratos, fornecedores, notificações)
+        $this->call(DemoDataSeeder::class);
+
         // Conta bancária de exemplo (Bradesco - carteira 09)
-        BankAccount::create([
+        BankAccount::firstOrCreate(['banco' => '237'], [
             'banco' => '237',
             'descricao' => 'Bradesco - Cobrança Registrada',
             'agencia' => '1234',

@@ -14,13 +14,16 @@ class BankBoleto extends Model
     protected $fillable = [
         'receivable_id',
         'remessa_id',
+        'bank_retorno_id',
         'nosso_numero',
         'numero_documento',
         'carteira',
         'codigo_barras',
         'linha_digitavel',
         'data_vencimento',
+        'data_pagamento',
         'valor',
+        'valor_pago',
         'status',
         'instrucao_remessa',
         'created_by',
@@ -31,8 +34,15 @@ class BankBoleto extends Model
     {
         return [
             'data_vencimento' => 'date',
+            'data_pagamento' => 'date',
             'valor' => 'decimal:2',
+            'valor_pago' => 'decimal:2',
         ];
+    }
+
+    public function bankRetorno(): BelongsTo
+    {
+        return $this->belongsTo(BankRetorno::class, 'bank_retorno_id');
     }
 
     public function receivable(): BelongsTo

@@ -10,13 +10,16 @@ class ContractObserver
 {
     /**
      * RN01 + RN10.1: Geração automática de parcelas em receivables
-     * quando um Contrato é criado já com status 'ativo'.
+     * sempre que um Contrato é criado (independente do status), exceto
+     * quando já nascer cancelado.
      */
     public function created(Contract $contract): void
     {
-        if ($contract->status === 'ativo') {
-            $this->generateReceivables($contract);
+        if ($contract->status === 'cancelado') {
+            return;
         }
+
+        $this->generateReceivables($contract);
     }
 
     /**

@@ -1,8 +1,35 @@
 ================================================================================
   RESUMO CONSOLIDADO — SISTEMA ISABELLE (ERP NR-1)
-  Atualizado em: 2026-04-08  |  M9 (RN08) + Setup PROD multi-painel concluídos.
-  Próximo: M10 (Retorno CNAB).
+  Atualizado em: 2026-04-09  |  M1-M10 + Correções P1-P8 concluídos.
+  Próximo: M11 (Shield/Permissões granulares).
 ================================================================================
+
+--------------------------------------------------------------------------------
+  CORREÇÕES P8 (2026-04-08)
+--------------------------------------------------------------------------------
+[P8.1] Removido CalendarWidget do Dashboard
+       AdminPanelProvider.php → removido discoverWidgets(); widgets() permanece
+       com lista explícita. CalendarPage continua importando o widget diretamente.
+
+[P8.2] Máscara BRL no campo Valor Total do Contrato
+       ContractForm.php → valor_total agora usa $money mask + formatStateUsing
+       para formatar o valor carregado do banco.
+
+[P8.3] ClientDocument suporta múltiplos arquivos
+       - Migration: 2026_04_08_140000_change_caminho_arquivo_to_json_on_client_documents
+       - Model: cast 'caminho_arquivo' => 'array'
+       - Form: FileUpload->multiple()->reorderable()->appendFiles()->downloadable()
+       - Portal: ação de download adaptada para arrays
+
+[P8.4] ContractObserver gera receivables sempre na criação
+       (independente do status), exceto quando o contrato nasce 'cancelado'.
+
+[P8.5] DemoDataSeeder
+       database/seeders/DemoDataSeeder.php — 2 clientes, 2 contratos
+       (um com data_fim 5 dias atrás), 2 fornecedores e 1 notificação no sino.
+
+[P8.6] formatStateUsing nos campos monetários (Receivable, Payable, BankBoleto)
+       para formatar valores carregados do banco como '1.234,56' na edição.
 
 --------------------------------------------------------------------------------
 1. VISÃO GERAL
@@ -90,6 +117,30 @@ M7 ✅ — PricingResource (Calculadora de Margem)
   - Fórmula: preco_venda = custo_total / (1 - margem/100)
   - Recálculo automático live(onBlur) com afterStateUpdated
   - Export PDF via DomPDF (resources/views/pdf/pricing.blade.php)
+
+M10 ✅ — Parser de Retorno CNAB
+  - Migration: 2026_04_08_150000_create_bank_retornos_table
+    + adiciona bank_retorno_id, data_pagamento, valor_pago em bank_boletos
+  - app/Models/BankRetorno.php (HasMany boletos, log JSON)
+  - app/Services/CnabRetornoService.php — usa
+    Eduardokum\LaravelBoleto\Cnab\Retorno\Factory para parsear .ret
+  - Mapeamento de ocorrências:
+      LIQUIDADA  → boleto.status=pago, valor_pago, data_pagamento
+                   + Receivable.status=pago (quitação automática)
+      BAIXADA    → boleto.status=cancelado
+      ENTRADA    → boleto.status=emitido (confirmação de registro)
+      ALTERACAO  → log informativo
+      ERRO       → log de erro
+  - Localização do boleto via TRIM LEADING '0' do nosso_numero
+  - Resource: app/Filament/Resources/BankRetornos/
+      BankRetornoResource (Financeiro, sort 6, ícone ArrowDownTray)
+      ListBankRetornos com Action "Importar Retorno" (FileUpload + processamento)
+      ViewBankRetorno + BoletosRelationManager
+      Tabela com totais (liquidados/baixados/erros/não encontrados)
+  - Arquivo .ret arquivado em storage/app/retornos/
+  - canCreate=false (criação apenas via Action de importação)
+  - Testado E2E com CNAB400 Bradesco fictício: liquidação propaga para
+    BankBoleto e Receivable corretamente.
 
 M9 ✅ — Alertas de Vencimento (RN08)
   - app/Notifications/ContractExpiringNotification.php (canais database+mail)
@@ -299,7 +350,7 @@ histórico. Pode ser removido futuramente com migration de backfill.
 7. PRÓXIMOS MILESTONES
 --------------------------------------------------------------------------------
 
->>> PRÓXIMO PASSO: M10 — Parser de Retorno CNAB <<<
+>>> PRÓXIMO PASSO: M11 — Shield / Permissões Granulares <<<
 
 M9 — RN08: Alertas de Vencimento  ✅ CONCLUÍDO
   Objetivo: notificações automáticas 30, 15 e 7 dias antes do vencimento

@@ -26,6 +26,7 @@ class ClientDocument extends Model
     {
         return [
             'visivel_portal' => 'boolean',
+            'caminho_arquivo' => 'array',
         ];
     }
 

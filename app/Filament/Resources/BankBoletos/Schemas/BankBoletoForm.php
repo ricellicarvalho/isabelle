@@ -65,6 +65,7 @@ class BankBoletoForm
                                             ->prefix('R$')
                                             ->mask(RawJs::make('$money($input, \',\', \'.\', 2)'))
                                             ->stripCharacters('.')
+                                            ->formatStateUsing(fn ($state) => is_numeric($state) ? number_format((float) $state, 2, ',', '.') : $state)
                                             ->dehydrateStateUsing(fn ($state) => filled($state) ? (float) str_replace(',', '.', $state) : null)
                                             ->rule('gte:0'),
 

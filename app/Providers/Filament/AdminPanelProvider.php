@@ -4,11 +4,11 @@ namespace App\Providers\Filament;
 
 use App\Filament\Widgets\FinanceStatsOverview;
 use App\Filament\Widgets\OverdueReceivablesTable;
+use Filament\Enums\ThemeMode;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Saade\FilamentFullCalendar\FilamentFullCalendarPlugin;
 use Filament\Navigation\NavigationGroup;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
@@ -22,6 +22,7 @@ use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use Saade\FilamentFullCalendar\FilamentFullCalendarPlugin;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -29,16 +30,17 @@ class AdminPanelProvider extends PanelProvider
     {
         $panel = $panel
             ->sidebarCollapsibleOnDesktop()
-            ->sidebarWidth('17rem')
+            ->sidebarWidth('18rem')
             ->maxContentWidth(Width::Full)
             ->default()
             ->font('Kode Mono')
             ->favicon(asset('images/favicon.ico'))
-            ->brandLogo(asset('images/logo2.png'))
-            ->brandLogoHeight('4rem')
+            ->brandLogo(asset('images/logo.png'))
+            ->brandLogoHeight('3rem')
             ->brandName('Instituto Alves Neves')
             ->id('admin')
             ->path('admin')
+            ->defaultThemeMode(ThemeMode::Light)
             ->authGuard('web')
             ->login()
             ->passwordReset()
@@ -85,7 +87,7 @@ class AdminPanelProvider extends PanelProvider
                 ],
 
                 // Alterando os cinzas padrão para o tom azulado (Slate)
-                'gray' => Color::Slate,
+                //'gray' => Color::Slate,
             ])
             ->navigationGroups([
                 NavigationGroup::make('CRM'),
@@ -98,7 +100,8 @@ class AdminPanelProvider extends PanelProvider
             ->pages([
                 Dashboard::class,
             ])
-            ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
+            // Não usamos discoverWidgets para evitar que o CalendarWidget
+            // (usado apenas dentro da CalendarPage) seja registrado no Dashboard.
             ->widgets([
                 AccountWidget::class,
                 FinanceStatsOverview::class,

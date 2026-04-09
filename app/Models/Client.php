@@ -30,6 +30,7 @@ class Client extends Model
         'email',
         'contato_nome',
         'contato_telefone',
+        'telefones',
         'nr1_status',
         'nr1_checklist',
         'portal_user_id',
@@ -43,19 +44,20 @@ class Client extends Model
     {
         return [
             'nr1_checklist' => 'array',
+            'telefones' => 'array',
         ];
     }
 
     /**
-     * RN07 — Retorna se todos os itens obrigatórios do checklist NR-1 estão concluídos.
+     * RN07 — Retorna se todas as 5 etapas NR-1 estão concluídas.
      */
     public function nr1ChecklistCompleto(): bool
     {
         $checklist = $this->nr1_checklist ?? [];
-        $itens = ['avaliacao', 'devolutiva', 'plano', 'treinamento', 'relatorio'];
+        $etapas = ['etapa1', 'etapa2', 'etapa3', 'etapa4', 'etapa5'];
 
-        foreach ($itens as $item) {
-            if (empty($checklist[$item])) {
+        foreach ($etapas as $etapa) {
+            if (empty($checklist[$etapa])) {
                 return false;
             }
         }
@@ -69,10 +71,10 @@ class Client extends Model
     public function nr1ChecklistProgresso(): int
     {
         $checklist = $this->nr1_checklist ?? [];
-        $itens = ['avaliacao', 'devolutiva', 'plano', 'treinamento', 'relatorio'];
-        $concluidos = count(array_filter($itens, fn ($i) => ! empty($checklist[$i])));
+        $etapas = ['etapa1', 'etapa2', 'etapa3', 'etapa4', 'etapa5'];
+        $concluidos = count(array_filter($etapas, fn ($e) => ! empty($checklist[$e])));
 
-        return (int) round(($concluidos / count($itens)) * 100);
+        return (int) round(($concluidos / count($etapas)) * 100);
     }
 
     public function portalUser(): BelongsTo

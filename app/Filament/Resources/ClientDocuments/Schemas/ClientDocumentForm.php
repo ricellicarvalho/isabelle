@@ -53,12 +53,19 @@ class ClientDocumentForm
                             ->default(true),
 
                         FileUpload::make('caminho_arquivo')
-                            ->label('Arquivo')
+                            ->label('Arquivos')
                             ->required()
+                            ->multiple()
+                            ->reorderable()
+                            ->appendFiles()
+                            ->openable()
+                            ->downloadable()
+                            ->previewable()
                             ->disk('local')
                             ->directory('documentos-clientes')
                             ->acceptedFileTypes(['application/pdf', 'image/*', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
                             ->maxSize(20480)
+                            ->maxFiles(20)
                             ->columnSpanFull(),
 
                         Textarea::make('descricao')

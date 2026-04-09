@@ -13,6 +13,7 @@ use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -85,15 +86,28 @@ class ClientDocumentResource extends Resource
                     ->sortable(),
             ])
             ->actions([
-                Action::make('download')
-                    ->label('Baixar')
-                    ->icon('heroicon-o-arrow-down-tray')
-                    ->color('info')
-                    ->visible(fn (ClientDocument $record): bool => Storage::disk('local')->exists($record->caminho_arquivo))
-                    ->action(fn (ClientDocument $record): StreamedResponse => response()->streamDownload(
-                        fn () => print(Storage::disk('local')->get($record->caminho_arquivo)),
-                        basename($record->caminho_arquivo)
-                    )),
+                ActionGroup::make([
+                    Action::make('download_all')
+                        ->label('Baixar arquivos')
+                        ->icon('heroicon-o-arrow-down-tray')
+                        ->color('info')
+                        ->action(function (ClientDocument $record) {
+                            $arquivos = (array) ($record->caminho_arquivo ?? []);
+                            $primeiro = collect($arquivos)->first(fn ($p) => Storage::disk('local')->exists($p));
+
+                            if (! $primeiro) {
+                                return null;
+                            }
+
+                            return response()->streamDownload(
+                                fn () => print(Storage::disk('local')->get($primeiro)),
+                                basename($primeiro)
+                            );
+                        }),
+                ])
+                    ->label('Ações')
+                    ->icon('heroicon-m-ellipsis-vertical')
+                    ->button(),
             ])
             ->paginated([10, 25, 50]);
     }

@@ -13,6 +13,7 @@ use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Filament\Support\RawJs;
 
 class ContractForm
 {
@@ -89,9 +90,16 @@ class ContractForm
                                         TextInput::make('valor_total')
                                             ->label('Valor Total')
                                             ->required()
-                                            ->numeric()
                                             ->prefix('R$')
-                                            ->minValue(0),
+                                            ->mask(RawJs::make('$money($input, \',\', \'.\', 2)'))
+                                            ->stripCharacters('.')
+                                            ->formatStateUsing(fn ($state) => is_numeric($state)
+                                                ? number_format((float) $state, 2, ',', '.')
+                                                : $state)
+                                            ->dehydrateStateUsing(fn ($state) => filled($state)
+                                                ? (float) str_replace(',', '.', $state)
+                                                : null)
+                                            ->rule('gte:0'),
 
                                         TextInput::make('quantidade_parcelas')
                                             ->label('Quantidade de Parcelas')

@@ -17,7 +17,7 @@ class ClientDocumentFactory extends Factory
             'client_id' => Client::factory(),
             'titulo' => fake()->word(),
             'tipo' => fake()->randomElement(["laudo","foto","relatorio","matriz_risco","certificado","outro"]),
-            'caminho_arquivo' => fake()->word(),
+            'caminho_arquivo' => [fake()->word()],
             'descricao' => fake()->text(),
             'visivel_portal' => fake()->boolean(),
             'created_by' => fake()->word(),

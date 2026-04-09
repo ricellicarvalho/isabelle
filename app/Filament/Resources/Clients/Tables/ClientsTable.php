@@ -2,11 +2,12 @@
 
 namespace App\Filament\Resources\Clients\Tables;
 
+use App\Models\Client;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use App\Models\Client;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
@@ -34,9 +35,24 @@ class ClientsTable
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
-                TextColumn::make('telefone')
+                TextColumn::make('telefone_principal')
                     ->label('Telefone')
-                    ->searchable(),
+                    ->state(function (Client $record): string {
+                        $tel = collect($record->telefones ?? [])->first();
+                        if (! $tel || empty($tel['numero'])) {
+                            return $record->telefone ?? '—';
+                        }
+                        $d = preg_replace('/\D/', '', $tel['numero']);
+
+                        return match (strlen($d)) {
+                            11 => preg_replace('/(\d{2})(\d{5})(\d{4})/', '($1) $2-$3', $d),
+                            10 => preg_replace('/(\d{2})(\d{4})(\d{4})/', '($1) $2-$3', $d),
+                            default => $tel['numero'],
+                        };
+                    })
+                    ->searchable(query: function ($query, string $search): void {
+                        $query->where('telefones', 'like', "%{$search}%");
+                    }),
 
                 TextColumn::make('email')
                     ->label('E-mail')
@@ -69,11 +85,15 @@ class ClientsTable
                         'pendente'     => 'danger',
                         'em_andamento' => 'warning',
                         'regularizada' => 'success',
+                        'finalizada'   => 'info',
+                        default        => 'gray',
                     })
                     ->formatStateUsing(fn (string $state): string => match ($state) {
                         'pendente'     => 'Pendente',
                         'em_andamento' => 'Em Andamento',
                         'regularizada' => 'Regularizada',
+                        'finalizada'   => 'Finalizada',
+                        default        => $state,
                     }),
 
                 TextColumn::make('status')
@@ -108,15 +128,27 @@ class ClientsTable
                         'pendente' => 'Pendente',
                         'em_andamento' => 'Em Andamento',
                         'regularizada' => 'Regularizada',
+                        'finalizada' => 'Finalizada',
                     ]),
 
                 SelectFilter::make('uf')
                     ->label('UF')
+                    ->options([
+                        'AC' => 'AC', 'AL' => 'AL', 'AP' => 'AP', 'AM' => 'AM',
+                        'BA' => 'BA', 'CE' => 'CE', 'DF' => 'DF', 'ES' => 'ES',
+                        'GO' => 'GO', 'MA' => 'MA', 'MT' => 'MT', 'MS' => 'MS',
+                        'MG' => 'MG', 'PA' => 'PA', 'PB' => 'PB', 'PR' => 'PR',
+                        'PE' => 'PE', 'PI' => 'PI', 'RJ' => 'RJ', 'RN' => 'RN',
+                        'RS' => 'RS', 'RO' => 'RO', 'RR' => 'RR', 'SC' => 'SC',
+                        'SP' => 'SP', 'SE' => 'SE', 'TO' => 'TO',
+                    ])
                     ->searchable(),
             ])
             ->actions([
-                EditAction::make(),
-                DeleteAction::make(),
+                ActionGroup::make([
+                    EditAction::make(),
+                    DeleteAction::make(),
+                ]),
             ])
             ->bulkActions([
                 BulkActionGroup::make([
