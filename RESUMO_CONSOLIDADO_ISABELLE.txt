@@ -1,7 +1,7 @@
 ================================================================================
   RESUMO CONSOLIDADO — SISTEMA ISABELLE (ERP NR-1)
-  Atualizado em: 2026-04-09  |  M1-M10 + Correções P1-P8 concluídos.
-  Próximo: M11 (Shield/Permissões granulares).
+  Atualizado em: 2026-04-10  |  M1-M10 + Correções P1-P8 concluídos.
+  Próximo: M12 (Acesso ao Portal do Cliente — Gestão de Credenciais).
 ================================================================================
 
 --------------------------------------------------------------------------------
@@ -350,7 +350,7 @@ histórico. Pode ser removido futuramente com migration de backfill.
 7. PRÓXIMOS MILESTONES
 --------------------------------------------------------------------------------
 
->>> PRÓXIMO PASSO: M11 — Shield / Permissões Granulares <<<
+>>> PRÓXIMO PASSO: M12 — Acesso ao Portal do Cliente <<<
 
 M9 — RN08: Alertas de Vencimento  ✅ CONCLUÍDO
   Objetivo: notificações automáticas 30, 15 e 7 dias antes do vencimento
@@ -382,14 +382,109 @@ M9 — RN08: Alertas de Vencimento  ✅ CONCLUÍDO
     app/Providers/Filament/AdminPanelProvider.php               (databaseNotifications)
     database/migrations/..._create_notifications_table.php      (php artisan notifications:table)
 
-M10 — Parser de Retorno CNAB (Arquivo de Retorno Bancário)
+M10 ✅ — Parser de Retorno CNAB (Arquivo de Retorno Bancário) ✅ CONCLUÍDO
   - Leitura de arquivos .ret enviados pelo banco
   - Atualização automática de boletos para status "pago" com data_pagamento
-  - Pode reaproveitar eduardokum/laravel-boleto (já instalado)
+  - Usa eduardokum/laravel-boleto (Retorno\Factory)
+  - CnabRetornoService + BankRetornoResource + BankRetorno model
+  - Liquidação propaga para BankBoleto → Receivable
 
 M11 — Shield / Permissões Granulares
   - bezhansalleh/filament-shield
   - Perfis: Administrador, Consultor, Operacional (RN06 — Operacional sem acesso Financeiro)
+
+M12 — Acesso ao Portal do Cliente (Gestão de Credenciais)
+  Problema: A infraestrutura do portal existe (guard 'portal', PortalPanelProvider,
+  EnsurePortalClient middleware, portal_user_id no Client), mas NÃO existe
+  interface no painel admin para criar um usuário de acesso e vinculá-lo ao Client.
+  Hoje isso só seria possível manipulando o banco manualmente.
+
+  Objetivo: Permitir que o admin gere credenciais de acesso ao portal diretamente
+  pelo cadastro do Cliente, com senha aleatória e fluxo completo de gestão.
+
+  Plano de implementação:
+
+  [M12.1] Action "Gerar Acesso ao Portal" no ClientResource
+  ----------------------------------------------------------
+  - Criar Action no header da página Edit do ClientResource
+  - Condição: só aparece se o Client ainda NÃO tem portal_user_id
+  - Validação: verifica se o campo 'email' do Client está preenchido;
+    se não, exibe erro pedindo para preencher antes
+  - Ao executar:
+      1. Gera senha aleatória de 8 caracteres (letras + números, sem símbolos)
+         → Str::password(8, letters: true, numbers: true, symbols: false)
+      2. Cria registro na tabela 'users' com:
+         - name = nome_fantasia (ou razao_social se nome_fantasia vazio)
+         - email = email do Client
+         - password = Hash::make($senhaGerada)
+         - is_admin = false
+      3. Atualiza Client com portal_user_id = ID do User criado
+      4. Exibe modal de sucesso com as credenciais em texto plano:
+         - Login: contato@empresa.com.br
+         - Senha: aB3kR7mN
+         - Aviso: "Copie a senha agora. Ela não será exibida novamente."
+
+  [M12.2] Action "Resetar Senha do Portal" no ClientResource
+  -----------------------------------------------------------
+  - Condição: só aparece se o Client JÁ tem portal_user_id
+  - Ao executar:
+      1. Gera nova senha aleatória de 8 caracteres
+      2. Atualiza o User vinculado com Hash::make($novaSenha)
+      3. Exibe modal com a nova senha em texto plano (mesma UX do M12.1)
+
+  [M12.3] Action "Revogar Acesso ao Portal" no ClientResource
+  ------------------------------------------------------------
+  - Condição: só aparece se o Client JÁ tem portal_user_id
+  - Ao executar:
+      1. Pede confirmação (modal "Tem certeza? O cliente perderá acesso ao portal.")
+      2. Remove o User vinculado (delete)
+      3. Seta portal_user_id = null no Client
+      4. Notificação de sucesso
+
+  [M12.4] Section "Acesso ao Portal" no ClientForm
+  -------------------------------------------------
+  - Adicionar Section no formulário do Client (após dados cadastrais)
+  - Conteúdo:
+      - Placeholder com badge: "Ativo" (verde) ou "Sem acesso" (cinza)
+      - Se ativo: exibe e-mail de acesso (readonly) e data de criação do User
+      - Se inativo: texto "Nenhum acesso configurado. Use o botão 'Gerar Acesso'."
+  - Somente leitura — todas as ações são via Actions no header
+
+  [M12.5] Validações e Regras de Negócio
+  ----------------------------------------
+  - Unicidade de e-mail: antes de criar o User, verificar se já existe um User
+    com o mesmo e-mail. Se existir, exibir erro claro.
+  - Cascade on delete: se o Client for excluído (softDelete), o User do portal
+    permanece (para manter histórico). Revogar acesso é manual.
+  - Auditoria: registrar no log quem gerou/resetou/revogou o acesso
+    (Auth::id() no momento da ação).
+  - O User criado NÃO deve ter acesso ao painel admin (is_admin = false).
+    O guard 'portal' e o middleware EnsurePortalClient já garantem o isolamento.
+
+  Formato das credenciais:
+  ┌─────────────────────────────────────────────┐
+  │  Login:  contato@empresa.com.br             │
+  │  Senha:  aB3kR7mN  (8 chars, letras+números)│
+  └─────────────────────────────────────────────┘
+
+  Fluxo completo:
+    Admin cadastra Client
+      → Preenche e-mail no cadastro
+      → Clica "Gerar Acesso ao Portal" (Action no header)
+      → Sistema cria User (email + senha aleatória) e vincula via portal_user_id
+      → Modal exibe credenciais para o admin copiar e enviar ao cliente
+    Cliente acessa /portal/login
+      → Digita email + senha
+      → Guard 'portal' autentica contra tabela users
+      → Middleware EnsurePortalClient valida vínculo com Client
+      → Acessa documentos, contratos e boletos (read-only, filtrado por client_id)
+
+  Arquivos a criar/alterar:
+    app/Filament/Resources/Clients/Actions/GeneratePortalAccess.php  (novo)
+    app/Filament/Resources/Clients/Actions/ResetPortalPassword.php   (novo)
+    app/Filament/Resources/Clients/Actions/RevokePortalAccess.php    (novo)
+    app/Filament/Resources/Clients/Schemas/ClientForm.php            (alterar — Section portal)
+    app/Filament/Resources/Clients/Pages/EditClient.php              (alterar — header actions)
 
 --------------------------------------------------------------------------------
 8. COMANDOS ÚTEIS
