@@ -23,7 +23,7 @@ class PayableResource extends Resource
 
     protected static ?string $pluralModelLabel = 'contas a pagar';
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::ArrowUpTray;
+    protected static string|BackedEnum|null $navigationIcon = null;
 
     protected static string|UnitEnum|null $navigationGroup = 'Financeiro';
 

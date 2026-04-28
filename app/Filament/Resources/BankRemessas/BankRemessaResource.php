@@ -23,7 +23,7 @@ class BankRemessaResource extends Resource
 
     protected static ?string $pluralModelLabel = 'remessas bancárias';
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::ArchiveBox;
+    protected static string|BackedEnum|null $navigationIcon = null;
 
     protected static string|UnitEnum|null $navigationGroup = 'Financeiro';
 

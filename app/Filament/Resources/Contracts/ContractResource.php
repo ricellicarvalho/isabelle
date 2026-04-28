@@ -24,7 +24,7 @@ class ContractResource extends Resource
 
     protected static ?string $pluralModelLabel = 'contratos';
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::DocumentText;
+    protected static string|BackedEnum|null $navigationIcon = null;
 
     protected static string|UnitEnum|null $navigationGroup = 'CRM';
 

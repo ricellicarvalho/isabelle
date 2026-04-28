@@ -23,7 +23,7 @@ class PricingResource extends Resource
 
     protected static ?string $pluralModelLabel = 'precificações';
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::Calculator;
+    protected static string|BackedEnum|null $navigationIcon = null;
 
     protected static string|UnitEnum|null $navigationGroup = 'Relatórios';
 

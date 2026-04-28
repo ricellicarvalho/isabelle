@@ -23,7 +23,7 @@ class BankAccountResource extends Resource
 
     protected static ?string $pluralModelLabel = 'contas bancárias';
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::BuildingLibrary;
+    protected static string|BackedEnum|null $navigationIcon = null;
 
     protected static string|UnitEnum|null $navigationGroup = 'Configurações';
 

@@ -24,7 +24,7 @@ class ReceivableResource extends Resource
 
     protected static ?string $pluralModelLabel = 'contas a receber';
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::ArrowDownTray;
+    protected static string|BackedEnum|null $navigationIcon = null;
 
     protected static string|UnitEnum|null $navigationGroup = 'Financeiro';
 

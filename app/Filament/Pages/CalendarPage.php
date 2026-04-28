@@ -12,7 +12,7 @@ class CalendarPage extends Page
 {
     protected string $view = 'filament.pages.calendar-page';
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::CalendarDays;
+    protected static string|BackedEnum|null $navigationIcon = null;
 
     protected static string|UnitEnum|null $navigationGroup = 'CRM';
 

@@ -21,7 +21,7 @@ class CashFlowReport extends Page
 {
     protected string $view = 'filament.pages.cash-flow-report';
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::ArrowsRightLeft;
+    protected static string|BackedEnum|null $navigationIcon = null;
 
     protected static string|UnitEnum|null $navigationGroup = 'Relatórios';
 

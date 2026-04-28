@@ -23,7 +23,7 @@ class ClientDocumentResource extends Resource
 
     protected static ?string $pluralModelLabel = 'portal do cliente';
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::FolderOpen;
+    protected static string|BackedEnum|null $navigationIcon = null;
 
     protected static string|UnitEnum|null $navigationGroup = 'CRM';
 

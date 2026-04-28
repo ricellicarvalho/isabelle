@@ -24,7 +24,7 @@ class ClientResource extends Resource
 
     protected static ?string $pluralModelLabel = 'clientes';
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::BuildingOffice2;
+    protected static string|BackedEnum|null $navigationIcon = null;
 
     protected static string|UnitEnum|null $navigationGroup = 'CRM';
 

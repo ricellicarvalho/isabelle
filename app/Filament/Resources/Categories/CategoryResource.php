@@ -25,7 +25,7 @@ class CategoryResource extends Resource
 
     protected static ?string $navigationLabel = 'Plano de Contas';
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::ListBullet;
+    protected static string|BackedEnum|null $navigationIcon = null;
 
     protected static string|UnitEnum|null $navigationGroup = 'Financeiro';
 

@@ -23,7 +23,7 @@ class BankBoletoResource extends Resource
 
     protected static ?string $pluralModelLabel = 'boletos';
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::Banknotes;
+    protected static string|BackedEnum|null $navigationIcon = null;
 
     protected static string|UnitEnum|null $navigationGroup = 'Financeiro';
 
