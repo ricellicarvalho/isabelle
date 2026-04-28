@@ -36,6 +36,9 @@ class Client extends Model
         'portal_user_id',
         'status',
         'observacoes',
+        'cadastro_token',
+        'cadastro_token_expira_em',
+        'cadastro_preenchido',
         'created_by',
         'deleted_by',
     ];
@@ -43,8 +46,10 @@ class Client extends Model
     protected function casts(): array
     {
         return [
-            'nr1_checklist' => 'array',
-            'telefones' => 'array',
+            'nr1_checklist'            => 'array',
+            'telefones'                => 'array',
+            'cadastro_token_expira_em' => 'datetime',
+            'cadastro_preenchido'      => 'boolean',
         ];
     }
 
@@ -110,5 +115,16 @@ class Client extends Model
     public function clientDocuments(): HasMany
     {
         return $this->hasMany(ClientDocument::class);
+    }
+
+    public function colaboradores(): HasMany
+    {
+        return $this->hasMany(Colaborador::class);
+    }
+
+    public function cadastroTokenValido(): bool
+    {
+        return filled($this->cadastro_token)
+            && (! $this->cadastro_token_expira_em || $this->cadastro_token_expira_em->isFuture());
     }
 }

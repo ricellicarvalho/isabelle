@@ -67,6 +67,13 @@ class ClientsTable
                     ->label('UF')
                     ->sortable(),
 
+                TextColumn::make('cadastro_preenchido')
+                    ->label('Pré-Cadastro')
+                    ->badge()
+                    ->color(fn ($record): string => $record->cadastro_preenchido ? 'success' : 'warning')
+                    ->formatStateUsing(fn ($record): string => $record->cadastro_preenchido ? 'Preenchido' : 'Pendente')
+                    ->sortable(),
+
                 TextColumn::make('nr1_checklist_progresso')
                     ->label('Checklist NR-1')
                     ->state(fn (Client $record): string => $record->nr1ChecklistProgresso() . '%')
@@ -115,6 +122,13 @@ class ClientsTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                SelectFilter::make('cadastro_preenchido')
+                    ->label('Pré-Cadastro')
+                    ->options([
+                        '1' => 'Preenchido',
+                        '0' => 'Pendente',
+                    ]),
+
                 SelectFilter::make('status')
                     ->label('Status')
                     ->options([

@@ -152,6 +152,23 @@ M9 ✅ — Alertas de Vencimento (RN08)
   - Thresholds: 30, 15, 7 dias antes de data_fim (somente contratos status=ativo)
   - Destinatários: User::where('is_admin', true)
 
+M12 ✅ — Acesso ao Portal do Cliente (Gestão de Credenciais)
+  - Actions no header de EditClient:
+      GeneratePortalAccess: cria User (senha 8 chars), vincula via portal_user_id,
+        exibe credenciais em notificação persistente, valida e-mail e unicidade
+      ResetPortalPassword: gera nova senha, atualiza User vinculado, exibe na notificação
+      RevokePortalAccess: remove User e seta portal_user_id=null (com confirmação)
+  - Tab "Portal do Cliente" no ClientForm:
+      Badge Ativo/Sem acesso + e-mail de login + data de criação (quando ativo)
+      Mensagem orientativa quando sem acesso
+  - Auditoria via Log::info em todas as 3 ações
+  - Arquivos:
+      app/Filament/Resources/Clients/Actions/GeneratePortalAccess.php (novo)
+      app/Filament/Resources/Clients/Actions/ResetPortalPassword.php  (novo)
+      app/Filament/Resources/Clients/Actions/RevokePortalAccess.php   (novo)
+      app/Filament/Resources/Clients/Schemas/ClientForm.php           (Tab portal)
+      app/Filament/Resources/Clients/Pages/EditClient.php             (header actions)
+
 M8 ✅ — Portal do Cliente
   - PortalPanelProvider → painel em /portal
   - EnsurePortalClient middleware (verifica portal_user_id no Client)
@@ -350,7 +367,7 @@ histórico. Pode ser removido futuramente com migration de backfill.
 7. PRÓXIMOS MILESTONES
 --------------------------------------------------------------------------------
 
->>> PRÓXIMO PASSO: M12 — Acesso ao Portal do Cliente <<<
+>>> PRÓXIMO PASSO: M11 — Shield / Permissões Granulares <<<
 
 M9 — RN08: Alertas de Vencimento  ✅ CONCLUÍDO
   Objetivo: notificações automáticas 30, 15 e 7 dias antes do vencimento

@@ -20,6 +20,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Support\RawJs;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\HtmlString;
+use Illuminate\Support\Str;
 
 class ClientForm
 {
@@ -394,6 +395,56 @@ class ClientForm
                                             ->label('Observações')
                                             ->rows(4)
                                             ->columnSpanFull(),
+                                    ]),
+                            ]),
+
+                        Tab::make('Portal do Cliente')
+                            ->icon(Heroicon::GlobeAlt)
+                            ->components([
+                                Section::make('Acesso ao Portal')
+                                    ->icon(Heroicon::LockClosed)
+                                    ->iconColor('primary')
+                                    ->description('Gerencie o acesso do cliente ao portal usando os botões no topo da página.')
+                                    ->columns(2)
+                                    ->components([
+                                        Placeholder::make('portal_status_badge')
+                                            ->label('Status do Acesso')
+                                            ->content(function ($record): HtmlString {
+                                                if (! $record?->portal_user_id) {
+                                                    return new HtmlString(
+                                                        '<span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">'
+                                                        . '<span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>Sem acesso'
+                                                        . '</span>'
+                                                    );
+                                                }
+
+                                                return new HtmlString(
+                                                    '<span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">'
+                                                    . '<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Ativo'
+                                                    . '</span>'
+                                                );
+                                            }),
+
+                                        Placeholder::make('portal_access_email')
+                                            ->label('E-mail de Login')
+                                            ->content(fn ($record): string => $record?->email ?? '—')
+                                            ->visible(fn ($record): bool => (bool) $record?->portal_user_id),
+
+                                        Placeholder::make('portal_access_created')
+                                            ->label('Acesso criado em')
+                                            ->content(fn ($record): string => $record?->portalUser?->created_at?->format('d/m/Y H:i') ?? '—')
+                                            ->visible(fn ($record): bool => (bool) $record?->portal_user_id),
+
+                                        Placeholder::make('portal_no_access_info')
+                                            ->label('')
+                                            ->content(new HtmlString(
+                                                '<p class="text-sm text-gray-500 dark:text-gray-400">'
+                                                . 'Nenhum acesso configurado. Use o botão <strong>"Gerar Acesso ao Portal"</strong> '
+                                                . 'no topo desta página para criar um login e senha para este cliente.'
+                                                . '</p>'
+                                            ))
+                                            ->columnSpanFull()
+                                            ->visible(fn ($record): bool => ! $record?->portal_user_id),
                                     ]),
                             ]),
                     ])
