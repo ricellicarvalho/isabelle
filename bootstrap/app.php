@@ -12,12 +12,11 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         // App rodando atrás do reverse proxy do host (nginx → container nginx).
-        // Confia em qualquer proxy e respeita os cabeçalhos X-Forwarded-* para
-        // que url()/route()/redirect()/Filament gerem URLs com https corretas.
+        // Apenas FOR e PROTO são necessários: o Host header já chega correto via
+        // proxy_set_header Host $host no nginx, evitando o bug do Symfony com
+        // X-Forwarded-Host ou X-Forwarded-Port vazios (Uninitialized string offset 0).
         $middleware->trustProxies(at: '*', headers:
             \Illuminate\Http\Request::HEADER_X_FORWARDED_FOR |
-            \Illuminate\Http\Request::HEADER_X_FORWARDED_HOST |
-            \Illuminate\Http\Request::HEADER_X_FORWARDED_PORT |
             \Illuminate\Http\Request::HEADER_X_FORWARDED_PROTO
         );
     })
