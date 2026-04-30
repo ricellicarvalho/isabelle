@@ -109,6 +109,11 @@ class AdminPanelProvider extends PanelProvider
                 PanelsRenderHook::HEAD_END,
                 fn (): HtmlString => new HtmlString(<<<'HTML'
                 <style>
+                .fi-sidebar {
+                    // background-color: #FAFAFA !important; 
+                    background-color: #FFFFFF !important;
+                    border-right: 1px solid rgba(0, 0, 0, 0.12) !important;
+                }
                 .fi-sidebar-group-label {
                     font-weight: 900 !important;
                     color: rgb(17 24 39) !important;
