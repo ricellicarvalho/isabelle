@@ -2,7 +2,7 @@
 # docker-compose.override.yml — DESENVOLVIMENTO
 # Carregado automaticamente pelo Docker Compose junto com docker-compose.yml.
 # Adiciona: banco MySQL local, ports expostos, bind-mount do código,
-#           vhost nginx de dev (default.conf).
+#           vhosts nginx de dev (admin.conf + portal.conf via subdomínio local).
 # =============================================================================
 
 services:

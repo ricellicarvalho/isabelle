@@ -41,7 +41,7 @@ class AdminPanelProvider extends PanelProvider
             ->brandLogoHeight('3rem')
             ->brandName('Instituto Alves Neves')
             ->id('admin')
-            ->path('admin')
+            ->path(config('panels.admin_domain') ? '' : 'admin')
             ->defaultThemeMode(ThemeMode::Light)
             ->authGuard('web')
             ->login()

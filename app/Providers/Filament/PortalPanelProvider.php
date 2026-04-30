@@ -26,7 +26,7 @@ class PortalPanelProvider extends PanelProvider
     {
         $panel = $panel
             ->id('portal')
-            ->path('portal')
+            ->path(config('panels.portal_domain') ? '' : 'portal')
             ->authGuard('portal')
             ->login()
             ->brandName('Portal do Cliente')
