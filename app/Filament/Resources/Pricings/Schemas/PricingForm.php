@@ -48,19 +48,21 @@ class PricingForm
                     ->components([
                         TextInput::make('custo_direto')
                             ->label('Custo Direto (R$)')
-                            ->numeric()
                             ->prefix('R$')
-                            ->default(0)
-                            ->minValue(0)
+                            ->placeholder('0,00')
+                            ->extraAlpineAttributes(['x-on:input' => "let v=\$event.target.value.replace(/\\D/g,'');if(!v)v='0';v=v.replace(/^0+/,'')||'0';while(v.length<3)v='0'+v;let d=v.slice(-2),i=v.slice(0,-2).replace(/^0+/,'')||'0';i=i.replace(/\\B(?=(\\d{3})+(?!\\d))/g,'.');\$event.target.value=i+','+d;"])
+                            ->dehydrateStateUsing(fn ($state) => self::parseMoney($state))
+                            ->afterStateHydrated(fn (TextInput $component, $state) => $component->state(self::formatMoney($state) ?? '0,00'))
                             ->live(onBlur: true)
                             ->afterStateUpdated(fn (Get $get, Set $set) => self::recalcular($get, $set)),
 
                         TextInput::make('custo_indireto')
                             ->label('Custo Indireto (R$)')
-                            ->numeric()
                             ->prefix('R$')
-                            ->default(0)
-                            ->minValue(0)
+                            ->placeholder('0,00')
+                            ->extraAlpineAttributes(['x-on:input' => "let v=\$event.target.value.replace(/\\D/g,'');if(!v)v='0';v=v.replace(/^0+/,'')||'0';while(v.length<3)v='0'+v;let d=v.slice(-2),i=v.slice(0,-2).replace(/^0+/,'')||'0';i=i.replace(/\\B(?=(\\d{3})+(?!\\d))/g,'.');\$event.target.value=i+','+d;"])
+                            ->dehydrateStateUsing(fn ($state) => self::parseMoney($state))
+                            ->afterStateHydrated(fn (TextInput $component, $state) => $component->state(self::formatMoney($state) ?? '0,00'))
                             ->live(onBlur: true)
                             ->afterStateUpdated(fn (Get $get, Set $set) => self::recalcular($get, $set)),
 
@@ -76,15 +78,16 @@ class PricingForm
 
                         TextInput::make('preco_venda')
                             ->label('Preço de Venda (R$)')
-                            ->numeric()
                             ->prefix('R$')
                             ->readOnly()
+                            ->dehydrateStateUsing(fn ($state) => self::parseMoney($state))
+                            ->afterStateHydrated(fn (TextInput $component, $state) => $component->state(self::formatMoney($state) ?? '0,00'))
                             ->helperText('Calculado automaticamente'),
 
                         Placeholder::make('custo_total_label')
                             ->label('Custo Total')
                             ->content(function (Get $get): string {
-                                $total = (float) ($get('custo_direto') ?? 0) + (float) ($get('custo_indireto') ?? 0);
+                                $total = self::parseMoney($get('custo_direto')) + self::parseMoney($get('custo_indireto'));
 
                                 return 'R$ ' . number_format($total, 2, ',', '.');
                             }),
@@ -92,8 +95,8 @@ class PricingForm
                         Placeholder::make('margem_real_label')
                             ->label('Lucro por Venda')
                             ->content(function (Get $get): string {
-                                $custo = (float) ($get('custo_direto') ?? 0) + (float) ($get('custo_indireto') ?? 0);
-                                $preco = (float) ($get('preco_venda') ?? 0);
+                                $custo = self::parseMoney($get('custo_direto')) + self::parseMoney($get('custo_indireto'));
+                                $preco = self::parseMoney($get('preco_venda'));
 
                                 return 'R$ ' . number_format($preco - $custo, 2, ',', '.');
                             }),
@@ -110,25 +113,39 @@ class PricingForm
             ]);
     }
 
+    private static function parseMoney(mixed $state): float
+    {
+        if (blank($state)) return 0.0;
+        if (is_numeric($state)) return (float) $state;
+
+        return (float) str_replace(['.', ','], ['', '.'], (string) $state);
+    }
+
+    private static function formatMoney(mixed $state): ?string
+    {
+        if (blank($state)) return null;
+
+        return number_format((float) $state, 2, ',', '.');
+    }
+
     private static function recalcular(Get $get, Set $set): void
     {
-        $custoDireto   = (float) ($get('custo_direto') ?? 0);
-        $custoIndireto = (float) ($get('custo_indireto') ?? 0);
+        $custoDireto   = self::parseMoney($get('custo_direto'));
+        $custoIndireto = self::parseMoney($get('custo_indireto'));
         $margem        = (float) ($get('margem_lucro') ?? 0);
 
         $custoTotal = $custoDireto + $custoIndireto;
 
         if ($margem >= 100) {
-            $set('preco_venda', 0);
+            $set('preco_venda', '0,00');
 
             return;
         }
 
-        // Fórmula: preço = custo / (1 - margem/100)
         $preco = $margem > 0
             ? round($custoTotal / (1 - $margem / 100), 2)
             : $custoTotal;
 
-        $set('preco_venda', $preco);
+        $set('preco_venda', number_format($preco, 2, ',', '.'));
     }
 }

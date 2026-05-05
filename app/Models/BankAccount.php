@@ -25,6 +25,7 @@ class BankAccount extends Model
         'cedente_documento',
         'cedente_endereco',
         'cedente_cidade_uf',
+        'logo_path',
         'layout_remessa',
         'proximo_nosso_numero',
         'proximo_sequencial_remessa',

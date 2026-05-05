@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\BankBoletos\Tables;
 
 use App\Models\BankBoleto;
-use App\Services\BankBoletoService;
 use App\Services\CnabRemessaService;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
@@ -16,7 +15,8 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Collection;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Illuminate\Support\Facades\URL;
+use Throwable;
 
 class BankBoletosTable
 {
@@ -54,6 +54,14 @@ class BankBoletosTable
                     ->label('Vencimento')
                     ->date('d/m/Y')
                     ->sortable(),
+
+                TextColumn::make('linha_digitavel')
+                    ->label('Linha Digitável')
+                    ->placeholder('—')
+                    ->copyable()
+                    ->copyMessage('Linha digitável copiada')
+                    ->limit(50)
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('remessa.sequencial_arquivo')
                     ->label('Remessa')
@@ -95,19 +103,15 @@ class BankBoletosTable
                         ->toArray()),
             ])
             ->actions([
+                // URL assinada com validade de 30 min — abre em nova aba sem passar pelo Livewire
                 Action::make('baixarPdf')
                     ->label('PDF')
                     ->icon('heroicon-o-document-arrow-down')
                     ->color('danger')
-                    ->action(function (BankBoleto $record): StreamedResponse {
-                        $pdf = BankBoletoService::renderPdf($record);
-
-                        return response()->streamDownload(
-                            fn () => print($pdf),
-                            "boleto-{$record->nosso_numero}.pdf",
-                            ['Content-Type' => 'application/pdf']
-                        );
-                    }),
+                    ->url(fn (BankBoleto $record): string =>
+                        URL::signedRoute('boleto.pdf', ['boleto' => $record->id], now()->addMinutes(30))
+                    )
+                    ->openUrlInNewTab(),
                 EditAction::make(),
                 DeleteAction::make(),
             ])
@@ -129,7 +133,7 @@ class BankBoletosTable
                                     ->body("{$remessa->quantidade_titulos} título(s) — R$ " . number_format((float) $remessa->valor_total, 2, ',', '.'))
                                     ->success()
                                     ->send();
-                            } catch (\Throwable $e) {
+                            } catch (Throwable $e) {
                                 Notification::make()
                                     ->title('Erro ao gerar remessa')
                                     ->body($e->getMessage())

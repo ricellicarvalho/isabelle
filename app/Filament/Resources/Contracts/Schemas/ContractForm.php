@@ -13,8 +13,6 @@ use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
-use Filament\Support\RawJs;
-
 class ContractForm
 {
     public static function configure(Schema $schema): Schema
@@ -91,14 +89,10 @@ class ContractForm
                                             ->label('Valor Total')
                                             ->required()
                                             ->prefix('R$')
-                                            ->mask(RawJs::make('$money($input, \',\', \'.\', 2)'))
-                                            ->stripCharacters('.')
-                                            ->formatStateUsing(fn ($state) => is_numeric($state)
-                                                ? number_format((float) $state, 2, ',', '.')
-                                                : $state)
-                                            ->dehydrateStateUsing(fn ($state) => filled($state)
-                                                ? (float) str_replace(',', '.', $state)
-                                                : null)
+                                            ->placeholder('0,00')
+                                            ->extraAlpineAttributes(['x-on:input' => "let v=\$event.target.value.replace(/\\D/g,'');if(!v)v='0';v=v.replace(/^0+/,'')||'0';while(v.length<3)v='0'+v;let d=v.slice(-2),i=v.slice(0,-2).replace(/^0+/,'')||'0';i=i.replace(/\\B(?=(\\d{3})+(?!\\d))/g,'.');\$event.target.value=i+','+d;"])
+                                            ->dehydrateStateUsing(fn ($state) => self::parseMoney($state))
+                                            ->afterStateHydrated(fn (TextInput $component, $state) => $component->state(self::formatMoney($state)))
                                             ->rule('gte:0'),
 
                                         TextInput::make('quantidade_parcelas')
@@ -166,5 +160,19 @@ class ContractForm
                     ->contained(false)
                     ->columnSpanFull(),
             ]);
+    }
+
+    private static function parseMoney(?string $state): ?float
+    {
+        if (blank($state)) return null;
+
+        return (float) str_replace(['.', ','], ['', '.'], $state);
+    }
+
+    private static function formatMoney(mixed $state): ?string
+    {
+        if (blank($state)) return null;
+
+        return number_format((float) $state, 2, ',', '.');
     }
 }

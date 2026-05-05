@@ -8,14 +8,40 @@ use Eduardokum\LaravelBoleto\Util;
 /**
  * Subclasse local do Bradesco do pacote eduardokum/laravel-boleto.
  *
- * O pacote 0.1 (2016) é incompatível com o Comunicado FEBRABAN 4015 — para
- * datas de vencimento a partir de 22/02/2025 o fator de vencimento ultrapassa
- * 9999 dias e o cálculo do pacote estoura o tamanho do código de barras (44 →
- * 45). Esta classe sobrescreve `gerarCodigoBarras` aplicando o fator corrigido
- * `((fator - 1000) % 9000) + 1000` quando necessário.
+ * Corrige dois problemas do pacote 0.1 (2016):
+ *
+ * 1. Fator de vencimento — incompatível com o Comunicado FEBRABAN 4015 para
+ *    datas a partir de 22/02/2025 (fator > 9999). Aplica correção
+ *    `((fator - 1000) % 9000) + 1000`.
+ *
+ * 2. DVs de agência e conta — `preProcessamento()` calcula os DVs via
+ *    `Util::modulo11()`. Quando `agenciaDv` ou `contaDv` são informados
+ *    explicitamente, este override os usa em vez do cálculo automático,
+ *    permitindo configurar o valor real fornecido pelo banco.
  */
 class Bradesco extends LibBradesco
 {
+    /** DV da agência configurado manualmente. null = calcula via modulo11. */
+    public ?string $agenciaDv = null;
+
+    /** DV da conta configurado manualmente. null = calcula via modulo11. */
+    public ?string $contaDv = null;
+
+    public function preProcessamento()
+    {
+        parent::preProcessamento();
+
+        // Sobrescreve agenciaConta apenas quando ao menos um DV foi informado
+        if ($this->agenciaDv !== null || $this->contaDv !== null) {
+            $agDv = $this->agenciaDv ?? Util::modulo11($this->getAgencia());
+            $ctDv = $this->contaDv  ?? Util::modulo11($this->getConta());
+            $this->agenciaConta = sprintf('%s-%s %s-%s',
+                $this->getAgencia(), $agDv,
+                $this->getConta(),   $ctDv
+            );
+        }
+    }
+
     protected function gerarCodigoBarras()
     {
         $fator = (int) Util::fatorVencimento($this->getDataVencimento());

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\BankAccounts\Schemas;
 
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -64,9 +65,22 @@ class BankAccountForm
                                     ->columns(2)
                                     ->components([
                                         TextInput::make('cedente_nome')->label('Razão Social')->required()->maxLength(255)->columnSpanFull(),
-                                        TextInput::make('cedente_documento')->label('CNPJ')->required()->maxLength(18),
+                                        TextInput::make('cedente_documento')
+                                            ->label('CNPJ')
+                                            ->required()
+                                            ->maxLength(18)
+                                            ->helperText('Pode informar com ou sem formatação (ex: 58.953.530/0001-00 ou 58953530000100)'),
                                         TextInput::make('cedente_endereco')->label('Endereço')->maxLength(255),
                                         TextInput::make('cedente_cidade_uf')->label('Cidade/UF')->maxLength(255),
+                                        FileUpload::make('logo_path')
+                                            ->label('Logo da Empresa (para o boleto)')
+                                            ->image()
+                                            ->disk('public')
+                                            ->directory('logos')
+                                            ->acceptedFileTypes(['image/png', 'image/jpeg'])
+                                            ->maxSize(1024)
+                                            ->helperText('PNG ou JPG, máx. 1 MB. Aparece no cabeçalho do boleto PDF.')
+                                            ->columnSpanFull(),
                                     ]),
                             ]),
 

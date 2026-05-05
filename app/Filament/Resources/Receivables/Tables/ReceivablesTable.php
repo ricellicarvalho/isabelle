@@ -18,6 +18,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
+use Throwable;
 
 class ReceivablesTable
 {
@@ -96,6 +97,23 @@ class ReceivablesTable
                         'cancelado' => 'Cancelado',
                         'vencido' => 'Vencido',
                     }),
+
+                // Indicador de boleto(s) gerado(s) — eager loaded via counts()
+                TextColumn::make('bank_boletos_count')
+                    ->label('Boleto')
+                    ->counts('bankBoletos')
+                    ->badge()
+                    ->alignCenter()
+                    ->color(fn (int $state): string => match (true) {
+                        $state === 0 => 'gray',
+                        $state === 1 => 'success',
+                        default      => 'warning',
+                    })
+                    ->formatStateUsing(fn (int $state): string => match (true) {
+                        $state === 0 => 'Sem boleto',
+                        $state === 1 => '1 boleto',
+                        default      => "{$state} boletos",
+                    }),
             ])
             ->filters([
                 SelectFilter::make('status')
@@ -119,23 +137,57 @@ class ReceivablesTable
                         ->whereIn('status', ['pendente', 'vencido'])
                         ->whereDate('data_vencimento', '<', now()))
                     ->toggle(),
+
+                Filter::make('sem_boleto')
+                    ->label('Sem boleto gerado')
+                    ->query(fn (Builder $query): Builder => $query->whereDoesntHave('bankBoletos'))
+                    ->toggle(),
+
+                Filter::make('com_boleto')
+                    ->label('Com boleto gerado')
+                    ->query(fn (Builder $query): Builder => $query->whereHas('bankBoletos'))
+                    ->toggle(),
             ])
             ->actions([
-                // RN11/RN16 - Gerar Boleto a partir da parcela
+                // RN11/RN16 - Gerar Boleto a partir da parcela (detecta 2ª via pelo count eager loaded)
                 Action::make('gerarBoleto')
-                    ->label('Gerar Boleto')
-                    ->icon('heroicon-o-document-plus')
-                    ->color('info')
+                    ->label(fn (Receivable $record): string =>
+                        ($record->bank_boletos_count ?? 0) > 0 ? 'Gerar 2ª Via' : 'Gerar Boleto'
+                    )
+                    ->icon(fn (Receivable $record): string =>
+                        ($record->bank_boletos_count ?? 0) > 0
+                            ? 'heroicon-o-document-duplicate'
+                            : 'heroicon-o-document-plus'
+                    )
+                    ->color(fn (Receivable $record): string =>
+                        ($record->bank_boletos_count ?? 0) > 0 ? 'warning' : 'info'
+                    )
                     ->visible(fn (Receivable $record): bool => in_array($record->status, ['pendente', 'vencido']))
                     ->requiresConfirmation()
+                    ->modalHeading(fn (Receivable $record): string =>
+                        ($record->bank_boletos_count ?? 0) > 0 ? 'Gerar 2ª Via de Boleto' : 'Gerar Boleto'
+                    )
+                    ->modalDescription(fn (Receivable $record): string =>
+                        ($record->bank_boletos_count ?? 0) > 0
+                            ? 'Já existe pelo menos um boleto para esta parcela. Confirma a geração de uma 2ª via?'
+                            : 'Confirma a geração do boleto para esta parcela?'
+                    )
                     ->action(function (Receivable $record): void {
-                        $boleto = BankBoletoService::createFromReceivable($record);
+                        try {
+                            $boleto = BankBoletoService::createFromReceivable($record);
 
-                        Notification::make()
-                            ->title('Boleto gerado')
-                            ->body("Nosso Número: {$boleto->nosso_numero}")
-                            ->success()
-                            ->send();
+                            Notification::make()
+                                ->title('Boleto gerado com sucesso')
+                                ->body("Nosso Número: {$boleto->nosso_numero}")
+                                ->success()
+                                ->send();
+                        } catch (Throwable $e) {
+                            Notification::make()
+                                ->title('Erro ao gerar boleto')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
                     }),
                 EditAction::make(),
                 DeleteAction::make(),
@@ -166,7 +218,8 @@ class ReceivablesTable
                                 ->success()
                                 ->send();
                         }),
-                    // Geração de boletos em lote
+
+                    // Geração de boletos em lote — reporta erros individuais sem interromper o lote
                     BulkAction::make('gerarBoletosLote')
                         ->label('Gerar Boletos')
                         ->icon('heroicon-o-document-plus')
@@ -175,6 +228,8 @@ class ReceivablesTable
                         ->modalDescription('Gera boletos para todas as parcelas selecionadas com forma de pagamento "boleto" que ainda não possuem boleto vinculado.')
                         ->action(function (Collection $records): void {
                             $count = 0;
+                            $errors = 0;
+
                             foreach ($records as $record) {
                                 if ($record->forma_pagamento !== 'boleto') {
                                     continue;
@@ -185,14 +240,26 @@ class ReceivablesTable
                                 if ($record->bankBoletos()->exists()) {
                                     continue;
                                 }
-                                BankBoletoService::createFromReceivable($record);
-                                $count++;
+
+                                try {
+                                    BankBoletoService::createFromReceivable($record);
+                                    $count++;
+                                } catch (Throwable) {
+                                    $errors++;
+                                }
                             }
 
-                            Notification::make()
-                                ->title("{$count} boleto(s) gerado(s)")
-                                ->success()
-                                ->send();
+                            if ($errors > 0) {
+                                Notification::make()
+                                    ->title("{$count} boleto(s) gerado(s) — {$errors} erro(s)")
+                                    ->warning()
+                                    ->send();
+                            } else {
+                                Notification::make()
+                                    ->title("{$count} boleto(s) gerado(s)")
+                                    ->success()
+                                    ->send();
+                            }
                         }),
                     DeleteBulkAction::make(),
                 ]),

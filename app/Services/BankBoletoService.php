@@ -11,6 +11,7 @@ use Eduardokum\LaravelBoleto\Boleto\Banco\Bb;
 use Eduardokum\LaravelBoleto\Boleto\Banco\Caixa;
 use Eduardokum\LaravelBoleto\Boleto\Banco\Itau;
 use Eduardokum\LaravelBoleto\Boleto\Banco\Santander;
+use Illuminate\Support\Facades\Storage;
 
 class BankBoletoService
 {
@@ -34,23 +35,37 @@ class BankBoletoService
 
     /**
      * Cria um BankBoleto a partir de um Receivable, herdando valor e
-     * data_vencimento (RN16).
+     * data_vencimento (RN16). Calcula código de barras e linha digitável
+     * imediatamente para que fiquem disponíveis sem precisar gerar o PDF.
      */
     public static function createFromReceivable(Receivable $receivable, array $overrides = []): BankBoleto
     {
         $account = BankAccount::active();
         $carteira = $account?->carteira;
 
-        return BankBoleto::create(array_merge([
-            'receivable_id' => $receivable->id,
-            'nosso_numero' => self::generateNossoNumero($account),
+        $boleto = BankBoleto::create(array_merge([
+            'receivable_id'    => $receivable->id,
+            'nosso_numero'     => self::generateNossoNumero($account),
             'numero_documento' => (string) $receivable->id,
-            'carteira' => $carteira,
-            'valor' => $receivable->valor,
-            'data_vencimento' => $receivable->data_vencimento,
-            'status' => 'pendente',
-            'created_by' => auth()->id() ?? $receivable->created_by,
+            'carteira'         => $carteira,
+            'valor'            => $receivable->valor,
+            'data_vencimento'  => $receivable->data_vencimento,
+            'status'           => 'pendente',
+            'created_by'       => auth()->id() ?? $receivable->created_by,
         ], $overrides));
+
+        // Computa código de barras e linha digitável na criação (silencia falha
+        // para não bloquear o cadastro caso a conta bancária esteja incompleta).
+        if ($account) {
+            try {
+                self::buildLibBoleto($boleto);
+                $boleto->refresh();
+            } catch (\Throwable) {
+                // Boleto criado sem barcode — será calculado ao gerar o PDF
+            }
+        }
+
+        return $boleto;
     }
 
     /**
@@ -84,7 +99,7 @@ class BankBoletoService
 
         $boleto->loadMissing(['receivable.client']);
         $receivable = $boleto->receivable;
-        $client = $receivable?->client;
+        $client     = $receivable?->client;
 
         $libBoleto = match ($account->banco) {
             '001' => new Bb,
@@ -95,32 +110,53 @@ class BankBoletoService
             default => throw new \RuntimeException("Banco {$account->banco} não suportado pelo pacote."),
         };
 
-        $libBoleto->agencia = $account->agencia;
-        $libBoleto->conta = $account->conta;
+        $libBoleto->agencia  = $account->agencia;
+        $libBoleto->conta    = $account->conta;
         $libBoleto->carteira = $boleto->carteira ?? $account->carteira;
-        $libBoleto->numero = (int) ltrim($boleto->nosso_numero, '0');
+        $libBoleto->numero   = (int) ltrim($boleto->nosso_numero, '0');
+
+        // DVs opcionais — quando informados sobrescrevem o cálculo automático via modulo11
+        if ($libBoleto instanceof Bradesco) {
+            if (filled($account->agencia_dv)) {
+                $libBoleto->agenciaDv = $account->agencia_dv;
+            }
+            if (filled($account->conta_dv)) {
+                $libBoleto->contaDv = $account->conta_dv;
+            }
+        }
+
         $libBoleto->dataVencimento = $boleto->data_vencimento;
-        $libBoleto->valor = (float) $boleto->valor;
-        $libBoleto->cedenteDocumento = $account->cedente_documento;
-        $libBoleto->cedenteNome = $account->cedente_nome;
-        $libBoleto->cedenteEndereco = $account->cedente_endereco ?? '';
-        $libBoleto->cedenteCidadeUF = $account->cedente_cidade_uf ?? '';
+        $libBoleto->valor          = (float) $boleto->valor;
+
+        // CNPJ sempre como dígitos puros para o maskString da biblioteca não duplicar separadores
+        $libBoleto->cedenteDocumento = preg_replace('/\D/', '', $account->cedente_documento ?? '');
+        $libBoleto->cedenteNome      = $account->cedente_nome;
+        $libBoleto->cedenteEndereco  = $account->cedente_endereco ?? '';
+        $libBoleto->cedenteCidadeUF  = $account->cedente_cidade_uf ?? '';
+
+        // identificacao = nome do cedente (aparece como 1ª linha do bloco ao lado do logo no PDF)
+        $libBoleto->identificacao = $account->cedente_nome;
+
         $libBoleto->especieDocumento = 'DM';
-        $libBoleto->dataDocumento = $boleto->created_at;
-        $libBoleto->identificacao = $boleto->numero_documento;
+        $libBoleto->dataDocumento    = $boleto->created_at;
+
+        // Logo da empresa: caminho absoluto para arquivo armazenado em storage/app/public/logos/
+        if (filled($account->logo_path) && Storage::disk('public')->exists($account->logo_path)) {
+            $libBoleto->logo = Storage::disk('public')->path($account->logo_path);
+        }
 
         if ($client) {
-            $libBoleto->sacadoDocumento = $client->cnpj_cpf ?? '';
-            $libBoleto->sacadoNome = $client->razao_social ?? '';
-            $libBoleto->sacadoEndereco = trim(($client->endereco ?? '') . ', ' . ($client->numero ?? ''));
-            $libBoleto->sacadoCidadeUF = trim(($client->cidade ?? '') . '/' . ($client->uf ?? ''));
+            $libBoleto->sacadoDocumento = preg_replace('/\D/', '', $client->cnpj_cpf ?? '');
+            $libBoleto->sacadoNome      = $client->razao_social ?? '';
+            $libBoleto->sacadoEndereco  = trim(($client->endereco ?? '') . ', ' . ($client->numero ?? ''));
+            $libBoleto->sacadoCidadeUF  = trim(($client->cidade ?? '') . '/' . ($client->uf ?? ''));
         }
 
         $libBoleto->processar();
 
         // Atualiza os campos calculados no model
         $boleto->update([
-            'codigo_barras' => $libBoleto->getCodigoBarras(),
+            'codigo_barras'   => $libBoleto->getCodigoBarras(),
             'linha_digitavel' => $libBoleto->getLinha(),
         ]);
 
