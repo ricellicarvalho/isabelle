@@ -35,4 +35,11 @@ yarn-debug.log*
 yarn-error.log*
 /storage/framework/views/*.php.claude/
 
+# Arquivos de override e produção do Docker
+docker-compose.override.yml
+docker-compose.prod.yml
+docker-compose.yml
+
 /storage/app/certs/*
+
+
