@@ -3,6 +3,7 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Widgets\FinanceStatsOverview;
+use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
 use App\Filament\Widgets\OverdueReceivablesTable;
 use Filament\Enums\ThemeMode;
 use Filament\Http\Middleware\Authenticate;
@@ -51,6 +52,7 @@ class AdminPanelProvider extends PanelProvider
             ->databaseNotifications()
             ->databaseNotificationsPolling('60s')
             ->plugins([
+                FilamentShieldPlugin::make(),
                 FilamentFullCalendarPlugin::make()
                     ->selectable()
                     ->editable()

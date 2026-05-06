@@ -68,4 +68,9 @@ class Receivable extends Model
     {
         return $this->hasMany(BankBoleto::class);
     }
+
+    public function nfses(): HasMany
+    {
+        return $this->hasMany(\App\Models\Nfse::class);
+    }
 }

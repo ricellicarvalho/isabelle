@@ -1,0 +1,328 @@
+---                                                                                     
+  📋 PLANO COMPLETO DE EXECUÇÃO — NFSe Geranet        
+                                                                                                                                                                                                                                              
+  ---                                              
+  1. Arquitetura da Solução                                                                                                                                                                                                                   
+                                                                                                                                                                                                                                            
+  ┌─────────────────────────────────────────────────────────────┐                                                                                                                                                                             
+  │                    FILAMENT (UI Layer)                       │                                                                                                                                                                            
+  │  ContractResource ──► EmitirNFSeAction                       │
+  │  ReceivableResource ─► EmitirNFSeAction (por parcela)        │                                                                                                                                                                            
+  │  NfseResource ───────► CancelarNFSeAction, BulkEmitirAction  │                                                                                                                                                                            
+  │  NfseConfigResource ─► Configuração do Prestador            │                                                                                                                                                                             
+  └──────────────────────────────┬──────────────────────────────┘                                                                                                                                                                             
+                                 │ dispatch Job                                                                                                                                                                                               
+  ┌──────────────────────────────▼──────────────────────────────┐                                                                                                                                                                             
+  │                    QUEUE LAYER (Laravel Jobs)                │                                                                                                                                                                            
+  │  EmitirNFSeJob ──► NFSeService::emitir()                     │                                                                                                                                                                            
+  │  CancelarNFSeJob ─► NFSeService::cancelar()                  │                                                                                                                                                                            
+  │  EnviarEmailNFSeJob ─► NFSeEmitidaMail                       │                                                                                                                                                                            
+  └──────────────────────────────┬──────────────────────────────┘                                                                                                                                                                             
+                                 │ HTTP                                                                                                                                                                                                       
+  ┌──────────────────────────────▼──────────────────────────────┐                                                                                                                                                                             
+  │              NFSeService (Integration Layer)                 │                                                                                                                                                                            
+  │  • Lê certificado .pfx → converte para hexadecimal           │
+  │  • Monta payload completo (prestador + tomador + serviço)    │                                                                                                                                                                            
+  │  • POST /api/v1/nfse/emitir | /cancelar | /consultar-notas   │                                                                                                                                                                            
+  │  • Registra NfseLog (request + response)                     │                                                                                                                                                                            
+  └──────────────────────────────┬──────────────────────────────┘                                                                                                                                                                             
+                                 │                                                                                                                                                                                                            
+              ┌──────────────────▼──────────────────┐                                                                                                                                                                                         
+              │     Geranet NFe API                  │                                                                                                                                                                                        
+              │  https://nfe.geranet.net/api/v1      │
+              │  Auth: Bearer gn_76A6...             │                                                                                                                                                                                        
+              └──────────────────────────────────────┘                                                                                                                                                                                        
+                                                                                                                                                                                                                                              
+  ---                                                                                                                                                                                                                                         
+  2. Fluxo de Emissão (por parcela/contrato)
+                                                                                                                                                                                                                                              
+  1. Usuário clica "Emitir NFSe" (Action no Filament)
+  2. Modal: confirmar discriminação, competência, valor                                                                                                                                                                                       
+  3. Validação de pré-requisitos:                                                                                                                                                                                                             
+     - NfseConfig configurada?                                                                                                                                                                                                                
+     - Client tem inscricao_municipal, municipio_ibge, email?                                                                                                                                                                                 
+     - Certificado existe no storage?                                                                                                                                                                                                         
+  4. Cria registro Nfse { status: 'pendente', numero_rps: auto }
+  5. Dispatch EmitirNFSeJob (async via queue)                                                                                                                                                                                                 
+  6. Job: monta payload → POST /api/v1/nfse/emitir                                                                                                                                                                                            
+  7a. Sucesso: Nfse.status = 'emitida', salva numero/xml/pdf                                                                                                                                                                                  
+      → Dispatch EnviarEmailNFSeJob                                                                                                                                                                                                           
+  7b. Erro: Nfse.status = 'erro', salva ultimo_erro, tentativas++                                                                                                                                                                             
+      → Retry automático (3 tentativas com backoff)                                                                                                                                                                                           
+  8. Email: PDF decodificado de hex → enviado a prestador + tomador                                                                                                                                                                           
+                                                                                                                                                                                                                                              
+  ---                                                                                                                                                                                                                                         
+  3. Pontos de Integração com o Sistema Atual                                                                                                                                                                                                 
+                                                                                                                                                                                                                                              
+  ┌───────────────────────────┬────────────────────────────────────┬───────────────────────┐
+  │           Onde            │               O quê                │         Como          │                                                                                                                                                  
+  ├───────────────────────────┼────────────────────────────────────┼───────────────────────┤
+  │ ContractResource          │ Action "Emitir NFSe" (valor total) │ Nova EmitirNFSeAction │                                                                                                                                                  
+  ├───────────────────────────┼────────────────────────────────────┼───────────────────────┤
+  │ ReceivableResource        │ Action "Emitir NFSe" (por parcela) │ Nova EmitirNFSeAction │                                                                                                                                                  
+  ├───────────────────────────┼────────────────────────────────────┼───────────────────────┤                                                                                                                                                  
+  │ NfseResource (novo)       │ CRUD + Cancelar + Download PDF/XML │ Novo Resource         │                                                                                                                                                  
+  ├───────────────────────────┼────────────────────────────────────┼───────────────────────┤                                                                                                                                                  
+  │ NfseConfigResource (novo) │ Config do prestador                │ Novo Resource         │
+  ├───────────────────────────┼────────────────────────────────────┼───────────────────────┤                                                                                                                                                  
+  │ Client model              │ Novo campo municipio_ibge          │ Migration + Form      │
+  ├───────────────────────────┼────────────────────────────────────┼───────────────────────┤                                                                                                                                                  
+  │ .env                      │ NFSE_API_KEY, queue                │ Adição de variáveis   │
+  └───────────────────────────┴────────────────────────────────────┴───────────────────────┘                                                                                                                                                  
+                  
+  ---                                                                                                                                                                                                                                         
+  4. Componentes a Criar
+                                                                                                                                                                                                                                              
+  Models: NfseConfig, NfseServiceCode, Nfse, NfseLog
+  Services: NFSeService                                                                                                                                                                                                                       
+  DTOs: NFSeEmissaoData
+  Jobs: EmitirNFSeJob, CancelarNFSeJob, EnviarEmailNFSeJob                                                                                                                                                                                    
+  Mail: NFSeEmitidaMail + view Blade                                                                                                                                                                                                          
+  Config: config/nfse.php                                                                                                                                                                                                                     
+  Resources: NfseConfigResource, NfseResource                                                                                                                                                                                                 
+  Actions: EmitirNFSeAction, CancelarNFSeAction                                                                                                                                                                                               
+                  
+  ---                                                                                                                                                                                                                                         
+  5. Banco de Dados — 4 Novas Tabelas + 1 Alteração
+                                                                                                                                                                                                                                              
+  nfse_configs — Dados do prestador (empresa emissora)
+  nfse_service_codes — Mapeamento tipo_servico → código ISS                                                                                                                                                                                   
+  nfses — Registro de cada NFS-e emitida/cancelada                                                                                                                                                                                            
+  nfse_logs — Log completo de cada chamada à API                                                                                                                                                                                              
+  clients — Adicionar municipio_ibge (IBGE code do tomador)                                                                                                                                                                                   
+                                                                                                                                                                                                                                              
+  ---                                                                                                                                                                                                                                         
+  6. Mapeamento API Geranet ↔ Sistema Atual                                                                                                                                                                                                   
+                                           
+  Prestador (origem: nfse_configs)
+                                                                                                                                                                                                                                              
+  ┌──────────────────────────────┬──────────────────────────────────┬─────────┐                                                                                                                                                               
+  │          Campo API           │          Campo Sistema           │ Status  │                                                                                                                                                               
+  ├──────────────────────────────┼──────────────────────────────────┼─────────┤                                                                                                                                                               
+  │ prestador.cnpj               │ nfse_configs.cnpj                │ ✅ Novo │
+  ├──────────────────────────────┼──────────────────────────────────┼─────────┤
+  │ prestador.inscricaoMunicipal │ nfse_configs.inscricao_municipal │ ✅ Novo │                                                                                                                                                               
+  ├──────────────────────────────┼──────────────────────────────────┼─────────┤                                                                                                                                                               
+  │ prestador.razaoSocial        │ nfse_configs.razao_social        │ ✅ Novo │                                                                                                                                                               
+  ├──────────────────────────────┼──────────────────────────────────┼─────────┤                                                                                                                                                               
+  │ prestador.municipio          │ nfse_configs.municipio_ibge      │ ✅ Novo │
+  ├──────────────────────────────┼──────────────────────────────────┼─────────┤                                                                                                                                                               
+  │ prestador.endereco + campos  │ nfse_configs.*                   │ ✅ Novo │
+  └──────────────────────────────┴──────────────────────────────────┴─────────┘                                                                                                                                                               
+                  
+  Tomador (origem: clients)                                                                                                                                                                                                                   
+                  
+  ┌────────────────────────────┬─────────────────────────────┬───────────┐
+  │         Campo API          │        Campo Sistema        │  Status   │
+  ├────────────────────────────┼─────────────────────────────┼───────────┤
+  │ tomador.cpfCnpj            │ clients.cnpj_cpf            │ ✅ Existe │
+  ├────────────────────────────┼─────────────────────────────┼───────────┤
+  │ tomador.razaoSocial        │ clients.razao_social        │ ✅ Existe │                                                                                                                                                                    
+  ├────────────────────────────┼─────────────────────────────┼───────────┤                                                                                                                                                                    
+  │ tomador.inscricaoMunicipal │ clients.inscricao_municipal │ ✅ Existe │                                                                                                                                                                    
+  ├────────────────────────────┼─────────────────────────────┼───────────┤                                                                                                                                                                    
+  │ tomador.municipio          │ clients.municipio_ibge      │ ❌ GAP    │
+  ├────────────────────────────┼─────────────────────────────┼───────────┤                                                                                                                                                                    
+  │ tomador.endereco           │ clients.endereco            │ ✅ Existe │
+  ├────────────────────────────┼─────────────────────────────┼───────────┤                                                                                                                                                                    
+  │ tomador.numero             │ clients.numero              │ ✅ Existe │
+  ├────────────────────────────┼─────────────────────────────┼───────────┤                                                                                                                                                                    
+  │ tomador.bairro             │ clients.bairro              │ ✅ Existe │
+  ├────────────────────────────┼─────────────────────────────┼───────────┤                                                                                                                                                                    
+  │ tomador.uf                 │ clients.uf                  │ ✅ Existe │
+  ├────────────────────────────┼─────────────────────────────┼───────────┤                                                                                                                                                                    
+  │ tomador.cep                │ clients.cep                 │ ✅ Existe │
+  ├────────────────────────────┼─────────────────────────────┼───────────┤                                                                                                                                                                    
+  │ tomador.email              │ clients.email               │ ✅ Existe │
+  ├────────────────────────────┼─────────────────────────────┼───────────┤                                                                                                                                                                    
+  │ tomador.telefone           │ clients.telefone            │ ✅ Existe │
+  └────────────────────────────┴─────────────────────────────┴───────────┘                                                                                                                                                                    
+  
+  Serviço (origem: contracts/receivables + nfse_service_codes)                                                                                                                                                                                
+                  
+  ┌──────────────────────────┬───────────────────────────────────────────┬─────────────────┐                                                                                                                                                  
+  │        Campo API         │               Campo Sistema               │     Status      │
+  ├──────────────────────────┼───────────────────────────────────────────┼─────────────────┤
+  │ servico.valor            │ receivables.valor / contracts.valor_total │ ✅ Existe       │
+  ├──────────────────────────┼───────────────────────────────────────────┼─────────────────┤
+  │ servico.discriminacao    │ contracts.descricao                       │ ✅ Existe       │                                                                                                                                                  
+  ├──────────────────────────┼───────────────────────────────────────────┼─────────────────┤                                                                                                                                                  
+  │ servico.itemListaServico │ nfse_service_codes.item_lista_servico     │ ❌ GAP          │                                                                                                                                                  
+  ├──────────────────────────┼───────────────────────────────────────────┼─────────────────┤                                                                                                                                                  
+  │ servico.aliquota         │ nfse_configs.aliquota_iss_padrao          │ ❌ GAP          │
+  ├──────────────────────────┼───────────────────────────────────────────┼─────────────────┤                                                                                                                                                  
+  │ servico.codigoMunicipio  │ nfse_configs.municipio_ibge               │ ✅ (via config) │
+  ├──────────────────────────┼───────────────────────────────────────────┼─────────────────┤                                                                                                                                                  
+  │ servico.exigibilidadeISS │ nfse_configs.exigibilidade_iss            │ ❌ GAP          │
+  ├──────────────────────────┼───────────────────────────────────────────┼─────────────────┤                                                                                                                                                  
+  │ servico.issRetido        │ nfse_configs.iss_retido                   │ ❌ GAP          │
+  └──────────────────────────┴───────────────────────────────────────────┴─────────────────┘                                                                                                                                                  
+                  
+  ---                                                                                                                                                                                                                                         
+  7. GAPs Identificados e Solução
+                                                                                                                                                                                                                                              
+  ┌─────┬────────────────────────────┬──────────────────────────────────────────────────────────┐
+  │  #  │            GAP             │                         Solução                          │
+  ├─────┼────────────────────────────┼──────────────────────────────────────────────────────────┤                                                                                                                                             
+  │ G1  │ Sem dados do Prestador     │ Criar NfseConfig (Resource + Table)                      │
+  ├─────┼────────────────────────────┼──────────────────────────────────────────────────────────┤                                                                                                                                             
+  │ G2  │ clients sem municipio_ibge │ Migration + campo no ClientForm                          │                                                                                                                                             
+  ├─────┼────────────────────────────┼──────────────────────────────────────────────────────────┤                                                                                                                                             
+  │ G3  │ Sem mapeamento ISS         │ Criar NfseServiceCode com seeder                         │                                                                                                                                             
+  ├─────┼────────────────────────────┼──────────────────────────────────────────────────────────┤                                                                                                                                             
+  │ G4  │ Sem registro de NFSe       │ Criar Nfse model + table                                 │
+  ├─────┼────────────────────────────┼──────────────────────────────────────────────────────────┤                                                                                                                                             
+  │ G5  │ Sem log de API             │ Criar NfseLog model + table                              │
+  ├─────┼────────────────────────────┼──────────────────────────────────────────────────────────┤                                                                                                                                             
+  │ G6  │ Queue é sync               │ Manter sync por ora; documentar como mudar para database │
+  ├─────┼────────────────────────────┼──────────────────────────────────────────────────────────┤                                                                                                                                             
+  │ G7  │ Sem numero_rps sequencial  │ Campo proximo_numero_rps em nfse_configs (atomic)        │
+  └─────┴────────────────────────────┴──────────────────────────────────────────────────────────┘                                                                                                                                             
+                  
+  ---                                                                                                                                                                                                                                         
+  8. Estratégia de Filas
+                        
+  O sistema usa QUEUE_CONNECTION=sync (Jobs executam na mesma requisição). A implementação usará Jobs proprely para que no futuro basta mudar para database:
+                                                                                                                                                                                                                                              
+  QUEUE_CONNECTION=database  # Para produção
+  # php artisan queue:table && php artisan migrate                                                                                                                                                                                            
+  # php artisan queue:work --tries=3 --backoff=60
+                                                                                                                                                                                                                                              
+  Os Jobs terão $tries = 3 e $backoff = [60, 120, 300] (retry em 1min, 2min, 5min).                                                                                                                                                           
+                                                                                                                                                                                                                                              
+  ---                                                                                                                                                                                                                                         
+  9. Tratamento de Erros
+                        
+  - HTTP 422 (erro da API) → Salva mensagem em nfses.ultimo_erro, incrementa tentativas
+  - Certificado inválido → Exception capturada, log + notificação ao admin                                                                                                                                                                    
+  - Client sem dados → Validação antes do Job, erro visível no modal                                                                                                                                                                          
+  - Timeout → Job retry automático                                                                                                                                                                                                            
+  - Cancelamento de NFSe já cancelada → Bloquear via check de status                                                                                                                                                                          
+                                                                                                                                                                                                                                              
+  ---                                                                                                                                                                                                                                         
+  10. Logs e Auditoria                                                                                                                                                                                                                        
+                      
+  - nfse_logs: request payload + response completo + HTTP status + timestamp
+  - nfses.tentativas: contador de tentativas de emissão                                                                                                                                                                                       
+  - nfses.ultimo_erro: última mensagem de erro
+  - Laravel Log: Log::channel('nfse')->info(...) para um canal dedicado                                                                                                                                                                       
+                                                                                                                                                                                                                                              
+  ---                                                                                                                                                                                                                                         
+  Análise concluída. Iniciando implementação.                                                                                                                                                                                                 
+                                             
+  ---
+                                                                                                                                                                                                                                              
+  Read 3 files (ctrl+o to expand)    
+                                                                                                                                                                                                                                              
+● Agora vou ler os padrões de Resource existentes para seguir a mesma estrutura.
+                                                                                          
+  Read 2 files (ctrl+o to expand)                                                         
+                                                                                                                                                                                                                                              
+● Agora vou ler a estrutura de um Resource completo e como as Actions são implementadas no projeto.                                                                                                                                           
+                                                                                                                                                                                                                                              
+  Searched for 2 patterns, read 4 files (ctrl+o to expand)                                                                                                                                                                                    
+                                                                                                                                                                                                                                              
+● Perfeito. Vou verificar o Provider do painel para saber como registrar os recursos.                                                                                                                                                         
+                                                                                                                                                                                                                                              
+  Searched for 1 pattern, read 3 files (ctrl+o to expand)                                                                                                                                                                                     
+                                                                                                                                                                                                                                              
+● Vou verificar a tabela de receivables e então iniciar a implementação completa.                                                                                                                                                             
+                                                                                                                                                                                                                                              
+  Read 3 files, listed 1 directory (ctrl+o to expand)                                                                                                                                                                                         
+                                                                                                                                                                                                                                              
+● Tenho toda a informação necessária. Iniciando a implementação completa agora — criando todos os arquivos em paralelo.                                                                                                                       
+                                                                                                                                                                                                                                              
+● Write(config/nfse.php)                                                                                                                                                                                                                      
+                                                                                                                                                                                                                                              
+● Write(database/migrations/2026_05_05_000001_create_nfse_configs_table.php)                                                                                                                                                                  
+                                                                                                                                                                                                                                              
+● Write(database/migrations/2026_05_05_000002_create_nfse_service_codes_table.php) 
+
+--------------------------------------------------------------------------------------------------------
+
+● Implementação completa. Aqui está o resumo consolidado de tudo que foi entregue:
+                                                                                                                                                                                                                                              
+  ---                                                       
+  ✅ Entrega Completa — NFSe Geranet                                                                                                                                                                                                          
+                                                                                                                                                                                                                                              
+  Banco de Dados (5 migrations — todas executadas)                                                                                                                                                                                            
+                                                                                                                                                                                                                                              
+  ┌────────────────────────┬──────────────────────────────────────────────────┐
+  │         Tabela         │                      Função                      │                                                                                                                                                               
+  ├────────────────────────┼──────────────────────────────────────────────────┤
+  │ nfse_configs           │ Dados do Prestador (empresa emissora)            │
+  ├────────────────────────┼──────────────────────────────────────────────────┤
+  │ nfse_service_codes     │ Mapeamento tipo_servico → código ISS LC 116/2003 │                                                                                                                                                               
+  ├────────────────────────┼──────────────────────────────────────────────────┤                                                                                                                                                               
+  │ nfses                  │ Registro de cada NFSe emitida/cancelada          │                                                                                                                                                               
+  ├────────────────────────┼──────────────────────────────────────────────────┤                                                                                                                                                               
+  │ nfse_logs              │ Log completo de request/response da API          │
+  ├────────────────────────┼──────────────────────────────────────────────────┤                                                                                                                                                               
+  │ clients.municipio_ibge │ Código IBGE do município do tomador (novo campo) │
+  └────────────────────────┴──────────────────────────────────────────────────┘                                                                                                                                                               
+                                                            
+  ---                                                                                                                                                                                                                                         
+  Serviços e Jobs                                           
+                 
+  - NFSeService — integração com https://nfe.geranet.net/api/v1, lê .pfx e converte para hex, monta payload completo (prestador + tomador + serviço), registra log de cada chamada
+  - EmitirNFSeJob — 3 tentativas com backoff de 60/120/300s, atualiza status e despacha email ao concluir                                                                                                                                     
+  - CancelarNFSeJob — 2 tentativas, envia XML original + código de cancelamento                                                                                                                                                               
+  - EnviarEmailNFSeJob — envia PDF + XML para prestador e tomador                                                                                                                                                                             
+  - NFSeEmitidaMail — e-mail HTML com dados da nota e anexos decodificados de hex                                                                                                                                                             
+                                                                                                                                                                                                                                              
+  ---                                                       
+  Filament (auto-descobertos pelo painel)                                                                                                                                                                                                     
+                                                                                                                                                                                                                                              
+  ┌─────────────────────────┬───────────────┬───────────────────────────────────────────────────────────┐
+  │        Resource         │     Grupo     │                          Função                           │                                                                                                                                     
+  ├─────────────────────────┼───────────────┼───────────────────────────────────────────────────────────┤                                                                                                                                     
+  │ NfseConfigResource      │ Configurações │ Cadastro do Prestador + alíquota ISS + RPS                │
+  ├─────────────────────────┼───────────────┼───────────────────────────────────────────────────────────┤                                                                                                                                     
+  │ NfseServiceCodeResource │ Configurações │ Mapeamento tipo_servico → código LC 116/2003              │                                                                                                                                     
+  ├─────────────────────────┼───────────────┼───────────────────────────────────────────────────────────┤                                                                                                                                     
+  │ NfseResource            │ Financeiro    │ Listagem, download PDF/XML, cancelamento, reprocessamento │                                                                                                                                     
+  └─────────────────────────┴───────────────┴───────────────────────────────────────────────────────────┘                                                                                                                                     
+                                                            
+  Actions adicionadas:                                                                                                                                                                                                                        
+  - ContractsTable → "Emitir NFSe" (modal com discriminação + competência)
+  - ReceivablesTable → "Emitir NFSe por Parcela" (cada parcela gera uma NFSe independente)                                                                                                                                                    
+  - NfsesTable → "Cancelar NFSe" (modal com motivo + código), "Reprocessar Erros" (BulkAction)
+                                                                                                                                                                                                                                              
+  ---                                                                                                                                                                                                                                         
+  Seeder pré-carregado                                                                                                                                                                                                                        
+                                                                                                                                                                                                                                              
+  5 códigos de serviço já cadastrados — LC 116/2003:        
+  - nr1 / consultoria → 17.01 (Consultoria) — CNAE 7020400                                                                                                                                                                                    
+  - treinamento / palestra → 8.02 (Instrução/Treinamento) — CNAE 8599604                                                                                                                                                                      
+  - outro → 17.01 padrão                                                                                                                                                                                                                      
+                                                                                                                                                                                                                                              
+  ---                                                                                                                                                                                                                                         
+  Passo a Passo para Usar em Homologação                                                                                                                                                                                                      
+                                                                                                                                                                                                                                              
+  1. Acesse Configurações > Config NFSe → Cadastre os dados do prestador
+     (CNPJ, Inscrição Municipal, endereço, Código IBGE: 1709500 para Gurupi-TO)                                                                                                                                                               
+                                                                                                                                                                                                                                              
+  2. Acesse CRM > Clientes → Edite cada cliente → Aba Endereço                                                                                                                                                                                
+     → Preencha "Código IBGE do Município" (campo novo)                                                                                                                                                                                       
+                                                                                                                                                                                                                                              
+  3. Acesse Contratos ou Contas a Receber                                                                                                                                                                                                     
+     → Clique em "Emitir NFSe" → Confirme discriminação e competência                                                                                                                                                                         
+                                                                                                                                                                                                                                              
+  4. Acompanhe em Financeiro > NFSes                                                                                                                                                                                                          
+     → Status: Pendente → Processando → Emitida                                                                                                                                                                                               
+     → Baixe PDF/XML ou cancele se necessário                                                                                                                                                                                                 
+                                                                                                                                                                                                                                              
+  ---
+  Para Produção                                                                                                                                                                                                                               
+                                                            
+  NFSE_ENV=producao          # muda ambiente para "1"
+  QUEUE_CONNECTION=database  # async real (+ php artisan queue:work)                                                                                                                                                                          
+                                                                                                                                                                                                                                              
+  ---                                                                                                                                                                                                                                         
+  Sugestões de Melhorias Futuras                                                                                                                                                                                                              
+                                                                                                                                                                                                                                              
+  1. Webhook de retorno — endpoint para receber confirmações assíncronas da prefeitura
+  2. Consulta periódica — Job agendado para sincronizar status via /consultar-notas                                                                                                                                                           
+  3. RelationManager — Aba "NFSes" dentro do EditContract mostrando todas as notas do contrato                                                                                                                                                
+  4. Portal do Cliente — Permitir download de NFSe no portal (similar ao boleto)                                                                                                                                                              
+  5. Competência automática — Derivar competência do data_vencimento da parcela sem perguntar ao usuário

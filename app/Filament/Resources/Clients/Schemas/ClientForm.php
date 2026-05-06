@@ -145,6 +145,12 @@ class ClientForm
                                             })
                                             ->searchable()
                                             ->native(false),
+
+                                        \Filament\Forms\Components\TextInput::make('municipio_ibge')
+                                            ->label('Código IBGE do Município')
+                                            ->maxLength(7)
+                                            ->placeholder('1709500')
+                                            ->helperText('7 dígitos — obrigatório para emissão de NFSe. Ex: 1709500 = Gurupi-TO'),
                                     ]),
                             ]),
 

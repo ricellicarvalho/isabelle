@@ -2,7 +2,9 @@
 
 namespace App\Filament\Resources\Pricings\Pages;
 
+use App\Filament\Resources\Pricings\Pages\CreatePricing;
 use App\Filament\Resources\Pricings\PricingResource;
+use App\Filament\Resources\Pricings\Schemas\PricingForm;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
@@ -32,5 +34,19 @@ class EditPricing extends EditRecord
                 }),
             DeleteAction::make(),
         ];
+    }
+
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        $data['custo_indireto'] = 0;
+
+        foreach (['valor_por_funcionario', 'despesa_encontro', 'despesa_risco',
+                  'despesa_relatorio', 'despesas_indiretas', 'despesa_acao_anual', 'deslocamento'] as $field) {
+            $data[$field] = PricingForm::parseMoney($data[$field] ?? 0);
+        }
+
+        [$data['custo_direto'], $data['preco_venda']] = CreatePricing::calcularTotais($data);
+
+        return $data;
     }
 }

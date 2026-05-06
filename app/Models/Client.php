@@ -39,6 +39,7 @@ class Client extends Model
         'cadastro_token',
         'cadastro_token_expira_em',
         'cadastro_preenchido',
+        'municipio_ibge',
         'created_by',
         'deleted_by',
     ];

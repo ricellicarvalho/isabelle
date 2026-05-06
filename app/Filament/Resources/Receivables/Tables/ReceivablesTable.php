@@ -2,8 +2,12 @@
 
 namespace App\Filament\Resources\Receivables\Tables;
 
+use App\Models\Nfse;
+use App\Models\NfseConfig;
+use App\Models\NfseServiceCode;
 use App\Models\Receivable;
 use App\Services\BankBoletoService;
+use App\Jobs\EmitirNFSeJob;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
@@ -186,6 +190,89 @@ class ReceivablesTable
                                 ->title('Erro ao gerar boleto')
                                 ->body($e->getMessage())
                                 ->danger()
+                                ->send();
+                        }
+                    }),
+                // Emissão de NFSe por parcela
+                Action::make('emitirNfse')
+                    ->label('Emitir NFSe')
+                    ->icon('heroicon-o-document-check')
+                    ->color('success')
+                    ->visible(fn (Receivable $record): bool => in_array($record->status, ['pendente', 'pago', 'vencido']))
+                    ->modalHeading('Emitir NFSe para esta Parcela')
+                    ->modalDescription('Cada parcela gera uma NFSe independente (RN conforme contrato).')
+                    ->modalWidth('lg')
+                    ->form([
+                        \Filament\Forms\Components\TextInput::make('valor')
+                            ->label('Valor (R$)')
+                            ->default(fn (Receivable $record): string => number_format((float) $record->valor, 2, ',', '.'))
+                            ->disabled()
+                            ->dehydrated(false),
+                        \Filament\Forms\Components\DatePicker::make('competencia')
+                            ->label('Competência')
+                            ->required()
+                            ->native(false)
+                            ->displayFormat('m/Y')
+                            ->default(fn (Receivable $record) => $record->data_vencimento ?? now())
+                            ->helperText('Mês de referência da prestação do serviço'),
+                        \Filament\Forms\Components\Textarea::make('discriminacao')
+                            ->label('Descrição do Serviço')
+                            ->required()
+                            ->default(fn (Receivable $record): string =>
+                                $record->descricao
+                                ?? $record->contract?->descricao
+                                ?? ''
+                            )
+                            ->rows(3)
+                            ->maxLength(2000),
+                    ])
+                    ->action(function (array $data, Receivable $record): void {
+                        $config = NfseConfig::ativa();
+                        if (! $config) {
+                            Notification::make()->title('Configuração NFSe não encontrada')->body('Acesse Configurações > Config NFSe.')->danger()->persistent()->send();
+                            return;
+                        }
+                        $client = $record->client;
+                        if (blank($client?->cnpj_cpf)) {
+                            Notification::make()->title('CPF/CNPJ do cliente não informado')->danger()->send();
+                            return;
+                        }
+                        if (blank($client?->municipio_ibge)) {
+                            Notification::make()->title('Código IBGE não informado')->body("Preencha o Código IBGE no cadastro do cliente '{$client->razao_social}'.")->danger()->persistent()->send();
+                            return;
+                        }
+                        $tipoServico = $record->contract?->tipo_servico ?? 'outro';
+                        $serviceCode = NfseServiceCode::paraTipoServico($tipoServico);
+                        $aliquota    = $serviceCode?->aliquota ?? $config->aliquota_iss_padrao ?? 2.00;
+                        $itemLista   = $serviceCode?->item_lista_servico ?? $config->item_lista_servico ?? '17.01';
+                        $numeroRps   = $config->reservarNumeroRps();
+                        $nfse = Nfse::create([
+                            'contract_id'        => $record->contract_id,
+                            'receivable_id'      => $record->id,
+                            'numero_rps'         => $numeroRps,
+                            'serie_rps'          => $config->serie_rps,
+                            'tipo_rps'           => 1,
+                            'status'             => 'pendente',
+                            'ambiente'           => config('nfse.ambiente'),
+                            'valor'              => (float) $record->valor,
+                            'aliquota'           => (float) $aliquota,
+                            'iss_retido'         => $config->iss_retido,
+                            'valor_iss'          => round((float) $record->valor * (float) $aliquota / 100, 2),
+                            'item_lista_servico' => $itemLista,
+                            'discriminacao'      => $data['discriminacao'],
+                            'competencia'        => $data['competencia'],
+                            'created_by'         => auth()->id(),
+                        ]);
+                        try {
+                            EmitirNFSeJob::dispatch($nfse);
+                            Notification::make()->title('NFSe enviada para processamento')->body("RPS #{$numeroRps} gerado.")->success()->send();
+                        } catch (\Throwable $e) {
+                            $nfse->refresh();
+                            Notification::make()
+                                ->title('Falha ao emitir NFSe')
+                                ->body($nfse->ultimo_erro ?: $e->getMessage())
+                                ->danger()
+                                ->persistent()
                                 ->send();
                         }
                     }),

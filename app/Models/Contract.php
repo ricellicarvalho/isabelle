@@ -68,4 +68,9 @@ class Contract extends Model
     {
         return $this->hasMany(Event::class);
     }
+
+    public function nfses(): HasMany
+    {
+        return $this->hasMany(\App\Models\Nfse::class);
+    }
 }

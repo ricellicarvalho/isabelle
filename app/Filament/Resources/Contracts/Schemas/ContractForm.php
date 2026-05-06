@@ -91,9 +91,7 @@ class ContractForm
                                             ->prefix('R$')
                                             ->placeholder('0,00')
                                             ->extraAlpineAttributes(['x-on:input' => "let v=\$event.target.value.replace(/\\D/g,'');if(!v)v='0';v=v.replace(/^0+/,'')||'0';while(v.length<3)v='0'+v;let d=v.slice(-2),i=v.slice(0,-2).replace(/^0+/,'')||'0';i=i.replace(/\\B(?=(\\d{3})+(?!\\d))/g,'.');\$event.target.value=i+','+d;"])
-                                            ->dehydrateStateUsing(fn ($state) => self::parseMoney($state))
-                                            ->afterStateHydrated(fn (TextInput $component, $state) => $component->state(self::formatMoney($state)))
-                                            ->rule('gte:0'),
+                                            ->afterStateHydrated(fn (TextInput $component, $state) => $component->state(self::formatMoney($state))),
 
                                         TextInput::make('quantidade_parcelas')
                                             ->label('Quantidade de Parcelas')
@@ -162,11 +160,23 @@ class ContractForm
             ]);
     }
 
-    private static function parseMoney(?string $state): ?float
+    public static function parseMoney(mixed $state): ?float
     {
         if (blank($state)) return null;
+        if (is_numeric($state)) return (float) $state;
 
-        return (float) str_replace(['.', ','], ['', '.'], $state);
+        $str = (string) $state;
+
+        // x-model captura o valor antes da máscara JS reformatar, gerando strings como
+        // "0,100" (intermediário de "1,00") ou "0,199" (intermediário de "1,99").
+        // Quando há mais de 2 dígitos após a última vírgula, trata tudo como centavos.
+        $lastComma = strrpos($str, ',');
+        if ($lastComma !== false && strlen(substr($str, $lastComma + 1)) > 2) {
+            $digits = preg_replace('/\D/', '', $str);
+            return $digits !== '' ? (float) $digits / 100 : 0.0;
+        }
+
+        return (float) str_replace(['.', ','], ['', '.'], $str);
     }
 
     private static function formatMoney(mixed $state): ?string

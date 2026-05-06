@@ -20,6 +20,16 @@ class Pricing extends Model
         'margem_lucro',
         'preco_venda',
         'observacoes',
+        'num_funcionarios',
+        'valor_por_funcionario',
+        'despesa_encontro',
+        'despesa_risco',
+        'despesa_relatorio',
+        'despesa_acao_anual',
+        'despesas_indiretas',
+        'deslocamento',
+        'percentual_imposto',
+        'quantidade_parcelas',
         'created_by',
         'deleted_by',
     ];
@@ -27,10 +37,18 @@ class Pricing extends Model
     protected function casts(): array
     {
         return [
-            'custo_direto' => 'decimal:2',
-            'custo_indireto' => 'decimal:2',
-            'margem_lucro' => 'decimal:2',
-            'preco_venda' => 'decimal:2',
+            'custo_direto'          => 'decimal:2',
+            'custo_indireto'        => 'decimal:2',
+            'margem_lucro'          => 'decimal:2',
+            'preco_venda'           => 'decimal:2',
+            'valor_por_funcionario' => 'decimal:2',
+            'despesa_encontro'      => 'decimal:2',
+            'despesa_risco'         => 'decimal:2',
+            'despesa_relatorio'     => 'decimal:2',
+            'despesa_acao_anual'    => 'decimal:2',
+            'despesas_indiretas'    => 'decimal:2',
+            'deslocamento'          => 'decimal:2',
+            'percentual_imposto'    => 'decimal:2',
         ];
     }
 

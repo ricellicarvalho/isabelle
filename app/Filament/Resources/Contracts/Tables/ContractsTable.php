@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Contracts\Tables;
 
 use App\Models\Contract;
+use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -119,6 +120,83 @@ class ContractsTable
                     ->preload(),
             ])
             ->actions([
+                Action::make('emitirNfse')
+                    ->label('Emitir NFSe')
+                    ->icon('heroicon-o-document-check')
+                    ->color('success')
+                    ->visible(fn (Contract $record): bool => in_array($record->status, ['ativo', 'finalizado']))
+                    ->modalHeading('Emitir Nota Fiscal de Serviço Eletrônica')
+                    ->modalDescription('Preencha ou confirme os dados abaixo antes de emitir a NFSe.')
+                    ->modalWidth('lg')
+                    ->form([
+                        \Filament\Forms\Components\TextInput::make('valor')
+                            ->label('Valor (R$)')
+                            ->default(fn (Contract $record): string => number_format((float) $record->valor_total, 2, ',', '.'))
+                            ->disabled()
+                            ->dehydrated(false),
+                        \Filament\Forms\Components\DatePicker::make('competencia')
+                            ->label('Competência')
+                            ->required()
+                            ->native(false)
+                            ->displayFormat('m/Y')
+                            ->default(now())
+                            ->helperText('Mês de referência da prestação do serviço'),
+                        \Filament\Forms\Components\Textarea::make('discriminacao')
+                            ->label('Descrição do Serviço')
+                            ->required()
+                            ->default(fn (Contract $record): string => $record->descricao ?? '')
+                            ->rows(3)
+                            ->maxLength(2000),
+                    ])
+                    ->action(function (array $data, Contract $record): void {
+                        $config = \App\Models\NfseConfig::ativa();
+                        if (! $config) {
+                            Notification::make()->title('Configuração NFSe não encontrada')->body('Acesse Configurações > Config NFSe e cadastre os dados do prestador.')->danger()->persistent()->send();
+                            return;
+                        }
+                        $client = $record->client;
+                        if (blank($client?->cnpj_cpf)) {
+                            Notification::make()->title('CPF/CNPJ do cliente não informado')->danger()->send();
+                            return;
+                        }
+                        if (blank($client?->municipio_ibge)) {
+                            Notification::make()->title('Código IBGE do município do cliente não informado')->body("Acesse o cadastro do cliente '{$client->razao_social}' e preencha o campo Código IBGE.")->danger()->persistent()->send();
+                            return;
+                        }
+                        $serviceCode = \App\Models\NfseServiceCode::paraTipoServico($record->tipo_servico);
+                        $aliquota    = $serviceCode?->aliquota ?? $config->aliquota_iss_padrao ?? 2.00;
+                        $itemLista   = $serviceCode?->item_lista_servico ?? $config->item_lista_servico ?? '17.01';
+                        $numeroRps   = $config->reservarNumeroRps();
+                        $nfse = \App\Models\Nfse::create([
+                            'contract_id'        => $record->id,
+                            'receivable_id'      => null,
+                            'numero_rps'         => $numeroRps,
+                            'serie_rps'          => $config->serie_rps,
+                            'tipo_rps'           => 1,
+                            'status'             => 'pendente',
+                            'ambiente'           => config('nfse.ambiente'),
+                            'valor'              => (float) $record->valor_total,
+                            'aliquota'           => (float) $aliquota,
+                            'iss_retido'         => $config->iss_retido,
+                            'valor_iss'          => round((float) $record->valor_total * (float) $aliquota / 100, 2),
+                            'item_lista_servico' => $itemLista,
+                            'discriminacao'      => $data['discriminacao'],
+                            'competencia'        => $data['competencia'],
+                            'created_by'         => auth()->id(),
+                        ]);
+                        try {
+                            \App\Jobs\EmitirNFSeJob::dispatch($nfse);
+                            \Filament\Notifications\Notification::make()->title('NFSe enviada para processamento')->body("RPS #{$numeroRps} — aguarde a confirmação.")->success()->send();
+                        } catch (\Throwable $e) {
+                            $nfse->refresh();
+                            \Filament\Notifications\Notification::make()
+                                ->title('Falha ao emitir NFSe')
+                                ->body($nfse->ultimo_erro ?: $e->getMessage())
+                                ->danger()
+                                ->persistent()
+                                ->send();
+                        }
+                    }),
                 EditAction::make(),
                 DeleteAction::make(),
             ])
