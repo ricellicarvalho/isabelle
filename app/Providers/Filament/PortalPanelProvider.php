@@ -32,7 +32,7 @@ class PortalPanelProvider extends PanelProvider
             ->brandName('Portal do Cliente')
             ->brandLogo(asset('images/logo.png'))
             ->brandLogoHeight('3.5rem')
-            ->favicon(asset('images/favicon.ico'))
+            ->favicon(asset('images/logo.png'))
             ->font('Kode Mono')
             ->colors([
                 'primary' => Color::Amber,
