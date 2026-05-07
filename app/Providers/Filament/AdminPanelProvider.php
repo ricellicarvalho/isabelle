@@ -45,7 +45,7 @@ class AdminPanelProvider extends PanelProvider
             ->path(config('panels.admin_domain') ? '' : 'admin')
             ->defaultThemeMode(ThemeMode::Light)
             ->authGuard('web')
-            ->login()
+            ->login(\App\Filament\Pages\Auth\Login::class)
             ->passwordReset()
             ->spa()
             ->profile()
@@ -115,7 +115,6 @@ class AdminPanelProvider extends PanelProvider
                 fn (): HtmlString => new HtmlString(<<<'HTML'
                 <style>
                 .fi-sidebar {
-                    // background-color: #FAFAFA !important; 
                     background-color: #FFFFFF !important;
                     border-right: 1px solid rgba(0, 0, 0, 0.12) !important;
                 }
@@ -131,6 +130,21 @@ class AdminPanelProvider extends PanelProvider
                 }
                 .dark .fi-sidebar-group-btn .fi-icon {
                     color: rgb(209 213 219) !important;
+                }
+
+                /* ── Login card: borda destacada + correção mobile ── */
+                .fi-simple-main {
+                    border-radius: 0.75rem !important;
+                    border: 1.5px solid rgba(135, 81, 212, 0.35) !important;
+                    box-shadow: 0 8px 32px rgba(135, 81, 212, 0.12), 0 2px 8px rgba(0,0,0,0.06) !important;
+                    margin-left: 1rem !important;
+                    margin-right: 1rem !important;
+                }
+                @media (min-width: 640px) {
+                    .fi-simple-main {
+                        margin-left: 0 !important;
+                        margin-right: 0 !important;
+                    }
                 }
                 </style>
                 <script>localStorage.removeItem('collapsedGroups');</script>

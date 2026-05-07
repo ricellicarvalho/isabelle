@@ -42,7 +42,9 @@ class UserForm
                                             ->unique(ignoreRecord: true),
 
                                         TextInput::make('password')
+                                            ->label('Senha')
                                             ->password()
+                                            ->revealable()
                                             ->visibleOn('create')
                                             ->required(),
 

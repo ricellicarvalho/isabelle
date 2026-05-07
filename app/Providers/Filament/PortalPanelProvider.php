@@ -28,7 +28,7 @@ class PortalPanelProvider extends PanelProvider
             ->id('portal')
             ->path(config('panels.portal_domain') ? '' : 'portal')
             ->authGuard('portal')
-            ->login()
+            ->login(\App\Filament\Portal\Pages\Auth\Login::class)
             ->brandName('Portal do Cliente')
             ->brandLogo(asset('images/logo.png'))
             ->brandLogoHeight('3.5rem')
@@ -64,6 +64,21 @@ class PortalPanelProvider extends PanelProvider
                 }
                 .dark .fi-sidebar-group-btn .fi-icon {
                     color: rgb(209 213 219) !important;
+                }
+
+                /* ── Login card: borda amber destacada + correção mobile ── */
+                .fi-simple-main {
+                    border-radius: 0.75rem !important;
+                    border: 1.5px solid rgba(245, 158, 11, 0.45) !important;
+                    box-shadow: 0 8px 32px rgba(245, 158, 11, 0.14), 0 2px 8px rgba(0,0,0,0.06) !important;
+                    margin-left: 1rem !important;
+                    margin-right: 1rem !important;
+                }
+                @media (min-width: 640px) {
+                    .fi-simple-main {
+                        margin-left: 0 !important;
+                        margin-right: 0 !important;
+                    }
                 }
                 </style>
                 <script>localStorage.removeItem('collapsedGroups');</script>
