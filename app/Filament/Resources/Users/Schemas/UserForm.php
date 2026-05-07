@@ -2,40 +2,39 @@
 
 namespace App\Filament\Resources\Users\Schemas;
 
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Tabs;
+use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Schema;
-use Filament\Schemas\Components\Tabs; // Alterado de Forms para Schemas
-use Filament\Schemas\Components\Tabs\Tab; // Alterado de Forms para Schemas
-use Filament\Schemas\Components\Section; // Alterado de Forms para Schemas
-use Filament\Forms\Components\TextInput; 
-use Filament\Forms\Components\Toggle;
 use Filament\Support\Icons\Heroicon;
+use Spatie\Permission\Models\Role;
 
 class UserForm
 {
+    private const ROLE_LABELS = [
+        'super_admin'        => 'Super Admin',
+        'administrador'      => 'Administrador',
+        'financeiro'         => 'Financeiro',
+        'colaborador'        => 'Colaborador',
+        'seguranca_trabalho' => 'Segurança de Trabalho',
+    ];
+
     public static function configure(Schema $schema): Schema
     {
         return $schema
             ->components([
                 Tabs::make('tabs')
                     ->tabs([
-                        // ABA 1: DADOS DO USUÁRIO
-                        Tab::make('User data')
-                            ->label('Dados do usuário')
-                            ->badge(5)
-                            ->badgeColor('success')
+                        Tab::make('Dados do usuário')
                             ->icon(Heroicon::User)
-                            ->components([ // <--- Na v5, use components() dentro da Tab
+                            ->components([
                                 Section::make('Informações do usuário')
-                                    ->extraAttributes([
-                                        'class' => 'border-2 border-primary-500 rounded-xl shadow-lg p-6 bg-white'
-                                    ])
-                                    ->components([ // <--- E aqui também
+                                    ->components([
                                         TextInput::make('name')
                                             ->label('Nome')
-                                            ->required()
-                                            ->extraInputAttributes([
-                                                'class' => 'border-2 border-primary-400 rounded-lg'
-                                            ]),
+                                            ->required(),
 
                                         TextInput::make('email')
                                             ->email()
@@ -48,26 +47,48 @@ class UserForm
                                             ->required(),
 
                                         TextInput::make('phone')
+                                            ->label('Telefone')
                                             ->mask('(99) 99999-9999'),
-                                    ])
+                                    ]),
                             ]),
 
-                        // ABA 2: STATUS ADMIN
-                        Tab::make('is admin')
-                            ->label('é Administrador?')
+                        Tab::make('Perfil de Acesso')
                             ->icon(Heroicon::ShieldCheck)
-                            ->components([ // <--- Use components()
-                                Section::make('Administrador')
+                            ->visible(fn () => auth()->user()?->hasAnyRole(['super_admin', 'administrador']))
+                            ->components([
+                                Section::make('Perfil de Acesso')
+                                    ->description('Defina o perfil de acesso deste usuário ao sistema.')
                                     ->components([
-                                        Toggle::make('is_admin')
-                                            ->label('é Administrador?')
-                                            ->helperText('Habilite se o usuário é administrador?'),
-                                    ])
-                            ])
+                                        Select::make('roles')
+                                            ->label('Perfil')
+                                            ->multiple()
+                                            ->relationship(
+                                                name: 'roles',
+                                                titleAttribute: 'name',
+                                                modifyQueryUsing: fn ($query) => $query->whereIn('name', self::allowedRoleNames()),
+                                            )
+                                            ->getOptionLabelFromRecordUsing(
+                                                fn (Role $record): string => self::ROLE_LABELS[$record->name] ?? $record->name
+                                            )
+                                            ->preload()
+                                            ->columnSpanFull(),
+                                    ]),
+                            ]),
                     ])
                     ->activeTab(1)
                     ->contained(false)
                     ->columnSpanFull(),
             ]);
+    }
+
+    private static function allowedRoleNames(): array
+    {
+        $user = auth()->user();
+
+        return match (true) {
+            $user?->hasRole('super_admin')   => ['administrador', 'financeiro', 'colaborador', 'seguranca_trabalho'],
+            $user?->hasRole('administrador') => ['financeiro', 'colaborador', 'seguranca_trabalho'],
+            default                          => [],
+        };
     }
 }

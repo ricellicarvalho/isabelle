@@ -3,8 +3,11 @@
 use App\Http\Controllers\PrecadastroController;
 use App\Models\BankBoleto;
 use App\Models\Nfse;
+use App\Models\Pricing;
 use App\Services\BankBoletoService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Str;
 
 Route::get('/', function () {
     return view('welcome');
@@ -12,6 +15,27 @@ Route::get('/', function () {
 
 Route::get('/precadastro/{token}', [PrecadastroController::class, 'show'])->name('precadastro');
 Route::post('/precadastro/{token}', [PrecadastroController::class, 'submit'])->name('precadastro.submit');
+
+// Download de precificação em PDF — URL assinada com validade de 30 min
+Route::get('/pricing/{pricing}/pdf', function (Pricing $pricing) {
+    $pricing->load('category');
+
+    $timbradoPath = public_path('images/timbrado.jpg');
+    $timbradoBase64 = file_exists($timbradoPath)
+        ? 'data:image/jpeg;base64,' . base64_encode(file_get_contents($timbradoPath))
+        : null;
+
+    $pdf = Pdf::loadView('pdf.pricing', [
+        'pricing'         => $pricing,
+        'timbradoBase64'  => $timbradoBase64,
+    ]);
+
+    return response()->streamDownload(
+        fn () => print($pdf->output()),
+        'precificacao-' . Str::slug($pricing->nome) . '.pdf',
+        ['Content-Type' => 'application/pdf']
+    );
+})->name('pricing.pdf')->middleware(['signed', 'auth:web']);
 
 // Download de boleto em PDF — requer URL assinada para evitar acesso direto não autorizado
 Route::get('/boleto/{boleto}/pdf', function (BankBoleto $boleto) {

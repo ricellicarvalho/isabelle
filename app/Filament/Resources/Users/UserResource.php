@@ -13,16 +13,15 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
 
 class UserResource extends Resource
 {
     protected static ?string $model = User::class;
 
-    // Tradução do nome do menu e títulos
     protected static ?string $modelLabel = 'usuário';
 
-    // Tradução do plural (usado no botão "Criar usuários" e no menu)
     protected static ?string $pluralModelLabel = 'usuários';
 
     protected static string|BackedEnum|null $navigationIcon = null;
@@ -33,10 +32,6 @@ class UserResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'name';
 
-    // O texto que aparece no menu
-    //protected static ?string $navigationLabel = 'Usuários'; 
-
-    // --- MÉTODOS DE NAVEGAÇÃO (Coloque aqui) ---
     public static function getNavigationBadgeTooltip(): ?string
     {
         return 'Número de usuários';
@@ -44,37 +39,46 @@ class UserResource extends Resource
 
     public static function getNavigationBadge(): ?string
     {
-        return (string) static::getModel()::count();
+        return (string) static::getEloquentQuery()->count();
     }
 
     public static function getNavigationBadgeColor(): ?string
     {
-        return static::getModel()::count() > 10 ? 'warning' : 'success';
+        return static::getEloquentQuery()->count() > 10 ? 'warning' : 'success';
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+
+        if (! auth()->user()?->hasRole('super_admin')) {
+            $query->where('email', '!=', 'admin@isabelle.com.br');
+        }
+
+        return $query;
     }
 
     public static function form(Schema $schema): Schema
     {
-        return UserForm::configure($schema); //CREATE/UPDATE
+        return UserForm::configure($schema);
     }
 
     public static function table(Table $table): Table
     {
-        return UsersTable::configure($table); //READ
+        return UsersTable::configure($table);
     }
 
     public static function getRelations(): array
     {
-        return [
-            //
-        ];
+        return [];
     }
 
     public static function getPages(): array
     {
         return [
-            'index' => ListUsers::route('/'),
-            'create' => CreateUser::route('/create'),            
-            'edit' => EditUser::route('/{record}/edit'),
+            'index'  => ListUsers::route('/'),
+            'create' => CreateUser::route('/create'),
+            'edit'   => EditUser::route('/{record}/edit'),
         ];
     }
 }

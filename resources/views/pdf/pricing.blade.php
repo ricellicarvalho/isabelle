@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <title>Precificação NR-1 — {{ $pricing->nome }}</title>
     <style>
-        body { font-family: DejaVu Sans, sans-serif; font-size: 10px; color: #222; margin: 20px; }
+        body { font-family: DejaVu Sans, sans-serif; font-size: 10px; color: #222; margin: 22mm 20px 20px 20px; }
         h1 { font-size: 16px; margin: 0 0 2px 0; color: #1e084a; }
         .subtitle { font-size: 10px; color: #666; margin-bottom: 18px; }
 
@@ -41,8 +41,11 @@
     </style>
 </head>
 <body>
-    <h1>Precificação NR-1</h1>
-    <div class="subtitle">Gerado em {{ now()->format('d/m/Y H:i') }}</div>
+    @if(!empty($timbradoBase64))
+    <div style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1000;">
+        <img src="{{ $timbradoBase64 }}" style="width:100%;height:100%;" />
+    </div>
+    @endif
 
     {{-- Identificação --}}
     <div class="section">

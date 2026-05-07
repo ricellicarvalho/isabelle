@@ -106,6 +106,9 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make('Configurações')
                     ->icon('heroicon-o-cog-6-tooth')
                     ->collapsed(),
+                NavigationGroup::make('Controle de Acesso')
+                    ->icon('heroicon-o-shield-check')
+                    ->collapsed(),
             ])
             ->renderHook(
                 PanelsRenderHook::HEAD_END,

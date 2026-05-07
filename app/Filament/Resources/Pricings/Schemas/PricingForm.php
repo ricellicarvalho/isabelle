@@ -26,6 +26,7 @@ class PricingForm
             ->components([
                 Tabs::make('tabs')
                     ->columnSpanFull()
+                    ->contained(false)
                     ->tabs([
 
                         // ── Tab 1: Identificação ───────────────────────────

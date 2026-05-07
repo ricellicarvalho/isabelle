@@ -2,11 +2,14 @@
 
 namespace App\Filament\Resources\Pricings\Tables;
 
+use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\URL;
 
 class PricingsTable
 {
@@ -58,8 +61,20 @@ class PricingsTable
                     ->color('success'),
             ])
             ->actions([
-                EditAction::make(),
-                DeleteAction::make(),
+                Action::make('downloadPdf')
+                    ->label('PDF')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->color('danger')
+                    ->url(fn ($record) => URL::temporarySignedRoute(
+                        'pricing.pdf',
+                        now()->addMinutes(30),
+                        ['pricing' => $record]
+                    ))
+                    ->openUrlInNewTab(),
+                ActionGroup::make([
+                    EditAction::make(),
+                    DeleteAction::make(),
+                ]),
             ])
             ->bulkActions([
                 DeleteBulkAction::make(),

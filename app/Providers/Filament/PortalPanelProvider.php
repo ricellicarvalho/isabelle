@@ -30,12 +30,12 @@ class PortalPanelProvider extends PanelProvider
             ->authGuard('portal')
             ->login()
             ->brandName('Portal do Cliente')
-            ->brandLogo(asset('images/logo2.png'))
+            ->brandLogo(asset('images/logo.png'))
             ->brandLogoHeight('3.5rem')
             ->favicon(asset('images/favicon.ico'))
             ->font('Kode Mono')
             ->colors([
-                'primary' => Color::Blue,
+                'primary' => Color::Amber,
             ])
             ->navigationGroups([
                 NavigationGroup::make('Contratos')

@@ -2,71 +2,74 @@
 
 namespace App\Filament\Resources\Users\Tables;
 
-use Filament\Tables\Table;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Columns\IconColumn;
-use Filament\Support\Icons\Heroicon;
-
-// AS NOVAS IMPORTAÇÕES DA V5:
-use Filament\Actions\EditAction;
+use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
-use Filament\Actions\BulkActionGroup; 
 use Filament\Actions\DeleteBulkAction;
-use Filament\Tables\Enums\FiltersLayout;
+use Filament\Actions\EditAction;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
-use Filament\Tables\Filters\QueryBuilder;
+use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
 class UsersTable
 {
+    private const ROLE_LABELS = [
+        'super_admin'        => 'Super Admin',
+        'administrador'      => 'Administrador',
+        'financeiro'         => 'Financeiro',
+        'colaborador'        => 'Colaborador',
+        'seguranca_trabalho' => 'Segurança de Trabalho',
+    ];
+
+    private const ROLE_COLORS = [
+        'super_admin'        => 'danger',
+        'administrador'      => 'warning',
+        'financeiro'         => 'success',
+        'colaborador'        => 'info',
+        'seguranca_trabalho' => 'primary',
+    ];
+
     public static function configure(Table $table): Table
     {
         return $table
             ->columns([
-                // Coluna de Nome com busca e ordenação
                 TextColumn::make('name')
                     ->label('Nome')
                     ->searchable()
                     ->sortable(),
 
-                // Coluna de E-mail
                 TextColumn::make('email')
                     ->label('E-mail')
-                    //->limit(20)
                     ->searchable()
                     ->sortable(),
 
-                // Coluna de Telefone (opcional)
                 TextColumn::make('phone')
                     ->label('Telefone')
                     ->searchable(),
-                    //->toggleable(isToggledHiddenByDefault: true), // Fica escondido por padrão, mas pode ser ativado
 
-                TextColumn::make('is_admin')
-                ->label('Admin?')
-				->badge()				
-                ->color(fn ($state) => $state === 1 ? 'success' : 'red')
-				->formatStateUsing(fn ($state) => match ($state) {
-					1 => 'Sim',
-					0 => 'Não',
-				}),                                
+                TextColumn::make('roles.name')
+                    ->label('Perfil')
+                    ->badge()
+                    ->formatStateUsing(fn ($state): string => self::ROLE_LABELS[$state] ?? $state)
+                    ->color(fn ($state): string => self::ROLE_COLORS[$state] ?? 'gray'),
 
-                // Data de criação formatada
                 TextColumn::make('created_at')
                     ->label('Criado em')
                     ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                
-                // Data de alteração formatada
+
                 TextColumn::make('updated_at')
                     ->label('Alterado em')
                     ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-            ])->deferColumnManager(false) // Remove o botão Aplicar colunas
+            ])
+            ->deferColumnManager(false)
             ->filters([
-                Filter::make('is_admin')->toggle()->label('Admin?')->query(fn (Builder $query): Builder => $query->where('is_admin', true)),
+                Filter::make('sem_perfil')
+                    ->label('Sem perfil atribuído')
+                    ->query(fn (Builder $query): Builder => $query->whereDoesntHave('roles')),
             ])
             ->actions([
                 EditAction::make(),

@@ -13,82 +13,73 @@ class RoleSeeder extends Seeder
     {
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
-        $superAdmin = Role::firstOrCreate(['name' => 'super_admin', 'guard_name' => 'web']);
-        $consultor  = Role::firstOrCreate(['name' => 'consultor',   'guard_name' => 'web']);
-        $operacional = Role::firstOrCreate(['name' => 'operacional', 'guard_name' => 'web']);
+        Role::firstOrCreate(['name' => 'super_admin',        'guard_name' => 'web']);
+        $administrador = Role::firstOrCreate(['name' => 'administrador',      'guard_name' => 'web']);
+        $financeiro    = Role::firstOrCreate(['name' => 'financeiro',         'guard_name' => 'web']);
+        $colaborador   = Role::firstOrCreate(['name' => 'colaborador',        'guard_name' => 'web']);
+        $seguranca     = Role::firstOrCreate(['name' => 'seguranca_trabalho', 'guard_name' => 'web']);
 
         // super_admin bypasses all gates via Shield config — no explicit permissions needed.
 
-        // Financeiro resources (operacional is BLOCKED — RN06)
-        $financeiro = [
-            'BankAccount', 'BankBoleto', 'BankRemessa', 'BankRetorno',
-            'Receivable', 'Payable', 'Nfse', 'NfseConfig', 'NfseServiceCode',
-        ];
-        $financeiroReports = [
-            'View:DreReport', 'View:CashFlowReport',
-            'View:FinanceStatsOverview', 'View:OverdueReceivablesTable',
-        ];
+        $crmResources      = ['Client', 'Contract', 'Event', 'ClientDocument'];
+        $financeiroRes     = ['BankAccount', 'BankBoleto', 'BankRemessa', 'BankRetorno',
+                              'Receivable', 'Payable', 'Nfse', 'NfseConfig', 'NfseServiceCode'];
+        $fullActions       = ['ViewAny', 'View', 'Create', 'Update', 'Delete', 'DeleteAny',
+                              'Restore', 'RestoreAny', 'ForceDelete', 'ForceDeleteAny', 'Reorder'];
+        $readWrite         = ['ViewAny', 'View', 'Create', 'Update'];
+        $financeiroReports = ['View:DreReport', 'View:CashFlowReport',
+                              'View:FinanceStatsOverview', 'View:OverdueReceivablesTable'];
+        $userActions       = ['ViewAny', 'View', 'Create', 'Update', 'Delete', 'DeleteAny'];
 
-        $crmResources = ['Client', 'Contract', 'Event', 'ClientDocument'];
-        $crmActions   = ['ViewAny', 'View', 'Create', 'Update', 'Delete', 'DeleteAny',
-                         'Restore', 'RestoreAny', 'ForceDelete', 'ForceDeleteAny', 'Reorder'];
+        $exists = fn (string $p): bool => Permission::where('name', $p)->exists();
 
-        $crmReadWrite = ['ViewAny', 'View', 'Create', 'Update']; // operacional: no delete
-
-        // --- consultor: CRM + Financeiro + Reports + Pricing + Category + Supplier ---
-        $consultorPerms = [];
-
-        foreach ($crmResources as $resource) {
-            foreach ($crmActions as $action) {
-                $consultorPerms[] = "{$action}:{$resource}";
+        // ── Administrador: CRM + Financeiro + Relatórios + Gestão de Usuários ──────
+        $adminPerms = [];
+        foreach (array_merge($crmResources, $financeiroRes, ['Pricing', 'Category', 'Supplier']) as $res) {
+            foreach ($fullActions as $action) {
+                $adminPerms[] = "{$action}:{$res}";
             }
         }
-
-        foreach ($financeiro as $resource) {
-            foreach ($crmActions as $action) {
-                $consultorPerms[] = "{$action}:{$resource}";
-            }
-        }
-
         foreach ($financeiroReports as $perm) {
-            $consultorPerms[] = $perm;
+            $adminPerms[] = $perm;
         }
+        foreach ($userActions as $action) {
+            $adminPerms[] = "{$action}:User";
+        }
+        $adminPerms[] = 'View:CalendarPage';
 
-        foreach (['Pricing', 'Category', 'Supplier'] as $resource) {
-            foreach ($crmActions as $action) {
-                $consultorPerms[] = "{$action}:{$resource}";
+        $administrador->syncPermissions(array_filter($adminPerms, $exists));
+
+        // ── Financeiro: CRM + Financeiro + Relatórios + Pricing + Category ─────────
+        $finPerms = [];
+        foreach (array_merge($crmResources, $financeiroRes, ['Pricing', 'Category']) as $res) {
+            foreach ($fullActions as $action) {
+                $finPerms[] = "{$action}:{$res}";
             }
         }
+        foreach ($financeiroReports as $perm) {
+            $finPerms[] = $perm;
+        }
+        $finPerms[] = 'View:CalendarPage';
 
-        $consultorPerms[] = 'View:CalendarPage';
+        $financeiro->syncPermissions(array_filter($finPerms, $exists));
 
-        $consultorPerms = array_filter(
-            $consultorPerms,
-            fn ($p) => Permission::where('name', $p)->exists()
-        );
-
-        $consultor->syncPermissions($consultorPerms);
-
-        // --- operacional: CRM read/write (no delete) + Calendar + Pricing (view) ---
-        $operacionalPerms = [];
-
-        foreach ($crmResources as $resource) {
-            foreach ($crmReadWrite as $action) {
-                $operacionalPerms[] = "{$action}:{$resource}";
+        // ── Colaborador: CRM leitura/escrita + Calendário ─────────────────────────
+        $colabPerms = [];
+        foreach ($crmResources as $res) {
+            foreach ($readWrite as $action) {
+                $colabPerms[] = "{$action}:{$res}";
             }
         }
+        $colabPerms[] = 'ViewAny:Pricing';
+        $colabPerms[] = 'View:Pricing';
+        $colabPerms[] = 'ViewAny:Category';
+        $colabPerms[] = 'View:Category';
+        $colabPerms[] = 'View:CalendarPage';
 
-        $operacionalPerms[] = 'ViewAny:Pricing';
-        $operacionalPerms[] = 'View:Pricing';
-        $operacionalPerms[] = 'ViewAny:Category';
-        $operacionalPerms[] = 'View:Category';
-        $operacionalPerms[] = 'View:CalendarPage';
+        $colaborador->syncPermissions(array_filter($colabPerms, $exists));
 
-        $operacionalPerms = array_filter(
-            $operacionalPerms,
-            fn ($p) => Permission::where('name', $p)->exists()
-        );
-
-        $operacional->syncPermissions($operacionalPerms);
+        // ── Segurança do Trabalho: mesma base do colaborador (ajustes via Shield UI)
+        $seguranca->syncPermissions(array_filter($colabPerms, $exists));
     }
 }

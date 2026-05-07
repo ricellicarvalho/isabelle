@@ -21,10 +21,19 @@ class EditPricing extends EditRecord
             Action::make('exportarPdf')
                 ->label('Exportar PDF')
                 ->icon('heroicon-o-document-arrow-down')
-                ->color('gray')
+                ->color('danger')
                 ->action(function (): StreamedResponse {
                     $record = $this->getRecord()->load('category');
-                    $pdf = Pdf::loadView('pdf.pricing', ['pricing' => $record]);
+
+                    $timbradoPath = public_path('images/timbrado.jpg');
+                    $timbradoBase64 = file_exists($timbradoPath)
+                        ? 'data:image/jpeg;base64,' . base64_encode(file_get_contents($timbradoPath))
+                        : null;
+
+                    $pdf = Pdf::loadView('pdf.pricing', [
+                        'pricing'        => $record,
+                        'timbradoBase64' => $timbradoBase64,
+                    ]);
 
                     return response()->streamDownload(
                         fn () => print($pdf->output()),
