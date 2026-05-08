@@ -7,7 +7,6 @@ use App\Filament\Portal\Resources\ContractResource\Pages\ViewContract;
 use App\Models\Client;
 use App\Models\Contract;
 use BackedEnum;
-use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\TextEntry;
 use Filament\Schemas\Schema;
@@ -19,7 +18,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use UnitEnum;
 
-class ContractResource extends Resource
+class ContractResource extends PortalResource
 {
     protected static ?string $model = Contract::class;
 
@@ -103,10 +102,6 @@ class ContractResource extends Resource
                 ViewAction::make(),
             ]);
     }
-
-    public static function canCreate(): bool { return false; }
-    public static function canEdit($record): bool { return false; }
-    public static function canDelete($record): bool { return false; }
 
     public static function getPages(): array
     {

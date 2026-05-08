@@ -60,6 +60,8 @@ class GeneratePortalAccess
                     'is_admin' => false,
                 ]);
 
+                $user->assignRole('cliente');
+
                 $record->update(['portal_user_id' => $user->id]);
 
                 Log::info('Portal access generated', [

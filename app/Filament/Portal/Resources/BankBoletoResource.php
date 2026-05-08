@@ -8,7 +8,6 @@ use App\Models\Client;
 use App\Services\BankBoletoService;
 use BackedEnum;
 use Filament\Actions\Action;
-use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
@@ -19,7 +18,7 @@ use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use UnitEnum;
 
-class BankBoletoResource extends Resource
+class BankBoletoResource extends PortalResource
 {
     protected static ?string $model = BankBoleto::class;
 
@@ -97,10 +96,6 @@ class BankBoletoResource extends Resource
                     )),
             ]);
     }
-
-    public static function canCreate(): bool { return false; }
-    public static function canEdit($record): bool { return false; }
-    public static function canDelete($record): bool { return false; }
 
     public static function getPages(): array
     {

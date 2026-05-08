@@ -19,6 +19,7 @@ class UserForm
         'financeiro'         => 'Financeiro',
         'colaborador'        => 'Colaborador',
         'seguranca_trabalho' => 'Segurança de Trabalho',
+        'cliente'            => 'Cliente',
     ];
 
     public static function configure(Schema $schema): Schema

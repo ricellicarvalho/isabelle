@@ -19,6 +19,7 @@ class UsersTable
         'financeiro'         => 'Financeiro',
         'colaborador'        => 'Colaborador',
         'seguranca_trabalho' => 'Segurança de Trabalho',
+        'cliente'            => 'Cliente',
     ];
 
     private const ROLE_COLORS = [
@@ -27,6 +28,7 @@ class UsersTable
         'financeiro'         => 'success',
         'colaborador'        => 'info',
         'seguranca_trabalho' => 'primary',
+        'cliente'            => 'success',
     ];
 
     public static function configure(Table $table): Table

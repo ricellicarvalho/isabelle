@@ -6,7 +6,6 @@ use App\Filament\Portal\Resources\ClientDocumentResource\Pages\ListClientDocumen
 use App\Models\Client;
 use App\Models\ClientDocument;
 use BackedEnum;
-use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
@@ -20,7 +19,7 @@ use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use UnitEnum;
 
-class ClientDocumentResource extends Resource
+class ClientDocumentResource extends PortalResource
 {
     protected static ?string $model = ClientDocument::class;
 
@@ -112,21 +111,6 @@ class ClientDocumentResource extends Resource
                     ->button(),
             ])
             ->paginated([10, 25, 50]);
-    }
-
-    public static function canCreate(): bool
-    {
-        return false;
-    }
-
-    public static function canEdit($record): bool
-    {
-        return false;
-    }
-
-    public static function canDelete($record): bool
-    {
-        return false;
     }
 
     public static function getPages(): array

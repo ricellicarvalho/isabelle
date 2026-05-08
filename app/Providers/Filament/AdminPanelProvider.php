@@ -33,7 +33,7 @@ class AdminPanelProvider extends PanelProvider
     {
         $panel = $panel
             ->sidebarCollapsibleOnDesktop()
-            ->sidebarWidth('18rem')
+            ->sidebarWidth('19rem')
             ->maxContentWidth(Width::Full)
             ->default()
             ->font('Kode Mono')

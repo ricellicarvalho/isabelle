@@ -18,6 +18,7 @@ class RoleSeeder extends Seeder
         $financeiro    = Role::firstOrCreate(['name' => 'financeiro',         'guard_name' => 'web']);
         $colaborador   = Role::firstOrCreate(['name' => 'colaborador',        'guard_name' => 'web']);
         $seguranca     = Role::firstOrCreate(['name' => 'seguranca_trabalho', 'guard_name' => 'web']);
+        Role::firstOrCreate(['name' => 'cliente',            'guard_name' => 'web']);
 
         // super_admin bypasses all gates via Shield config — no explicit permissions needed.
 

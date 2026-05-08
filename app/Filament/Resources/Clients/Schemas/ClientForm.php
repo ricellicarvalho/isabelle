@@ -150,7 +150,7 @@ class ClientForm
                                             ->label('Código IBGE do Município')
                                             ->maxLength(7)
                                             ->placeholder('1709500')
-                                            ->helperText('7 dígitos — obrigatório para emissão de NFSe. Ex: 1709500 = Gurupi-TO'),
+                                            ->helperText(new HtmlString('<span style="color:#dc2626;">7 dígitos — obrigatório para emissão de NFSe. Ex: 1709500 = Gurupi-TO</span>')),
                                     ]),
                             ]),
 
@@ -167,6 +167,7 @@ class ClientForm
                                         TextInput::make('email')
                                             ->label('E-mail')
                                             ->email()
+                                            ->required()
                                             ->rule('email:rfc,dns')
                                             ->maxLength(255)
                                             ->validationMessages([
@@ -418,16 +419,16 @@ class ClientForm
                                             ->content(function ($record): HtmlString {
                                                 if (! $record?->portal_user_id) {
                                                     return new HtmlString(
-                                                        '<span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">'
-                                                        . '<span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>Sem acesso'
-                                                        . '</span>'
+                                                        '<span style="display:inline-flex;align-items:center;gap:6px;background:#f3f4f6;color:#6b7280;border:1px solid #e5e7eb;border-radius:9999px;padding:4px 12px;font-size:0.75rem;font-weight:500;">'
+                                                        . '<span style="width:7px;height:7px;border-radius:9999px;background:#9ca3af;display:inline-block;"></span>'
+                                                        . 'Sem acesso</span>'
                                                     );
                                                 }
 
                                                 return new HtmlString(
-                                                    '<span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">'
-                                                    . '<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Ativo'
-                                                    . '</span>'
+                                                    '<span style="display:inline-flex;align-items:center;gap:6px;background:#dcfce7;color:#16a34a;border:1px solid #bbf7d0;border-radius:9999px;padding:4px 12px;font-size:0.75rem;font-weight:600;">'
+                                                    . '<span style="width:7px;height:7px;border-radius:9999px;background:#22c55e;display:inline-block;"></span>'
+                                                    . 'Ativo</span>'
                                                 );
                                             }),
 
