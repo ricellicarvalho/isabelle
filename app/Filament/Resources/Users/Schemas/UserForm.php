@@ -89,7 +89,7 @@ class UserForm
         $user = auth()->user();
 
         return match (true) {
-            $user?->hasRole('super_admin')   => ['administrador', 'financeiro', 'colaborador', 'seguranca_trabalho'],
+            $user?->hasRole('super_admin')   => ['administrador', 'financeiro', 'colaborador', 'seguranca_trabalho', 'cliente'],
             $user?->hasRole('administrador') => ['financeiro', 'colaborador', 'seguranca_trabalho'],
             default                          => [],
         };
