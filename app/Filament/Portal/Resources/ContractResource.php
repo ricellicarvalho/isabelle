@@ -48,9 +48,11 @@ class ContractResource extends PortalResource
     public static function infolist(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->components([
                 Section::make('Detalhes do Contrato')
                     ->columns(2)
+                    ->columnSpanFull()
                     ->components([
                         TextEntry::make('numero')->label('Número'),
                         TextEntry::make('tipo_servico')->label('Serviço'),
