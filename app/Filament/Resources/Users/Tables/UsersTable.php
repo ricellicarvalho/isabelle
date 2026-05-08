@@ -74,8 +74,10 @@ class UsersTable
                     ->query(fn (Builder $query): Builder => $query->whereDoesntHave('roles')),
             ])
             ->actions([
-                EditAction::make(),
-                DeleteAction::make(),
+                EditAction::make()
+                    ->visible(fn ($record): bool => ! ($record->hasRole('super_admin') && ! auth()->user()?->hasRole('super_admin'))),
+                DeleteAction::make()
+                    ->visible(fn ($record): bool => ! ($record->hasRole('super_admin') && ! auth()->user()?->hasRole('super_admin'))),
             ])
             ->bulkActions([
                 BulkActionGroup::make([

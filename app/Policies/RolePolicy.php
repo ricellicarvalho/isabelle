@@ -29,17 +29,45 @@ class RolePolicy
 
     public function update(AuthUser $authUser, Role $role): bool
     {
-        return $authUser->can('Update:Role');
+        if (! $authUser->can('Update:Role')) {
+            return false;
+        }
+
+        // Somente super_admin pode editar o próprio role super_admin
+        if ($role->name === 'super_admin') {
+            return $authUser->hasRole('super_admin');
+        }
+
+        // Administrador não pode editar o role administrador (apenas super_admin pode)
+        if ($role->name === 'administrador' && ! $authUser->hasRole('super_admin')) {
+            return false;
+        }
+
+        return true;
     }
 
     public function delete(AuthUser $authUser, Role $role): bool
     {
-        return $authUser->can('Delete:Role');
+        if (! $authUser->can('Delete:Role')) {
+            return false;
+        }
+
+        // O role super_admin nunca pode ser excluído
+        if ($role->name === 'super_admin') {
+            return false;
+        }
+
+        // Administrador não pode excluir o role administrador
+        if ($role->name === 'administrador' && ! $authUser->hasRole('super_admin')) {
+            return false;
+        }
+
+        return true;
     }
 
     public function deleteAny(AuthUser $authUser): bool
     {
-        return $authUser->can('DeleteAny:Role');
+        return $authUser->can('DeleteAny:Role') && $authUser->hasRole('super_admin');
     }
 
     public function restore(AuthUser $authUser, Role $role): bool

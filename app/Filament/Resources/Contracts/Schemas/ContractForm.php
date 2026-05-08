@@ -142,6 +142,7 @@ class ContractForm
                                             ->label('Arquivo PDF do Contrato')
                                             ->acceptedFileTypes(['application/pdf'])
                                             ->directory('contratos')
+                                            ->preserveFilenames()
                                             ->maxSize(10240),
                                     ]),
 

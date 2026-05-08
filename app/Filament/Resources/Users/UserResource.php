@@ -52,10 +52,28 @@ class UserResource extends Resource
         $query = parent::getEloquentQuery();
 
         if (! auth()->user()?->hasRole('super_admin')) {
-            $query->where('email', '!=', 'admin@isabelle.com.br');
+            $query->whereDoesntHave('roles', fn (Builder $q) => $q->where('name', 'super_admin'));
         }
 
         return $query;
+    }
+
+    public static function canEdit($record): bool
+    {
+        if ($record->hasRole('super_admin') && ! auth()->user()?->hasRole('super_admin')) {
+            return false;
+        }
+
+        return parent::canEdit($record);
+    }
+
+    public static function canDelete($record): bool
+    {
+        if ($record->hasRole('super_admin') && ! auth()->user()?->hasRole('super_admin')) {
+            return false;
+        }
+
+        return parent::canDelete($record);
     }
 
     public static function form(Schema $schema): Schema
