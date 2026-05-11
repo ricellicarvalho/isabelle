@@ -54,6 +54,7 @@ class NFSeService
             $this->buildBase('emitir'),
             [
                 'numeroRps'       => (int) $nfse->numero_rps,
+                'numeroLote'      => (int) $nfse->numero_rps,
                 'serie'           => $nfse->serie_rps,
                 'simplesNacional' => (int) $config->simples_nacional,
                 'prestador'       => $this->buildPrestador($config),
@@ -150,6 +151,7 @@ class NFSeService
             'nomeFantasia'       => trim($config->nome_fantasia ?? $config->razao_social),
             'endereco'           => trim($config->endereco),
             'numero'             => trim($config->numero),
+            'complemento'        => trim($config->complemento ?? ''),
             'bairro'             => trim($config->bairro),
             'municipio'          => $config->municipio_ibge,
             'nomeMunicipio'      => strtoupper(trim($config->nome_municipio)),
@@ -157,29 +159,18 @@ class NFSeService
             'cep'                => preg_replace('/\D/', '', $config->cep),
             'email'              => trim($config->email),
             'codigoUf'           => $config->codigo_uf,
+            'telefone'           => preg_replace('/\D/', '', $config->telefone ?? ''),
+            'usuario'            => $config->usuario_prefeitura ?? '',
+            'senha'              => $config->senha_prefeitura ?? '',
+            'fraseSecreta'       => $config->frase_secreta ?? '',
         ];
 
-        // Campos opcionais: só envia quando preenchidos (evita rejeição por campos vazios)
-        if (! blank($config->complemento)) {
-            $data['complemento'] = trim($config->complemento);
+        // Credenciais opcionais: envia apenas quando preenchidas
+        if (! blank($config->chave_acesso)) {
+            $data['chaveAcesso'] = $config->chave_acesso;
         }
-
-        $telefone = preg_replace('/\D/', '', $config->telefone ?? '');
-        if (! blank($telefone)) {
-            $data['telefone'] = $telefone;
-        }
-
-        // Credenciais municipais: envia apenas os que foram preenchidos
-        foreach ([
-            'usuario'          => $config->usuario_prefeitura,
-            'senha'            => $config->senha_prefeitura,
-            'fraseSecreta'     => $config->frase_secreta,
-            'chaveAcesso'      => $config->chave_acesso,
-            'chaveAutorizacao' => $config->chave_autorizacao,
-        ] as $key => $value) {
-            if (! blank($value)) {
-                $data[$key] = $value;
-            }
+        if (! blank($config->chave_autorizacao)) {
+            $data['chaveAutorizacao'] = $config->chave_autorizacao;
         }
 
         return $data;
@@ -190,36 +181,24 @@ class NFSeService
         $cpfCnpj = preg_replace('/\D/', '', $client->cnpj_cpf ?? '');
 
         $data = [
-            'cpfCnpj'      => $cpfCnpj,
-            'razaoSocial'  => trim($client->razao_social),
-            'municipio'    => $client->municipio_ibge ?? '',
+            'cpfCnpj'       => $cpfCnpj,
+            'razaoSocial'   => trim($client->razao_social),
+            'municipio'     => $client->municipio_ibge ?? '',
             'nomeMunicipio' => strtoupper(trim($client->cidade ?? '')),
-            'uf'           => strtoupper(trim($client->uf ?? '')),
-            'codigoPais'   => '1058',
-            'pais'         => 'Brasil',
-            'cep'          => preg_replace('/\D/', '', $client->cep ?? ''),
-            'email'        => trim($client->email ?? ''),
+            'uf'            => strtoupper(trim($client->uf ?? '')),
+            'codigoPais'    => '1058',
+            'pais'          => 'Brasil',
+            'cep'           => preg_replace('/\D/', '', $client->cep ?? ''),
+            'email'         => trim($client->email ?? ''),
+            'endereco'      => trim($client->endereco ?? ''),
+            'numero'        => trim($client->numero ?? ''),
+            'complemento'   => trim($client->complemento ?? ''),
+            'bairro'        => trim($client->bairro ?? ''),
+            'telefone'      => preg_replace('/\D/', '', $client->telefone ?? ''),
         ];
 
-        // Campos opcionais: só envia quando preenchidos
         if (! blank($client->inscricao_municipal)) {
             $data['inscricaoMunicipal'] = trim($client->inscricao_municipal);
-        }
-        if (! blank($client->endereco)) {
-            $data['endereco'] = trim($client->endereco);
-        }
-        if (! blank($client->numero)) {
-            $data['numero'] = trim($client->numero);
-        }
-        if (! blank($client->complemento)) {
-            $data['complemento'] = trim($client->complemento);
-        }
-        if (! blank($client->bairro)) {
-            $data['bairro'] = trim($client->bairro);
-        }
-        $telefone = preg_replace('/\D/', '', $client->telefone ?? '');
-        if (! blank($telefone)) {
-            $data['telefone'] = $telefone;
         }
 
         return $data;
@@ -232,11 +211,13 @@ class NFSeService
         $valorIss  = number_format((float) ($nfse->valor_iss ?? ($nfse->valor * $nfse->aliquota / 100)), 2, '.', '');
         $issRetido = (int) $nfse->iss_retido;
 
-        // Prioriza codigo_tributacao_municipio do código de serviço, depois da config, depois item_lista_servico
+        // codigoTributacaoMunicipio é diferente de itemListaServico (LC 116).
+        // O padrão nacional exige exatamente 3 dígitos [0-9]{3} — definido pela prefeitura.
+        // Nunca usar item_lista_servico como fallback (formato incompatível: '17.01' → 5 chars).
         $serviceCode               = \App\Models\NfseServiceCode::where('item_lista_servico', $nfse->item_lista_servico)->first();
         $codigoCnae                = $serviceCode?->codigo_cnae ?: ($config->codigo_cnae ?: '');
         $codigoTributacaoMunicipio = $serviceCode?->codigo_tributacao_municipio
-            ?: ($config->codigo_tributacao_municipio ?: $nfse->item_lista_servico);
+            ?: ($config->codigo_tributacao_municipio ?: '');
 
         $servico = [
             'valor'                     => $valor,
@@ -252,7 +233,8 @@ class NFSeService
             'descontoIncondicionado'    => '0.00',
             'descontoCondicionado'      => '0.00',
             'aliquota'                  => $aliquota,
-            'itemListaServico'          => $nfse->item_lista_servico,
+            'itemListaServico'          => $serviceCode?->codigo_tributacao_nacional
+                                            ?? $this->formatarItemListaServico($nfse->item_lista_servico),
             'codigoTributacaoMunicipio' => $codigoTributacaoMunicipio,
             'codigoCnae'                => $codigoCnae,
             'discriminacao'             => $nfse->discriminacao,
@@ -331,5 +313,20 @@ class NFSeService
         }
 
         return $masked;
+    }
+
+    // Converte o item LC 116 com ponto para 6 dígitos numéricos exigidos pelo cTribNac.
+    // Ex: '17.01' → '170100' | '4.15' → '041500' | '8.02' → '080200'
+    private function formatarItemListaServico(string $item): string
+    {
+        if (! str_contains($item, '.')) {
+            return str_pad(preg_replace('/\D/', '', $item), 6, '0', STR_PAD_RIGHT);
+        }
+
+        [$grupo, $subitem] = explode('.', $item, 2);
+
+        return str_pad($grupo, 2, '0', STR_PAD_LEFT)
+             . str_pad($subitem, 2, '0', STR_PAD_LEFT)
+             . '00';
     }
 }

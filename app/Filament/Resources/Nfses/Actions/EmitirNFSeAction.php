@@ -10,6 +10,7 @@ use App\Models\NfseServiceCode;
 use App\Models\Receivable;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
@@ -32,6 +33,21 @@ class EmitirNFSeAction
             ? ($record->contract?->tipo_servico ?? 'outro')
             : $record->tipo_servico;
 
+        // Sugestão de código baseada no tipo de serviço do contrato
+        $defaultActivityCode = match ($tipoServico) {
+            'nr1'         => '0415',
+            'consultoria' => '1701',
+            'treinamento' => '0802',
+            'palestra'    => '1724',
+            default       => '1701',
+        };
+
+        // Opções do Select: "0415 — Psicanálise."
+        $activityOptions = NfseServiceCode::where('ativo', true)
+            ->orderBy('tipo_servico')
+            ->get()
+            ->mapWithKeys(fn ($s) => [$s->tipo_servico => "{$s->tipo_servico} — {$s->descricao}"]);
+
         return Action::make('emitirNfse')
             ->label('Emitir NFSe')
             ->icon('heroicon-o-document-check')
@@ -46,6 +62,15 @@ class EmitirNFSeAction
                     ->default(number_format((float) $valor, 2, ',', '.'))
                     ->disabled()
                     ->dehydrated(false),
+
+                Select::make('codigo_atividade')
+                    ->label('Código de Atividade (Prefeitura)')
+                    ->required()
+                    ->options($activityOptions)
+                    ->default($defaultActivityCode)
+                    ->searchable()
+                    ->native(false)
+                    ->helperText('Código conforme tabela da Prefeitura de Gurupi-TO'),
 
                 DatePicker::make('competencia')
                     ->label('Competência (mês/ano)')
@@ -63,7 +88,7 @@ class EmitirNFSeAction
                     ->maxLength(2000)
                     ->helperText('Texto que aparecerá na NFSe como discriminação do serviço'),
             ])
-            ->action(function (array $data) use ($record, $valor, $tipoServico): void {
+            ->action(function (array $data) use ($record, $valor): void {
                 $validacao = self::validarPreRequisitos($record);
 
                 if ($validacao !== null) {
@@ -78,29 +103,29 @@ class EmitirNFSeAction
                 }
 
                 $config      = NfseConfig::ativa();
-                $serviceCode = NfseServiceCode::paraTipoServico($tipoServico);
-                $aliquota    = $serviceCode?->aliquota ?? $config->aliquota_iss_padrao ?? 2.00;
+                $serviceCode = NfseServiceCode::paraTipoServico($data['codigo_atividade']);
+                $aliquota    = $serviceCode?->aliquota ?? $config->aliquota_iss_padrao ?? 2.01;
                 $itemLista   = $serviceCode?->item_lista_servico ?? $config->item_lista_servico ?? '17.01';
                 $numeroRps   = $config->reservarNumeroRps();
 
                 $isReceivable = $record instanceof Receivable;
 
                 $nfse = Nfse::create([
-                    'contract_id'       => $isReceivable ? $record->contract_id : $record->id,
-                    'receivable_id'     => $isReceivable ? $record->id : null,
-                    'numero_rps'        => $numeroRps,
-                    'serie_rps'         => $config->serie_rps,
-                    'tipo_rps'          => 1,
-                    'status'            => 'pendente',
-                    'ambiente'          => config('nfse.ambiente'),
-                    'valor'             => (float) $valor,
-                    'aliquota'          => (float) $aliquota,
-                    'iss_retido'        => $config->iss_retido,
-                    'valor_iss'         => round((float) $valor * (float) $aliquota / 100, 2),
+                    'contract_id'        => $isReceivable ? $record->contract_id : $record->id,
+                    'receivable_id'      => $isReceivable ? $record->id : null,
+                    'numero_rps'         => $numeroRps,
+                    'serie_rps'          => $config->serie_rps,
+                    'tipo_rps'           => 1,
+                    'status'             => 'pendente',
+                    'ambiente'           => config('nfse.ambiente'),
+                    'valor'              => (float) $valor,
+                    'aliquota'           => (float) $aliquota,
+                    'iss_retido'         => $config->iss_retido,
+                    'valor_iss'          => round((float) $valor * (float) $aliquota / 100, 2),
                     'item_lista_servico' => $itemLista,
-                    'discriminacao'     => $data['discriminacao'],
-                    'competencia'       => $data['competencia'],
-                    'created_by'        => auth()->id(),
+                    'discriminacao'      => $data['discriminacao'],
+                    'competencia'        => $data['competencia'],
+                    'created_by'         => auth()->id(),
                 ]);
 
                 EmitirNFSeJob::dispatch($nfse);

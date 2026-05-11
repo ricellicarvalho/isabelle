@@ -16,6 +16,7 @@ class NfseServiceCode extends Model
         'descricao',
         'item_lista_servico',
         'codigo_tributacao_municipio',
+        'codigo_tributacao_nacional',
         'codigo_cnae',
         'aliquota',
         'ativo',

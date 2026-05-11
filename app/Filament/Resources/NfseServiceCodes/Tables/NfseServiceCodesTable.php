@@ -15,37 +15,35 @@ class NfseServiceCodesTable
         return $table
             ->columns([
                 TextColumn::make('tipo_servico')
-                    ->label('Tipo (Sistema)')
+                    ->label('Código')
                     ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'nr1'          => 'primary',
-                        'palestra'     => 'info',
-                        'consultoria'  => 'warning',
-                        'treinamento'  => 'success',
-                        default        => 'gray',
-                    })
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'nr1'          => 'NR-1',
-                        'palestra'     => 'Palestra',
-                        'consultoria'  => 'Consultoria',
-                        'treinamento'  => 'Treinamento',
-                        'outro'        => 'Outro',
-                    }),
+                    ->color('primary')
+                    ->searchable(),
 
                 TextColumn::make('descricao')
                     ->label('Descrição')
-                    ->limit(40),
+                    ->limit(60)
+                    ->searchable()
+                    ->tooltip(fn (string $state): string => $state),
 
                 TextColumn::make('item_lista_servico')
-                    ->label('LC 116/2003'),
+                    ->label('LC 116/2003')
+                    ->badge()
+                    ->color('gray'),
+
+                TextColumn::make('codigo_tributacao_nacional')
+                    ->label('cTribNac')
+                    ->badge()
+                    ->color(fn ($state) => blank($state) ? 'danger' : 'success')
+                    ->placeholder('⚠ não configurado'),
+
+                TextColumn::make('codigo_tributacao_municipio')
+                    ->label('cTribMun')
+                    ->placeholder('—'),
 
                 TextColumn::make('aliquota')
                     ->label('ISS %')
                     ->formatStateUsing(fn ($state): string => number_format((float) $state, 2, ',', '.') . '%'),
-
-                TextColumn::make('codigo_cnae')
-                    ->label('CNAE')
-                    ->placeholder('—'),
 
                 IconColumn::make('ativo')
                     ->label('Ativo')

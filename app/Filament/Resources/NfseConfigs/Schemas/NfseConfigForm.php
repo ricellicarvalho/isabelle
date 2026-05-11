@@ -237,7 +237,8 @@ class NfseConfigForm
                                         ->label('Série RPS')
                                         ->required()
                                         ->maxLength(5)
-                                        ->default('RPS'),
+                                        ->default('1')
+                                        ->helperText('⚠ Use apenas números (ex: 1). Letras como "RPS" corrompem o Id do DPS no padrão nacional.'),
 
                                     TextInput::make('proximo_numero_rps')
                                         ->label('Próximo Número RPS')
