@@ -87,7 +87,7 @@ class EventForm
 
                         Select::make('user_id')
                             ->label('Responsável')
-                            ->options(User::pluck('name', 'id'))
+                            ->options(User::whereDoesntHave('roles', fn ($q) => $q->where('name', 'super_admin'))->pluck('name', 'id'))
                             ->searchable()
                             ->required()
                             ->native(false)
