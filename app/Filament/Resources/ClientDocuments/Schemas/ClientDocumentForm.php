@@ -36,14 +36,20 @@ class ClientDocumentForm
 
                         Select::make('tipo')
                             ->label('Tipo')
-                            ->options([
-                                'laudo'        => 'Laudo',
-                                'foto'         => 'Foto',
-                                'relatorio'    => 'Relatório',
-                                'matriz_risco' => 'Matriz de Risco',
-                                'certificado'  => 'Certificado',
-                                'outro'        => 'Outro',
-                            ])
+                            ->options(function (): array {
+                                $options = [
+                                    'laudo'        => 'Laudo',
+                                    'foto'         => 'Foto',
+                                    'relatorio'    => 'Relatório',
+                                    'matriz_risco' => 'Matriz de Risco',
+                                    'certificado'  => 'Certificado',
+                                    'outro'        => 'Outro',
+                                ];
+                                if (auth()->user()?->hasAnyRole(['super_admin', 'administrador', 'financeiro'])) {
+                                    $options['proposta'] = 'Proposta';
+                                }
+                                return $options;
+                            })
                             ->default('outro')
                             ->required()
                             ->native(false),

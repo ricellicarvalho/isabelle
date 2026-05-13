@@ -47,12 +47,15 @@ WORKDIR /var/www
 # 6. Copiar arquivos do projeto definindo o novo usuário como dono
 COPY --chown=$user:$user . .
 
-# 7. Variáveis de ambiente cruciais
+# 7. Permissões de storage para o PHP-FPM (www-data) conseguir escrever
+RUN chown -R $user:www-data /var/www/storage && chmod -R 775 /var/www/storage
+
+# 8. Variáveis de ambiente cruciais
 ENV HOME=/home/$user
 ENV PSYSH_CONFIG=/home/$user/.config/psysh/config.php
 ENV TZ=America/Araguaina
 
-# 8. Mudar para o usuário criado antes de rodar o processo.
+# 9. Mudar para o usuário criado antes de rodar o processo.
 USER $user
 
 EXPOSE 9000

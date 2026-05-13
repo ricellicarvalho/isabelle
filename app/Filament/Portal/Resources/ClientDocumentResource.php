@@ -66,6 +66,7 @@ class ClientDocumentResource extends PortalResource
                         'relatorio'    => 'Relatório',
                         'matriz_risco' => 'Matriz de Risco',
                         'certificado'  => 'Certificado',
+                        'proposta'     => 'Proposta',
                         default        => 'Outro',
                     })
                     ->color(fn (string $state): string => match ($state) {
@@ -73,6 +74,7 @@ class ClientDocumentResource extends PortalResource
                         'relatorio'    => 'success',
                         'matriz_risco' => 'warning',
                         'certificado'  => 'purple',
+                        'proposta'     => 'primary',
                         default        => 'gray',
                     }),
 

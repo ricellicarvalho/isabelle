@@ -38,7 +38,12 @@ class ClientDocumentsTable
                         'relatorio'    => 'Relatório',
                         'matriz_risco' => 'Matriz de Risco',
                         'certificado'  => 'Certificado',
+                        'proposta'     => 'Proposta',
                         default        => 'Outro',
+                    })
+                    ->color(fn (string $state): string => match ($state) {
+                        'proposta' => 'warning',
+                        default    => 'gray',
                     }),
 
                 IconColumn::make('visivel_portal')
@@ -55,14 +60,20 @@ class ClientDocumentsTable
             ->filters([
                 SelectFilter::make('tipo')
                     ->label('Tipo')
-                    ->options([
-                        'laudo'        => 'Laudo',
-                        'foto'         => 'Foto',
-                        'relatorio'    => 'Relatório',
-                        'matriz_risco' => 'Matriz de Risco',
-                        'certificado'  => 'Certificado',
-                        'outro'        => 'Outro',
-                    ]),
+                    ->options(function (): array {
+                        $options = [
+                            'laudo'        => 'Laudo',
+                            'foto'         => 'Foto',
+                            'relatorio'    => 'Relatório',
+                            'matriz_risco' => 'Matriz de Risco',
+                            'certificado'  => 'Certificado',
+                            'outro'        => 'Outro',
+                        ];
+                        if (auth()->user()?->hasAnyRole(['super_admin', 'administrador', 'financeiro'])) {
+                            $options['proposta'] = 'Proposta';
+                        }
+                        return $options;
+                    }),
 
                 TernaryFilter::make('visivel_portal')
                     ->label('Visível no Portal'),

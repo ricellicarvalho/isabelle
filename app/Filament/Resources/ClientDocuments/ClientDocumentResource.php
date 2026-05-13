@@ -13,6 +13,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
 
 class ClientDocumentResource extends Resource
@@ -30,6 +31,17 @@ class ClientDocumentResource extends Resource
     protected static ?int $navigationSort = 4;
 
     protected static ?string $recordTitleAttribute = 'titulo';
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+
+        if (! auth()->user()?->hasAnyRole(['super_admin', 'administrador', 'financeiro'])) {
+            $query->where('tipo', '!=', 'proposta');
+        }
+
+        return $query;
+    }
 
     public static function form(Schema $schema): Schema
     {
