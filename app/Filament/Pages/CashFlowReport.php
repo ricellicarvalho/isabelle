@@ -33,6 +33,11 @@ class CashFlowReport extends Page
 
     public ?array $report = null;
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->can('View:CashFlowReport') ?? false;
+    }
+
     public function mount(): void
     {
         $this->form->fill([

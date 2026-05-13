@@ -16,6 +16,11 @@ class OverdueReceivablesTable extends BaseWidget
 
     protected int|string|array $columnSpan = 'full';
 
+    public static function canView(): bool
+    {
+        return auth()->user()?->can('View:OverdueReceivablesTable') ?? false;
+    }
+
     public function table(Table $table): Table
     {
         return $table

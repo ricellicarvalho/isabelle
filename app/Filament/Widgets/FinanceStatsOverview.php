@@ -11,6 +11,11 @@ class FinanceStatsOverview extends BaseWidget
 {
     protected ?string $heading = 'Visão Financeira do Mês';
 
+    public static function canView(): bool
+    {
+        return auth()->user()?->can('View:FinanceStatsOverview') ?? false;
+    }
+
     protected function getStats(): array
     {
         $inicioMes = now()->startOfMonth();

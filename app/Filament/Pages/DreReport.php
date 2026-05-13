@@ -31,6 +31,11 @@ class DreReport extends Page
 
     public ?array $report = null;
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->can('View:DreReport') ?? false;
+    }
+
     public function mount(): void
     {
         $this->form->fill([

@@ -74,8 +74,6 @@ class RoleSeeder extends Seeder
         }
         $colabPerms[] = 'ViewAny:Pricing';
         $colabPerms[] = 'View:Pricing';
-        $colabPerms[] = 'ViewAny:Category';
-        $colabPerms[] = 'View:Category';
         $colabPerms[] = 'View:CalendarPage';
 
         $colaborador->syncPermissions(array_filter($colabPerms, $exists));
