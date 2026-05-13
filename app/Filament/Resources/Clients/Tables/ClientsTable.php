@@ -22,7 +22,8 @@ class ClientsTable
                 TextColumn::make('cnpj_cpf')
                     ->label('CNPJ/CPF')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('razao_social')
                     ->label('Razão Social')

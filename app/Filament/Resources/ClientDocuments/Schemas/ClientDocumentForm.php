@@ -76,7 +76,7 @@ class ClientDocumentForm
 
                         Textarea::make('descricao')
                             ->label('Descrição')
-                            ->rows(3)
+                            ->rows(6)
                             ->columnSpanFull(),
                     ]),
             ]);
