@@ -91,7 +91,7 @@ class EventForm
                             ->searchable()
                             ->required()
                             ->native(false)
-                            ->default(fn () => auth()->id()),
+                            ->default(fn () => auth()->user()?->hasRole('super_admin') ? null : auth()->id()),
                     ]),
 
                 Section::make('Data e Horário')

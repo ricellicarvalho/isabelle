@@ -181,7 +181,7 @@ class CalendarWidget extends FullCalendarWidget
                         ->options(User::whereDoesntHave('roles', fn ($q) => $q->where('name', 'super_admin'))->pluck('name', 'id'))
                         ->required()
                         ->native(false)
-                        ->default(fn () => auth()->id()),
+                        ->default(fn () => auth()->user()?->hasRole('super_admin') ? null : auth()->id()),
 
                     Select::make('client_id')
                         ->label('Cliente')
