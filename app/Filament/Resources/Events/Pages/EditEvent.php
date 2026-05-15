@@ -16,4 +16,22 @@ class EditEvent extends EditRecord
             DeleteAction::make(),
         ];
     }
+
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        if (empty($data['user_ids']) && ! empty($data['user_id'])) {
+            $data['user_ids'] = [$data['user_id']];
+        }
+
+        return $data;
+    }
+
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        if (! empty($data['user_ids'])) {
+            $data['user_id'] = collect($data['user_ids'])->first();
+        }
+
+        return $data;
+    }
 }

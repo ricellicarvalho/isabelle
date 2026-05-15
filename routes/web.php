@@ -2,11 +2,15 @@
 
 use App\Http\Controllers\PrecadastroController;
 use App\Models\BankBoleto;
+use App\Models\Client;
+use App\Models\ClientDocument;
 use App\Models\Nfse;
 use App\Models\Pricing;
 use App\Services\BankBoletoService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 Route::get('/', function () {
@@ -70,3 +74,36 @@ Route::get('/nfse/{nfse}/xml', function (Nfse $nfse) {
         'Content-Disposition' => "attachment; filename=\"NFSe-{$numero}.xml\"",
     ]);
 })->name('nfse.xml')->middleware(['signed', 'auth:web']);
+
+// Servir arquivos de documentos do portal com suporte a visualização inline
+Route::get('/portal/documents/{document}/file/{index}', function (ClientDocument $document, int $index) {
+    $client = Client::where('portal_user_id', Auth::guard('portal')->id())->first();
+    abort_unless($client && $document->client_id === $client->id && $document->visivel_portal, 403);
+
+    $arquivos = (array) ($document->caminho_arquivo ?? []);
+    $path = $arquivos[$index] ?? null;
+    abort_if(! $path || ! Storage::disk('local')->exists($path), 404);
+
+    $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+    $mimeMap = [
+        'pdf'  => 'application/pdf',
+        'jpg'  => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'png'  => 'image/png',
+        'gif'  => 'image/gif',
+        'webp' => 'image/webp',
+        'svg'  => 'image/svg+xml',
+        'mp4'  => 'video/mp4',
+        'webm' => 'video/webm',
+        'ogg'  => 'video/ogg',
+    ];
+
+    $mimeType = $mimeMap[$ext] ?? (Storage::disk('local')->mimeType($path) ?: 'application/octet-stream');
+    $disposition = isset($mimeMap[$ext]) ? 'inline' : 'attachment';
+
+    return response(Storage::disk('local')->get($path), 200, [
+        'Content-Type'        => $mimeType,
+        'Content-Disposition' => $disposition . '; filename="' . basename($path) . '"',
+        'Cache-Control'       => 'private, max-age=3600',
+    ]);
+})->name('portal.document.file')->middleware(['auth:portal']);

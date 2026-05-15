@@ -12,6 +12,9 @@ class CreateEvent extends CreateRecord
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         $data['created_by'] = auth()->id();
+        if (! empty($data['user_ids'])) {
+            $data['user_id'] = collect($data['user_ids'])->first();
+        }
 
         return $data;
     }

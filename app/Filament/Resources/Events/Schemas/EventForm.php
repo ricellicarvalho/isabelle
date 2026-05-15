@@ -36,12 +36,13 @@ class EventForm
                         Select::make('tipo')
                             ->label('Tipo')
                             ->options([
-                                'avaliacao_nr1' => 'Avaliação NR-1',
-                                'devolutiva'    => 'Devolutiva',
-                                'treinamento'   => 'Treinamento',
-                                'palestra'      => 'Palestra',
-                                'reuniao'       => 'Reunião',
-                                'outro'         => 'Outro',
+                                'avaliacao_nr1'   => 'Avaliação NR-1',
+                                'devolutiva'      => 'Devolutiva',
+                                'treinamento'     => 'Treinamento',
+                                'palestra'        => 'Palestra',
+                                'reuniao'         => 'Reunião',
+                                'formacao_humana' => 'Formação Humana',
+                                'outro'           => 'Outro',
                             ])
                             ->default('outro')
                             ->required()
@@ -85,13 +86,14 @@ class EventForm
                             ->nullable()
                             ->columnSpanFull(),
 
-                        Select::make('user_id')
-                            ->label('Responsável')
+                        Select::make('user_ids')
+                            ->label('Responsáveis')
                             ->options(User::whereDoesntHave('roles', fn ($q) => $q->where('name', 'super_admin'))->pluck('name', 'id'))
                             ->searchable()
                             ->required()
+                            ->multiple()
                             ->native(false)
-                            ->default(fn () => auth()->user()?->hasRole('super_admin') ? null : auth()->id()),
+                            ->default(fn () => auth()->user()?->hasRole('super_admin') ? [] : [auth()->id()]),
                     ]),
 
                 Section::make('Data e Horário')
@@ -128,7 +130,7 @@ class EventForm
                     ->components([
                         Toggle::make('bloquear_agenda')
                             ->label('Bloquear agenda do responsável')
-                            ->helperText('Impede que o responsável seja alocado em outro evento no mesmo horário (RN09).')
+                            ->helperText('Impede que o responsável seja alocado em outro evento no mesmo horário.')
                             ->visible(fn (Get $get): bool => $get('tipo') === 'avaliacao_nr1')
                             ->columnSpanFull(),
 

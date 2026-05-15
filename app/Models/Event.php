@@ -15,6 +15,7 @@ class Event extends Model
         'client_id',
         'contract_id',
         'user_id',
+        'user_ids',
         'titulo',
         'descricao',
         'tipo',
@@ -32,10 +33,11 @@ class Event extends Model
     protected function casts(): array
     {
         return [
-            'data_inicio' => 'datetime',
-            'data_fim' => 'datetime',
-            'dia_inteiro' => 'boolean',
+            'data_inicio'    => 'datetime',
+            'data_fim'       => 'datetime',
+            'dia_inteiro'    => 'boolean',
             'bloquear_agenda' => 'boolean',
+            'user_ids'       => 'array',
         ];
     }
 

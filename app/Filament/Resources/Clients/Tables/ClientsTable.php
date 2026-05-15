@@ -25,15 +25,18 @@ class ClientsTable
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
+                TextColumn::make('nome_fantasia')
+                    ->label('Nome Fantasia')
+                    ->searchable()
+                    ->sortable()
+                    ->limit(40)
+                    ->placeholder('—'),
+
                 TextColumn::make('razao_social')
                     ->label('Razão Social')
                     ->searchable()
                     ->sortable()
-                    ->limit(40),
-
-                TextColumn::make('nome_fantasia')
-                    ->label('Nome Fantasia')
-                    ->searchable()
+                    ->limit(40)
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('telefone_principal')

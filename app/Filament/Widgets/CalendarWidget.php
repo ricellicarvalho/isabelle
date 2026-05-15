@@ -48,6 +48,8 @@ class CalendarWidget extends FullCalendarWidget
 
     public function fetchEvents(array $info): array
     {
+        $usersMap = User::pluck('name', 'id');
+
         return Event::query()
             ->with(['client', 'user'])
             ->whereBetween('data_inicio', [$info['start'], $info['end']])
@@ -66,7 +68,9 @@ class CalendarWidget extends FullCalendarWidget
                 ->extendedProps([
                     'status'      => $event->status,
                     'tipo'        => $event->tipo,
-                    'responsavel' => $event->user?->name,
+                    'responsavel' => $event->user_ids
+                        ? collect($event->user_ids)->map(fn ($id) => $usersMap[$id] ?? null)->filter()->implode(', ')
+                        : ($event->user?->name ?? ''),
                     'local'       => $event->local,
                 ])
             )
@@ -119,6 +123,9 @@ class CalendarWidget extends FullCalendarWidget
                 ->modalCancelActionLabel('Cancelar')
                 ->mutateFormDataUsing(function (array $data): array {
                     $data['created_by'] = auth()->id();
+                    if (! empty($data['user_ids'])) {
+                        $data['user_id'] = collect($data['user_ids'])->first();
+                    }
 
                     return $data;
                 }),
@@ -132,7 +139,21 @@ class CalendarWidget extends FullCalendarWidget
                 ->label('Editar')
                 ->modalHeading('Editar Evento')
                 ->modalSubmitActionLabel('Salvar')
-                ->modalCancelActionLabel('Cancelar'),
+                ->modalCancelActionLabel('Cancelar')
+                ->mutateRecordDataUsing(function (array $data): array {
+                    if (empty($data['user_ids']) && ! empty($data['user_id'])) {
+                        $data['user_ids'] = [$data['user_id']];
+                    }
+
+                    return $data;
+                })
+                ->mutateFormDataUsing(function (array $data): array {
+                    if (! empty($data['user_ids'])) {
+                        $data['user_id'] = collect($data['user_ids'])->first();
+                    }
+
+                    return $data;
+                }),
 
             Actions\DeleteAction::make()
                 ->label('Excluir')
@@ -164,24 +185,26 @@ class CalendarWidget extends FullCalendarWidget
                     Select::make('tipo')
                         ->label('Tipo')
                         ->options([
-                            'avaliacao_nr1' => 'Avaliação NR-1',
-                            'devolutiva'    => 'Devolutiva',
-                            'treinamento'   => 'Treinamento',
-                            'palestra'      => 'Palestra',
-                            'reuniao'       => 'Reunião',
-                            'outro'         => 'Outro',
+                            'avaliacao_nr1'   => 'Avaliação NR-1',
+                            'devolutiva'      => 'Devolutiva',
+                            'treinamento'     => 'Treinamento',
+                            'palestra'        => 'Palestra',
+                            'reuniao'         => 'Reunião',
+                            'formacao_humana' => 'Formação Humana',
+                            'outro'           => 'Outro',
                         ])
                         ->default('outro')
                         ->required()
                         ->native(false)
                         ->live(),
 
-                    Select::make('user_id')
-                        ->label('Responsável')
+                    Select::make('user_ids')
+                        ->label('Responsáveis')
                         ->options(User::whereDoesntHave('roles', fn ($q) => $q->where('name', 'super_admin'))->pluck('name', 'id'))
                         ->required()
+                        ->multiple()
                         ->native(false)
-                        ->default(fn () => auth()->user()?->hasRole('super_admin') ? null : auth()->id()),
+                        ->default(fn () => auth()->user()?->hasRole('super_admin') ? [] : [auth()->id()]),
 
                     Select::make('client_id')
                         ->label('Cliente')
@@ -232,6 +255,7 @@ class CalendarWidget extends FullCalendarWidget
 
                     Toggle::make('bloquear_agenda')
                         ->label('Bloquear agenda do responsável')
+                        ->helperText('Impede que o responsável seja alocado em outro evento no mesmo horário.')
                         ->visible(fn (Get $get): bool => $get('tipo') === 'avaliacao_nr1')
                         ->columnSpanFull(),
 
@@ -251,12 +275,13 @@ class CalendarWidget extends FullCalendarWidget
     private function tipoColor(string $tipo): string
     {
         return match ($tipo) {
-            'avaliacao_nr1' => '#7c3aed',
-            'devolutiva'    => '#2563eb',
-            'treinamento'   => '#16a34a',
-            'palestra'      => '#d97706',
-            'reuniao'       => '#6b7280',
-            default         => '#6b7280',
+            'avaliacao_nr1'   => '#7c3aed',
+            'devolutiva'      => '#2563eb',
+            'treinamento'     => '#16a34a',
+            'palestra'        => '#d97706',
+            'reuniao'         => '#6b7280',
+            'formacao_humana' => '#0891b2',
+            default           => '#6b7280',
         };
     }
 }

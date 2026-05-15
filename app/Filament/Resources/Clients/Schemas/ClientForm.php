@@ -39,41 +39,65 @@ class ClientForm
                                         Select::make('tipo_pessoa')
                                             ->label('Tipo de Pessoa')
                                             ->options([
-                                                'pj' => 'Pessoa Jurídica',
-                                                'pf' => 'Pessoa Física',
+                                                'pj'    => 'Pessoa Jurídica',
+                                                'pf'    => 'Pessoa Física',
+                                                'caepf' => 'CAEPF',
                                             ])
                                             ->default('pj')
                                             ->required()
-                                            ->native(false),
+                                            ->native(false)
+                                            ->live(),
 
                                         TextInput::make('cnpj_cpf')
-                                            ->label('CNPJ/CPF')
+                                            ->label(fn (Get $get): string => match ($get('tipo_pessoa')) {
+                                                'pf'    => 'CPF',
+                                                'caepf' => 'CAEPF',
+                                                default => 'CNPJ',
+                                            })
+                                            ->mask(fn (Get $get): ?string => match ($get('tipo_pessoa')) {
+                                                'pf'    => '999.999.999-99',
+                                                'caepf' => null,
+                                                default => '99.999.999/9999-99',
+                                            })
+                                            ->placeholder(fn (Get $get): string => match ($get('tipo_pessoa')) {
+                                                'pf'    => '000.000.000-00',
+                                                'caepf' => 'Digite o CAEPF',
+                                                default => '00.000.000/0000-00',
+                                            })
+                                            ->maxLength(fn (Get $get): int => match ($get('tipo_pessoa')) {
+                                                'pf'    => 14,
+                                                'caepf' => 30,
+                                                default => 18,
+                                            })
                                             ->required()
-                                            ->unique(ignoreRecord: true)
-                                            ->maxLength(18),
+                                            ->unique(ignoreRecord: true),
 
                                         TextInput::make('razao_social')
-                                            ->label('Razão Social')
+                                            ->label(fn (Get $get): string => $get('tipo_pessoa') === 'pf' ? 'Nome' : 'Razão Social')
                                             ->required()
                                             ->maxLength(255)
-                                            ->columnSpanFull(),
+                                            ->columnSpanFull()
+                                            ->hidden(fn (Get $get): bool => $get('tipo_pessoa') === 'caepf'),
 
                                         TextInput::make('nome_fantasia')
                                             ->label('Nome Fantasia')
-                                            ->maxLength(255),
+                                            ->maxLength(255)
+                                            ->hidden(fn (Get $get): bool => in_array($get('tipo_pessoa'), ['pf', 'caepf'])),
 
                                         TextInput::make('inscricao_estadual')
                                             ->label('Inscrição Estadual')
-                                            ->maxLength(255),
+                                            ->maxLength(255)
+                                            ->hidden(fn (Get $get): bool => in_array($get('tipo_pessoa'), ['pf', 'caepf'])),
 
                                         TextInput::make('inscricao_municipal')
                                             ->label('Inscrição Municipal')
-                                            ->maxLength(255),
+                                            ->maxLength(255)
+                                            ->hidden(fn (Get $get): bool => in_array($get('tipo_pessoa'), ['pf', 'caepf'])),
 
                                         Select::make('status')
                                             ->label('Status')
                                             ->options([
-                                                'ativo' => 'Ativo',
+                                                'ativo'   => 'Ativo',
                                                 'inativo' => 'Inativo',
                                             ])
                                             ->default('ativo')
