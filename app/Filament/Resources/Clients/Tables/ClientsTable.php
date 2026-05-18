@@ -25,12 +25,25 @@ class ClientsTable
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
-                TextColumn::make('nome_fantasia')
-                    ->label('Nome Fantasia')
-                    ->searchable()
-                    ->sortable()
-                    ->limit(40)
-                    ->placeholder('—'),
+                TextColumn::make('nome_exibicao')
+                    ->label('Nome/Nome Fantasia')
+                    ->state(function (Client $record): string {
+                        return match ($record->tipo_pessoa) {
+                            'pf'    => $record->razao_social ?? '—',
+                            'caepf' => $record->cnpj_cpf ?? '—',
+                            default => filled($record->nome_fantasia)
+                                ? $record->nome_fantasia
+                                : ($record->razao_social ?? '—'),
+                        };
+                    })
+                    ->searchable(query: function ($query, string $search): void {
+                        $query->where(function ($q) use ($search): void {
+                            $q->where('nome_fantasia', 'like', "%{$search}%")
+                              ->orWhere('razao_social', 'like', "%{$search}%");
+                        });
+                    })
+                    ->sortable(false)
+                    ->limit(40),
 
                 TextColumn::make('razao_social')
                     ->label('Razão Social')
