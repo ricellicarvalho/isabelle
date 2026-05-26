@@ -78,7 +78,7 @@ class ContractForm
                                             ->disabled(fn ($record): bool => in_array($record?->status, ['finalizado', 'cancelado']))
                                             ->dehydrated()
                                             ->helperText(fn ($record): string|HtmlString|null => match ($record?->status) {
-                                                'finalizado' => 'Este contrato foi finalizado automaticamente pelo sistema ao atingir a data de encerramento.',
+                                                'finalizado' => new HtmlString('<span style="color:#16a34a;font-weight:600;">Este contrato foi finalizado automaticamente pelo sistema ao atingir a data de encerramento.</span>'),
                                                 'cancelado'  => new HtmlString('<span style="color:#dc2626;font-weight:600;">Este contrato foi cancelado.</span>'),
                                                 default      => null,
                                             })

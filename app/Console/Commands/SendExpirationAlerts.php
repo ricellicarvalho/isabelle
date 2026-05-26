@@ -7,6 +7,8 @@ use App\Models\NotificationLog;
 use App\Models\User;
 use App\Notifications\ContractExpiringNotification;
 use App\Notifications\ContractFinalizedNotification;
+use Filament\Actions\Action as FilamentAction;
+use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
@@ -61,6 +63,19 @@ class SendExpirationAlerts extends Command
                     continue;
                 }
 
+                // Notificação interna (sininho) — formato nativo do Filament
+                FilamentNotification::make()
+                    ->title("Contrato {$contract->numero} vence em {$days} dias")
+                    ->body("Cliente: {$contract->client?->razao_social} — encerra em " . optional($contract->data_fim)->format('d/m/Y'))
+                    ->warning()
+                    ->actions([
+                        FilamentAction::make('ver')
+                            ->label('Abrir contrato')
+                            ->url(\App\Filament\Resources\Contracts\ContractResource::getUrl('edit', ['record' => $contract->getKey()])),
+                    ])
+                    ->sendToDatabase($admins);
+
+                // E-mail
                 Notification::send($admins, new ContractExpiringNotification($contract, $days));
 
                 NotificationLog::create([
@@ -98,6 +113,19 @@ class SendExpirationAlerts extends Command
 
             $contract->update(['status' => 'finalizado']);
 
+            // Notificação interna (sininho) — formato nativo do Filament
+            FilamentNotification::make()
+                ->title("Contrato {$contract->numero} finalizado")
+                ->body("Cliente: {$contract->client?->razao_social} — encerrado em " . optional($contract->data_fim)->format('d/m/Y'))
+                ->success()
+                ->actions([
+                    FilamentAction::make('ver')
+                        ->label('Abrir contrato')
+                        ->url(\App\Filament\Resources\Contracts\ContractResource::getUrl('edit', ['record' => $contract->getKey()])),
+                ])
+                ->sendToDatabase($admins);
+
+            // E-mail
             Notification::send($admins, new ContractFinalizedNotification($contract));
 
             NotificationLog::create([
