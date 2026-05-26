@@ -200,6 +200,39 @@ class ContractsTable
                     }),
                 ActionGroup::make([
                     EditAction::make(),
+
+                    Action::make('cancelar')
+                        ->label('Cancelar Contrato')
+                        ->icon('heroicon-o-x-circle')
+                        ->color('danger')
+                        ->visible(fn (Contract $record): bool => in_array($record->status, ['rascunho', 'ativo']))
+                        ->requiresConfirmation()
+                        ->modalHeading(fn (Contract $record): string => "Cancelar Contrato {$record->numero}")
+                        ->modalDescription(function (Contract $record): string {
+                            $pendentes = $record->receivables()->where('status', 'pendente')->count();
+
+                            $msg = "Você está prestes a cancelar o contrato {$record->numero}.";
+
+                            if ($pendentes > 0) {
+                                $msg .= " {$pendentes} parcela(s) pendente(s) vinculada(s) a este contrato também serão canceladas automaticamente.";
+                            }
+
+                            $msg .= ' Esta operação não pode ser desfeita.';
+
+                            return $msg;
+                        })
+                        ->modalSubmitActionLabel('Sim, cancelar contrato')
+                        ->modalCancelActionLabel('Voltar')
+                        ->action(function (Contract $record): void {
+                            $record->update(['status' => 'cancelado']);
+
+                            Notification::make()
+                                ->title('Contrato cancelado')
+                                ->body("O contrato {$record->numero} foi cancelado com sucesso.")
+                                ->success()
+                                ->send();
+                        }),
+
                     DeleteAction::make(),
                 ]),
             ])

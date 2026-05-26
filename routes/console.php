@@ -12,8 +12,8 @@ Artisan::command('doctor', function () {
     $this->call(\App\Console\Commands\DoctorCommand::class);
 });
 
-// RN08 — Alertas de vencimento de contratos (30/15/7 dias)
+// RN08 — Alertas preventivos (30/15/7 dias) e finalização automática de contratos vencidos
 Schedule::command('alerts:expiring')
-    ->dailyAt('08:00')
+    ->dailyAt('07:00')
     ->timezone('America/Araguaina')
     ->withoutOverlapping();

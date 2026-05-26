@@ -13,6 +13,7 @@ use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Support\HtmlString;
 class ContractForm
 {
     public static function configure(Schema $schema): Schema
@@ -62,12 +63,25 @@ class ContractForm
 
                                         Select::make('status')
                                             ->label('Status')
-                                            ->options([
-                                                'rascunho' => 'Rascunho',
-                                                'ativo' => 'Ativo',
-                                                'finalizado' => 'Finalizado',
-                                                'cancelado' => 'Cancelado',
-                                            ])
+                                            ->options(fn ($record): array => in_array($record?->status, ['finalizado', 'cancelado'])
+                                                ? [
+                                                    'rascunho'   => 'Rascunho',
+                                                    'ativo'      => 'Ativo',
+                                                    'finalizado' => 'Finalizado',
+                                                    'cancelado'  => 'Cancelado',
+                                                ]
+                                                : [
+                                                    'rascunho' => 'Rascunho',
+                                                    'ativo'    => 'Ativo',
+                                                ]
+                                            )
+                                            ->disabled(fn ($record): bool => in_array($record?->status, ['finalizado', 'cancelado']))
+                                            ->dehydrated()
+                                            ->helperText(fn ($record): string|HtmlString|null => match ($record?->status) {
+                                                'finalizado' => 'Este contrato foi finalizado automaticamente pelo sistema ao atingir a data de encerramento.',
+                                                'cancelado'  => new HtmlString('<span style="color:#dc2626;font-weight:600;">Este contrato foi cancelado.</span>'),
+                                                default      => null,
+                                            })
                                             ->default('rascunho')
                                             ->required()
                                             ->native(false),

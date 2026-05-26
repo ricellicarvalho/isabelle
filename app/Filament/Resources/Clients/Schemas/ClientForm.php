@@ -82,7 +82,7 @@ class ClientForm
                                         TextInput::make('nome_fantasia')
                                             ->label('Nome Fantasia')
                                             ->maxLength(255)
-                                            ->hidden(fn (Get $get): bool => in_array($get('tipo_pessoa'), ['pf', 'caepf'])),
+                                            ->hidden(fn (Get $get): bool => $get('tipo_pessoa') === 'caepf'),
 
                                         TextInput::make('inscricao_estadual')
                                             ->label('Inscrição Estadual')
