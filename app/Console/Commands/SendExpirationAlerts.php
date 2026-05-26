@@ -92,10 +92,10 @@ class SendExpirationAlerts extends Command
             }
         }
 
-        // --- Finalização automática: contratos que vencem hoje ---
+        // --- Finalização automática: contratos que venceram até hoje (inclusive dias perdidos) ---
         $expiredContracts = Contract::query()
             ->where('status', 'ativo')
-            ->whereDate('data_fim', $today->toDateString())
+            ->whereDate('data_fim', '<=', $today->toDateString())
             ->with('client')
             ->get();
 
