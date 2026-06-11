@@ -18,8 +18,8 @@ class ClientDocumentsTable
                     ->sortable()
                     ->url(fn (\App\Models\Client $record): string => route('filament.admin.resources.client-documents.manage', ['record' => $record->getKey()])),
 
-                TextColumn::make('client_documents_count')
-                    ->label('Documentos')
+                TextColumn::make('total_arquivos')
+                    ->label('Arquivos')
                     ->sortable()
                     ->badge()
                     ->color('info'),

@@ -62,8 +62,14 @@ class ClientDocumentResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->withCount('clientDocuments')
-            ->withMax('clientDocuments', 'created_at');
+            ->withMax('clientDocuments', 'created_at')
+            ->selectSub(
+                \DB::table('client_documents')
+                    ->selectRaw('COALESCE(SUM(JSON_LENGTH(caminho_arquivo)), 0)')
+                    ->whereColumn('client_id', 'clients.id')
+                    ->whereNull('deleted_at'),
+                'total_arquivos'
+            );
     }
 
     public static function form(Schema $schema): Schema
