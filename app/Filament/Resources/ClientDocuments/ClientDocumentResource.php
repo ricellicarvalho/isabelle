@@ -62,7 +62,6 @@ class ClientDocumentResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->whereHas('clientDocuments')
             ->withCount('clientDocuments')
             ->withMax('clientDocuments', 'created_at');
     }
