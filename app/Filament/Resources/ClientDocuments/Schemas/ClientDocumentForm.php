@@ -69,7 +69,22 @@ class ClientDocumentForm
                             ->previewable()
                             ->disk('local')
                             ->directory('documentos-clientes')
-                            ->acceptedFileTypes(['application/pdf', 'image/*', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
+                            ->acceptedFileTypes([
+                                'application/pdf',
+                                'image/jpeg',
+                                'image/png',
+                                'image/gif',
+                                'image/webp',
+                                'image/svg+xml',
+                                'image/bmp',
+                                'application/msword',
+                                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                                'video/mp4',
+                                'video/webm',
+                                'video/ogg',
+                                'video/quicktime',
+                                'video/x-msvideo',
+                            ])
                             ->maxSize(20480)
                             ->maxFiles(20)
                             ->columnSpanFull(),

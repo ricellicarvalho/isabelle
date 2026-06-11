@@ -2,13 +2,7 @@
 
 namespace App\Filament\Resources\ClientDocuments\Tables;
 
-use Filament\Actions\DeleteAction;
-use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\EditAction;
-use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\SelectFilter;
-use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 
 class ClientDocumentsTable
@@ -16,80 +10,25 @@ class ClientDocumentsTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->defaultSort('created_at', 'desc')
+            ->defaultSort('razao_social', 'asc')
             ->columns([
-                TextColumn::make('client.razao_social')
+                TextColumn::make('razao_social')
                     ->label('Cliente')
                     ->searchable()
                     ->sortable()
-                    ->limit(30),
+                    ->url(fn (\App\Models\Client $record): string => route('filament.admin.resources.client-documents.manage', ['record' => $record->getKey()])),
 
-                TextColumn::make('titulo')
-                    ->label('Título')
-                    ->searchable()
-                    ->limit(40),
-
-                TextColumn::make('tipo')
-                    ->label('Tipo')
+                TextColumn::make('client_documents_count')
+                    ->label('Documentos')
+                    ->sortable()
                     ->badge()
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'laudo'        => 'Laudo',
-                        'foto'         => 'Foto',
-                        'relatorio'    => 'Relatório',
-                        'matriz_risco' => 'Matriz de Risco',
-                        'certificado'  => 'Certificado',
-                        'proposta'     => 'Proposta',
-                        default        => 'Outro',
-                    })
-                    ->color(fn (string $state): string => match ($state) {
-                        'proposta' => 'warning',
-                        default    => 'gray',
-                    }),
+                    ->color('info'),
 
-                IconColumn::make('visivel_portal')
-                    ->label('Portal')
-                    ->boolean()
-                    ->trueIcon('heroicon-o-eye')
-                    ->falseIcon('heroicon-o-eye-slash'),
-
-                TextColumn::make('created_at')
-                    ->label('Adicionado em')
+                TextColumn::make('client_documents_max_created_at')
+                    ->label('Último documento')
                     ->date('d/m/Y')
-                    ->sortable(),
-            ])
-            ->filters([
-                SelectFilter::make('tipo')
-                    ->label('Tipo')
-                    ->options(function (): array {
-                        $options = [
-                            'laudo'        => 'Laudo',
-                            'foto'         => 'Foto',
-                            'relatorio'    => 'Relatório',
-                            'matriz_risco' => 'Matriz de Risco',
-                            'certificado'  => 'Certificado',
-                            'outro'        => 'Outro',
-                        ];
-                        if (auth()->user()?->hasAnyRole(['super_admin', 'administrador', 'financeiro'])) {
-                            $options['proposta'] = 'Proposta';
-                        }
-                        return $options;
-                    }),
-
-                TernaryFilter::make('visivel_portal')
-                    ->label('Visível no Portal'),
-
-                SelectFilter::make('client_id')
-                    ->label('Cliente')
-                    ->relationship('client', 'razao_social')
-                    ->searchable()
-                    ->preload(),
-            ])
-            ->actions([
-                EditAction::make(),
-                DeleteAction::make(),
-            ])
-            ->bulkActions([
-                DeleteBulkAction::make(),
+                    ->sortable()
+                    ->placeholder('—'),
             ]);
     }
 }

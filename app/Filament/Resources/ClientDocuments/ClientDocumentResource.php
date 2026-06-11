@@ -2,25 +2,25 @@
 
 namespace App\Filament\Resources\ClientDocuments;
 
-use App\Filament\Resources\ClientDocuments\Pages\CreateClientDocument;
-use App\Filament\Resources\ClientDocuments\Pages\EditClientDocument;
 use App\Filament\Resources\ClientDocuments\Pages\ListClientDocuments;
-use App\Filament\Resources\ClientDocuments\Schemas\ClientDocumentForm;
+use App\Filament\Resources\ClientDocuments\Pages\ManageClientDocuments;
 use App\Filament\Resources\ClientDocuments\Tables\ClientDocumentsTable;
+use App\Models\Client;
 use App\Models\ClientDocument;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use UnitEnum;
 
 class ClientDocumentResource extends Resource
 {
-    protected static ?string $model = ClientDocument::class;
+    protected static ?string $model = Client::class;
 
-    protected static ?string $modelLabel = 'documento';
+    protected static ?string $modelLabel = 'cliente';
 
     protected static ?string $pluralModelLabel = 'portal do cliente';
 
@@ -30,27 +30,57 @@ class ClientDocumentResource extends Resource
 
     protected static ?int $navigationSort = 4;
 
-    protected static ?string $recordTitleAttribute = 'titulo';
+    protected static ?string $recordTitleAttribute = 'razao_social';
+
+    // Delega as permissões para a policy de ClientDocument,
+    // evitando conflito com as permissões do ClientResource.
+    public static function canViewAny(): bool
+    {
+        return auth()->user()?->can('viewAny', ClientDocument::class) ?? false;
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->can('create', ClientDocument::class) ?? false;
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return auth()->user()?->can('update', ClientDocument::class) ?? false;
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return auth()->user()?->can('delete', ClientDocument::class) ?? false;
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return auth()->user()?->can('deleteAny', ClientDocument::class) ?? false;
+    }
 
     public static function getEloquentQuery(): Builder
     {
-        $query = parent::getEloquentQuery();
-
-        if (! auth()->user()?->hasAnyRole(['super_admin', 'administrador', 'financeiro'])) {
-            $query->where('tipo', '!=', 'proposta');
-        }
-
-        return $query;
+        return parent::getEloquentQuery()
+            ->whereHas('clientDocuments')
+            ->withCount('clientDocuments')
+            ->withMax('clientDocuments', 'created_at');
     }
 
     public static function form(Schema $schema): Schema
     {
-        return ClientDocumentForm::configure($schema);
+        return $schema->components([]);
     }
 
     public static function table(Table $table): Table
     {
-        return ClientDocumentsTable::configure($table);
+        return ClientDocumentsTable::configure($table)
+            ->actions([
+                Action::make('manage')
+                    ->label('Documentos')
+                    ->icon('heroicon-o-folder-open')
+                    ->url(fn (Client $record): string => static::getUrl('manage', ['record' => $record])),
+            ]);
     }
 
     public static function getRelations(): array
@@ -62,8 +92,7 @@ class ClientDocumentResource extends Resource
     {
         return [
             'index'  => ListClientDocuments::route('/'),
-            'create' => CreateClientDocument::route('/create'),
-            'edit'   => EditClientDocument::route('/{record}/edit'),
+            'manage' => ManageClientDocuments::route('/{record}/documents'),
         ];
     }
 }
