@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Receivables\Schemas;
 
+use App\Models\Contract;
 use CodeWithDennis\FilamentSelectTree\SelectTree;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
@@ -41,7 +42,8 @@ class ReceivableForm
                                             ->searchable()
                                             ->preload()
                                             ->placeholder('Avulso (sem contrato)')
-                                            ->native(false),
+                                            ->native(false)
+                                            ->getOptionLabelUsing(fn ($value) => Contract::find($value)?->numero),
 
                                         SelectTree::make('category_id')
                                             ->label('Categoria (Plano de Contas)')
@@ -72,7 +74,13 @@ class ReceivableForm
                                             ->extraAlpineAttributes(['x-on:input' => "let v=\$event.target.value.replace(/\\D/g,'');if(!v)v='0';v=v.replace(/^0+/,'')||'0';while(v.length<3)v='0'+v;let d=v.slice(-2),i=v.slice(0,-2).replace(/^0+/,'')||'0';i=i.replace(/\\B(?=(\\d{3})+(?!\\d))/g,'.');\$event.target.value=i+','+d;"])
                                             ->dehydrateStateUsing(fn ($state) => self::parseMoney($state))
                                             ->afterStateHydrated(fn (TextInput $component, $state) => $component->state(self::formatMoney($state)))
-                                            ->rule('gte:0'),
+                                            ->rules([
+                                                fn () => function (string $attribute, mixed $value, \Closure $fail) {
+                                                    if (self::parseMoney($value) < 0) {
+                                                        $fail('O campo valor deve ser maior ou igual a zero.');
+                                                    }
+                                                },
+                                            ]),
 
                                         TextInput::make('numero_parcela')
                                             ->label('Número da Parcela')
@@ -87,7 +95,13 @@ class ReceivableForm
                                             ->extraAlpineAttributes(['x-on:input' => "let v=\$event.target.value.replace(/\\D/g,'');if(!v)v='0';v=v.replace(/^0+/,'')||'0';while(v.length<3)v='0'+v;let d=v.slice(-2),i=v.slice(0,-2).replace(/^0+/,'')||'0';i=i.replace(/\\B(?=(\\d{3})+(?!\\d))/g,'.');\$event.target.value=i+','+d;"])
                                             ->dehydrateStateUsing(fn ($state) => self::parseMoney($state))
                                             ->afterStateHydrated(fn (TextInput $component, $state) => $component->state(self::formatMoney($state)))
-                                            ->rule('gte:0'),
+                                            ->rules([
+                                                fn () => function (string $attribute, mixed $value, \Closure $fail) {
+                                                    if (! blank($value) && self::parseMoney($value) < 0) {
+                                                        $fail('O campo valor pago deve ser maior ou igual a zero.');
+                                                    }
+                                                },
+                                            ]),
                                     ]),
                             ]),
 
