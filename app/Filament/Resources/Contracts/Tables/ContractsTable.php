@@ -21,7 +21,7 @@ class ContractsTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->defaultSort('created_at', 'desc')
+            ->defaultSort('numero', 'asc')
             ->columns([
                 TextColumn::make('numero')
                     ->label('Nº Contrato')

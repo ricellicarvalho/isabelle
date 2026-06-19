@@ -18,6 +18,7 @@ class ClientsTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->defaultSort('nome_exibicao', 'asc')
             ->columns([
                 TextColumn::make('cnpj_cpf')
                     ->label('CNPJ/CPF')
@@ -42,7 +43,16 @@ class ClientsTable
                               ->orWhere('razao_social', 'like', "%{$search}%");
                         });
                     })
-                    ->sortable(false)
+                    ->sortable(query: function ($query, string $direction) {
+                        return $query->orderByRaw(
+                            "(CASE
+                                WHEN tipo_pessoa = 'pf' THEN razao_social
+                                WHEN tipo_pessoa = 'caepf' THEN cnpj_cpf
+                                WHEN nome_fantasia IS NOT NULL AND nome_fantasia != '' THEN nome_fantasia
+                                ELSE razao_social
+                            END) {$direction}"
+                        );
+                    })
                     ->limit(40),
 
                 TextColumn::make('razao_social')
