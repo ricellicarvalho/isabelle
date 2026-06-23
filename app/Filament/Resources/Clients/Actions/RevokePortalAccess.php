@@ -11,32 +11,39 @@ use Illuminate\Support\Facades\Log;
 
 class RevokePortalAccess
 {
-    public static function make(?Client $record = null): Action
+    /**
+     * @param 'documentacao'|'financeiro' $tipo
+     */
+    public static function make(?Client $record = null, string $tipo = 'documentacao'): Action
     {
-        return Action::make('revokePortalAccess')
-            ->label('Revogar Acesso ao Portal')
+        $config = PortalAccessSlots::get($tipo);
+        $fk = $config['fk'];
+
+        return Action::make("revokePortalAccess_{$tipo}")
+            ->label($config['item_revogar'])
             ->icon('heroicon-o-x-circle')
             ->color('danger')
-            ->visible(fn (): bool => $record !== null && (bool) $record->portal_user_id)
+            ->visible(fn (): bool => $record !== null && (bool) $record->{$fk})
             ->requiresConfirmation()
-            ->modalHeading('Revogar Acesso ao Portal')
-            ->modalDescription('O cliente perderá o acesso ao portal imediatamente. Você pode gerar um novo acesso depois se necessário.')
+            ->modalHeading($config['label_revogar'])
+            ->modalDescription('O acesso será removido imediatamente. Você pode gerar um novo depois se necessário.')
             ->modalSubmitActionLabel('Revogar Acesso')
-            ->action(function () use ($record): void {
-                if (! $record || ! $record->portal_user_id) {
+            ->action(function () use ($record, $fk, $config): void {
+                if (! $record || ! $record->{$fk}) {
                     return;
                 }
 
-                $userId = $record->portal_user_id;
+                $userId = $record->{$fk};
                 $user = User::find($userId);
 
-                $record->update(['portal_user_id' => null]);
+                $record->update([$fk => null]);
 
                 if ($user) {
                     $user->delete();
                 }
 
                 Log::info('Portal access revoked', [
+                    'tipo'       => $config['tipo'],
                     'client_id'  => $record->id,
                     'user_id'    => $userId,
                     'revoked_by' => Auth::id(),
@@ -44,7 +51,7 @@ class RevokePortalAccess
 
                 Notification::make()
                     ->title('Acesso revogado')
-                    ->body('O cliente não tem mais acesso ao portal.')
+                    ->body('O acesso a este portal foi removido.')
                     ->success()
                     ->send();
             });

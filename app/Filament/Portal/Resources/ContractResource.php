@@ -4,8 +4,8 @@ namespace App\Filament\Portal\Resources;
 
 use App\Filament\Portal\Resources\ContractResource\Pages\ListContracts;
 use App\Filament\Portal\Resources\ContractResource\Pages\ViewContract;
-use App\Models\Client;
 use App\Models\Contract;
+use App\Support\PortalAccess;
 use BackedEnum;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
@@ -37,9 +37,14 @@ class ContractResource extends PortalResource
 
     protected static ?int $navigationSort = 1;
 
+    public static function canViewAny(): bool
+    {
+        return PortalAccess::scope(Auth::id()) === PortalAccess::SCOPE_DOCUMENTACAO;
+    }
+
     public static function getEloquentQuery(): Builder
     {
-        $client = Client::where('portal_user_id', Auth::id())->first();
+        $client = PortalAccess::client(Auth::id());
 
         return parent::getEloquentQuery()
             ->where('client_id', $client?->id);

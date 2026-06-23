@@ -60,6 +60,8 @@ class ManageClientDocuments extends ManageRelatedRecords
                             'relatorio'    => 'Relatório',
                             'matriz_risco' => 'Matriz de Risco',
                             'certificado'  => 'Certificado',
+                            'boleto'       => 'Boleto',
+                            'nota_fiscal'  => 'Nota Fiscal',
                             'outro'        => 'Outro',
                         ];
                         if (auth()->user()?->hasAnyRole(['super_admin', 'administrador', 'financeiro'])) {
@@ -142,6 +144,8 @@ class ManageClientDocuments extends ManageRelatedRecords
                         'matriz_risco' => 'Matriz de Risco',
                         'certificado'  => 'Certificado',
                         'proposta'     => 'Proposta',
+                        'boleto'       => 'Boleto',
+                        'nota_fiscal'  => 'Nota Fiscal',
                         default        => 'Outro',
                     })
                     ->color(fn (string $state): string => match ($state) {
@@ -151,6 +155,8 @@ class ManageClientDocuments extends ManageRelatedRecords
                         'matriz_risco' => 'warning',
                         'certificado'  => 'primary',
                         'proposta'     => 'danger',
+                        'boleto'       => 'danger',
+                        'nota_fiscal'  => 'amber',
                         default        => 'gray',
                     }),
 

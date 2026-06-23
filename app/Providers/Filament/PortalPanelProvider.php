@@ -46,7 +46,7 @@ class PortalPanelProvider extends PanelProvider
                     ->collapsed(),
                 NavigationGroup::make('Financeiro')
                     ->icon('heroicon-o-banknotes')
-                    ->collapsed(),
+                    ->collapsible(false),
             ])
             ->renderHook(
                 PanelsRenderHook::HEAD_END,

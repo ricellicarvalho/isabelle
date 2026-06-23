@@ -12,11 +12,20 @@ class GenerateCadastroLink
 {
     public static function make(?Client $record = null): Action
     {
+        $podeGerar = fn (): bool => $record !== null
+            && filled($record->tipo_pessoa)
+            && filled($record->cnpj_cpf)
+            && ($record->tipo_pessoa === 'caepf' || filled($record->razao_social));
+
         return Action::make('gerarLinkCadastro')
             ->label('Gerar Link de Pré-Cadastro')
             ->icon('heroicon-o-link')
             ->color('info')
             ->visible(fn (): bool => $record !== null)
+            ->disabled(fn (): bool => ! $podeGerar())
+            ->tooltip(fn (): ?string => $podeGerar()
+                ? null
+                : 'Preencha Tipo de Pessoa, CNPJ/CPF/CAEPF e Razão Social/Nome para habilitar a geração do link.')
             ->modalHeading('Link de Pré-Cadastro')
             ->modalDescription('Copie o link abaixo e envie ao cliente para que preencha os dados dos colaboradores.')
             ->modalContent(function () use ($record): HtmlString {

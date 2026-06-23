@@ -4,8 +4,8 @@ namespace App\Filament\Portal\Resources;
 
 use App\Filament\Portal\Resources\BankBoletoResource\Pages\ListBankBoletos;
 use App\Models\BankBoleto;
-use App\Models\Client;
 use App\Services\BankBoletoService;
+use App\Support\PortalAccess;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Schemas\Schema;
@@ -32,9 +32,14 @@ class BankBoletoResource extends PortalResource
 
     protected static ?int $navigationSort = 1;
 
+    public static function canViewAny(): bool
+    {
+        return PortalAccess::scope(Auth::id()) === PortalAccess::SCOPE_FINANCEIRO;
+    }
+
     public static function getEloquentQuery(): Builder
     {
-        $client = Client::where('portal_user_id', Auth::id())->first();
+        $client = PortalAccess::client(Auth::id());
 
         return parent::getEloquentQuery()
             ->whereHas('receivable', fn (Builder $q) => $q->where('client_id', $client?->id));

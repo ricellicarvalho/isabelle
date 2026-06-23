@@ -7,21 +7,23 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
-<body class="bg-gray-100 antialiased">
-    <header class="bg-white border-b border-gray-200 py-4 px-6 mb-8">
+<body class="bg-gradient-to-b from-gray-50 to-gray-100 antialiased min-h-screen">
+    <header class="bg-white border-b border-gray-200 py-4 px-6 mb-8 shadow-sm">
         <div class="max-w-2xl mx-auto flex items-center gap-3">
-            <img src="{{ asset('images/logo2.png') }}" alt="Isabelle" class="h-10 object-contain"
+            <img src="{{ asset('images/logo.png') }}" alt="ALVES E NEVES LTDA" class="h-10 object-contain"
                 onerror="this.style.display='none'">
-            <span class="text-lg font-semibold text-gray-700">Isabelle</span>
+            <span class="text-lg font-semibold text-gray-700">ALVES E NEVES LTDA</span>
         </div>
     </header>
 
-    <main class="max-w-2xl mx-auto px-4 pb-16">
-        @yield('content')
+    <main class="px-4 pb-16">
+        <div class="max-w-2xl mx-auto">
+            @yield('content')
+        </div>
     </main>
 
     <footer class="text-center text-xs text-gray-400 py-6">
-        Sistema de Gestão Isabelle
+        Sistema de Gestão ALVES E NEVES LTDA
     </footer>
 </body>
 </html>

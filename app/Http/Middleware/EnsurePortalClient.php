@@ -2,7 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\Client;
+use App\Support\PortalAccess;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -11,8 +11,10 @@ use Symfony\Component\HttpFoundation\Response;
 class EnsurePortalClient
 {
     /**
-     * Garante que o usuário autenticado tem um Client vinculado via portal_user_id.
-     * Caso contrário, desloga e redireciona com mensagem de erro.
+     * Garante que o usuário autenticado tem um Client vinculado (via portal_user_id
+     * ou portal_financeiro_user_id). Caso contrário, desloga e redireciona com erro.
+     * Também redireciona o escopo financeiro para fora do Dashboard, já que ele
+     * tem acesso restrito a Boletos e Notas Fiscais.
      */
     public function handle(Request $request, Closure $next): Response
     {
@@ -23,7 +25,7 @@ class EnsurePortalClient
             return $next($request);
         }
 
-        $client = Client::where('portal_user_id', $user->id)->first();
+        $client = PortalAccess::client($user->id);
 
         if (! $client) {
             $guard->logout();
@@ -34,8 +36,14 @@ class EnsurePortalClient
                 ->withErrors(['email' => 'Seu usuário não está vinculado a nenhuma empresa cliente.']);
         }
 
-        // Disponibiliza o Client no request para uso nas páginas do portal
-        $request->merge(['_portal_client' => $client]);
+        $scope = PortalAccess::scope($user->id);
+
+        // Disponibiliza Client e escopo no request para uso nas páginas do portal
+        $request->merge(['_portal_client' => $client, '_portal_scope' => $scope]);
+
+        if ($scope === PortalAccess::SCOPE_FINANCEIRO && $request->routeIs('filament.portal.pages.dashboard')) {
+            return redirect()->route('filament.portal.resources.bank-boletos.index');
+        }
 
         return $next($request);
     }

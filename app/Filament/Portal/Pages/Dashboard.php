@@ -4,7 +4,7 @@ namespace App\Filament\Portal\Pages;
 
 use App\Filament\Portal\Widgets\PortalNr1Widget;
 use App\Filament\Portal\Widgets\PortalStatsWidget;
-use App\Models\Client;
+use App\Support\PortalAccess;
 use BackedEnum;
 use Filament\Pages\Dashboard as BaseDashboard;
 use Filament\Support\Icons\Heroicon;
@@ -17,6 +17,16 @@ class Dashboard extends BaseDashboard
     protected static ?string               $navigationLabel = 'Início';
     protected static ?string               $title           = 'Painel de Controle';
     protected static ?int                  $navigationSort  = -1;
+
+    public static function canAccess(): bool
+    {
+        return PortalAccess::scope(Auth::id()) === PortalAccess::SCOPE_DOCUMENTACAO;
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canAccess();
+    }
 
     public function getWidgets(): array
     {
@@ -38,7 +48,7 @@ class Dashboard extends BaseDashboard
 
     public function getHeading(): string|HtmlString
     {
-        $client = Client::where('portal_user_id', Auth::id())->first();
+        $client = PortalAccess::client(Auth::id());
         $nome   = $client?->nome_fantasia ?: $client?->razao_social ?? 'Cliente';
 
         return new HtmlString(

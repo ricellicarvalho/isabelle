@@ -65,7 +65,11 @@ class BankBoletoForm
                                             ->extraAlpineAttributes(['x-on:input' => "let v=\$event.target.value.replace(/\\D/g,'');if(!v)v='0';v=v.replace(/^0+/,'')||'0';while(v.length<3)v='0'+v;let d=v.slice(-2),i=v.slice(0,-2).replace(/^0+/,'')||'0';i=i.replace(/\\B(?=(\\d{3})+(?!\\d))/g,'.');\$event.target.value=i+','+d;"])
                                             ->dehydrateStateUsing(fn ($state) => self::parseMoney($state))
                                             ->afterStateHydrated(fn (TextInput $component, $state) => $component->state(self::formatMoney($state)))
-                                            ->rule('gte:0'),
+                                            ->rule(fn () => function (string $attribute, $state, \Closure $fail) {
+                                                if ((self::parseMoney($state) ?? 0) < 0) {
+                                                    $fail('O campo Valor não pode ser negativo.');
+                                                }
+                                            }),
 
                                         DatePicker::make('data_vencimento')
                                             ->label('Data de Vencimento')

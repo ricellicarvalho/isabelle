@@ -30,10 +30,13 @@ class Client extends Model
         'email',
         'contato_nome',
         'contato_telefone',
+        'contato_financeiro_nome',
+        'contato_financeiro_email',
         'telefones',
         'nr1_status',
         'nr1_checklist',
         'portal_user_id',
+        'portal_financeiro_user_id',
         'status',
         'observacoes',
         'cadastro_token',
@@ -86,6 +89,11 @@ class Client extends Model
     public function portalUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'portal_user_id');
+    }
+
+    public function portalFinanceiroUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'portal_financeiro_user_id');
     }
 
     public function createdBy(): BelongsTo

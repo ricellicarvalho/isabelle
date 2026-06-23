@@ -129,8 +129,15 @@ Route::get('/relatorios/contratos-a-vencer/pdf', function (Request $request) {
 
 // Servir arquivos de documentos do portal com suporte a visualização inline
 Route::get('/portal/documents/{document}/file/{index}', function (ClientDocument $document, int $index) {
-    $client = Client::where('portal_user_id', Auth::guard('portal')->id())->first();
-    abort_unless($client && $document->client_id === $client->id && $document->visivel_portal, 403);
+    $userId = Auth::guard('portal')->id();
+    $client = \App\Support\PortalAccess::client($userId);
+    $escopo = \App\Support\PortalAccess::scope($userId);
+    $tiposFinanceiro = ['boleto', 'nota_fiscal'];
+    $tipoCompativel = $escopo === 'financeiro'
+        ? in_array($document->tipo, $tiposFinanceiro, true)
+        : ! in_array($document->tipo, $tiposFinanceiro, true);
+
+    abort_unless($client && $document->client_id === $client->id && $document->visivel_portal && $tipoCompativel, 403);
 
     $arquivos = (array) ($document->caminho_arquivo ?? []);
     $path = $arquivos[$index] ?? null;

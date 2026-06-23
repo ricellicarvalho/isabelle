@@ -13,28 +13,34 @@ use Illuminate\Support\Str;
 
 class ResetPortalPassword
 {
-    public static function make(?Client $record = null): Action
+    /**
+     * @param 'documentacao'|'financeiro' $tipo
+     */
+    public static function make(?Client $record = null, string $tipo = 'documentacao'): Action
     {
-        return Action::make('resetPortalPassword')
-            ->label('Resetar Senha do Portal')
+        $config = PortalAccessSlots::get($tipo);
+        $fk = $config['fk'];
+
+        return Action::make("resetPortalPassword_{$tipo}")
+            ->label($config['item_resetar'])
             ->icon('heroicon-o-arrow-path')
             ->color('warning')
-            ->visible(fn (): bool => $record !== null && (bool) $record->portal_user_id)
+            ->visible(fn (): bool => $record !== null && (bool) $record->{$fk})
             ->requiresConfirmation()
-            ->modalHeading('Resetar Senha do Portal')
+            ->modalHeading($config['label_resetar'])
             ->modalDescription('Uma nova senha aleatória será gerada. A senha anterior será invalidada imediatamente.')
             ->modalSubmitActionLabel('Resetar Senha')
-            ->action(function () use ($record): void {
-                if (! $record || ! $record->portal_user_id) {
+            ->action(function () use ($record, $fk, $config): void {
+                if (! $record || ! $record->{$fk}) {
                     return;
                 }
 
-                $user = User::find($record->portal_user_id);
+                $user = User::find($record->{$fk});
 
                 if (! $user) {
                     Notification::make()
                         ->title('Usuário não encontrado')
-                        ->body('O usuário vinculado ao portal não existe mais. Revogue o acesso e gere um novo.')
+                        ->body('O usuário vinculado a este acesso não existe mais. Revogue o acesso e gere um novo.')
                         ->danger()
                         ->send();
 
@@ -46,6 +52,7 @@ class ResetPortalPassword
                 $user->update(['password' => Hash::make($password)]);
 
                 Log::info('Portal password reset', [
+                    'tipo'      => $config['tipo'],
                     'client_id' => $record->id,
                     'user_id'   => $user->id,
                     'reset_by'  => Auth::id(),

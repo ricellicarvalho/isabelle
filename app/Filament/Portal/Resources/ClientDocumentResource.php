@@ -3,8 +3,8 @@
 namespace App\Filament\Portal\Resources;
 
 use App\Filament\Portal\Resources\ClientDocumentResource\Pages\ListClientDocuments;
-use App\Models\Client;
 use App\Models\ClientDocument;
+use App\Support\PortalAccess;
 use BackedEnum;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -30,17 +30,36 @@ class ClientDocumentResource extends PortalResource
 
     protected static string|BackedEnum|null $navigationIcon = null;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Documentos';
-
     protected static ?int $navigationSort = 1;
+
+    private const TIPOS_FINANCEIRO = ['boleto', 'nota_fiscal'];
+
+    public static function getNavigationGroup(): string|UnitEnum|null
+    {
+        return PortalAccess::scope(Auth::id()) === PortalAccess::SCOPE_FINANCEIRO
+            ? 'Financeiro'
+            : 'Documentos';
+    }
+
+    public static function getNavigationLabel(): string
+    {
+        return PortalAccess::scope(Auth::id()) === PortalAccess::SCOPE_FINANCEIRO
+            ? 'Notas Fiscais e Boletos'
+            : 'Documentos';
+    }
 
     public static function getEloquentQuery(): Builder
     {
-        $client = Client::where('portal_user_id', Auth::id())->first();
+        $client = PortalAccess::client(Auth::id());
+        $escopo = PortalAccess::scope(Auth::id());
 
-        return parent::getEloquentQuery()
+        $query = parent::getEloquentQuery()
             ->where('client_id', $client?->id)
             ->where('visivel_portal', true);
+
+        return $escopo === PortalAccess::SCOPE_FINANCEIRO
+            ? $query->whereIn('tipo', self::TIPOS_FINANCEIRO)
+            : $query->whereNotIn('tipo', self::TIPOS_FINANCEIRO);
     }
 
     public static function form(Schema $schema): Schema
@@ -68,6 +87,8 @@ class ClientDocumentResource extends PortalResource
                         'matriz_risco' => 'Matriz de Risco',
                         'certificado'  => 'Certificado',
                         'proposta'     => 'Proposta',
+                        'boleto'       => 'Boleto',
+                        'nota_fiscal'  => 'Nota Fiscal',
                         default        => 'Outro',
                     })
                     ->color(fn (string $state): string => match ($state) {
@@ -76,6 +97,8 @@ class ClientDocumentResource extends PortalResource
                         'matriz_risco' => 'warning',
                         'certificado'  => 'purple',
                         'proposta'     => 'primary',
+                        'boleto'       => 'danger',
+                        'nota_fiscal'  => 'amber',
                         default        => 'gray',
                     }),
 

@@ -43,6 +43,8 @@ class ClientDocumentForm
                                     'relatorio'    => 'Relatório',
                                     'matriz_risco' => 'Matriz de Risco',
                                     'certificado'  => 'Certificado',
+                                    'boleto'       => 'Boleto',
+                                    'nota_fiscal'  => 'Nota Fiscal',
                                     'outro'        => 'Outro',
                                 ];
                                 if (auth()->user()?->hasAnyRole(['super_admin', 'administrador', 'financeiro'])) {

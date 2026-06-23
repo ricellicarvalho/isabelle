@@ -186,12 +186,27 @@ class ClientForm
                                     ->components([
                                         TextInput::make('contato_nome')
                                             ->label('Nome do Contato')
-                                            ->maxLength(255),
+                                            ->maxLength(255)
+                                            ->helperText(new HtmlString('<span style="color:#dc2626;">(Responsável pelas documentações)</span>')),
 
                                         TextInput::make('email')
                                             ->label('E-mail')
                                             ->email()
-                                            ->required()
+                                            ->rule('email:rfc,dns')
+                                            ->maxLength(255)
+                                            ->validationMessages([
+                                                'email' => 'Informe um endereço de e-mail válido.',
+                                                'email:rfc,dns' => 'E-mail inválido ou domínio não encontrado.',
+                                            ])
+                                            ->helperText(new HtmlString('<span style="color:#dc2626;">(E-mail do responsável pelas documentações)</span>')),
+
+                                        TextInput::make('contato_financeiro_nome')
+                                            ->label('Nome do Contato (Responsável pelo Financeiro)')
+                                            ->maxLength(255),
+
+                                        TextInput::make('contato_financeiro_email')
+                                            ->label('E-mail (Responsável pelo Financeiro)')
+                                            ->email()
                                             ->rule('email:rfc,dns')
                                             ->maxLength(255)
                                             ->validationMessages([
@@ -216,13 +231,11 @@ class ClientForm
                                                         'trabalho' => '🏢 Trabalho',
                                                         'recado'   => '📝 Recado',
                                                     ])
-                                                    ->required()
                                                     ->native(false)
                                                     ->default('celular'),
 
                                                 TextInput::make('numero')
                                                     ->label('Número')
-                                                    ->required()
                                                     ->mask(RawJs::make(<<<'JS'
                                                         $input.replace(/\D/g, '').length > 10
                                                             ? '(99) 99999-9999'

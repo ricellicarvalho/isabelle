@@ -13,36 +13,49 @@ use Illuminate\Support\Str;
 
 class GeneratePortalAccess
 {
-    public static function make(?Client $record = null): Action
+    /**
+     * @param 'documentacao'|'financeiro' $tipo
+     */
+    public static function make(?Client $record = null, string $tipo = 'documentacao'): Action
     {
-        return Action::make('generatePortalAccess')
-            ->label('Gerar Acesso ao Portal')
+        $config = PortalAccessSlots::get($tipo);
+        $emailField = $config['email_field'];
+        $fk = $config['fk'];
+
+        return Action::make("generatePortalAccess_{$tipo}")
+            ->label($config['item_gerar'])
             ->icon('heroicon-o-key')
             ->color('success')
-            ->visible(fn (): bool => $record !== null && ! $record->portal_user_id)
+            ->visible(fn (): bool => $record !== null && ! $record->{$fk})
+            ->disabled(fn (): bool => $record === null || ! filled($record->{$emailField}))
+            ->tooltip(fn (): ?string => ($record !== null && ! filled($record->{$emailField}))
+                ? "Preencha o campo \"{$config['campo_label']}\" antes de gerar este acesso."
+                : null)
             ->requiresConfirmation()
-            ->modalHeading('Gerar Acesso ao Portal')
-            ->modalDescription('Será criado um login e senha para este cliente acessar o portal. O e-mail do cliente será usado como login.')
+            ->modalHeading($config['label_gerar'])
+            ->modalDescription("Será criado um login e senha para o {$config['descricao_pessoa']}. O e-mail informado em \"{$config['campo_label']}\" será usado como login.")
             ->modalSubmitActionLabel('Gerar Acesso')
-            ->action(function () use ($record): void {
+            ->action(function () use ($record, $emailField, $fk, $config): void {
                 if (! $record) {
                     return;
                 }
 
-                if (! filled($record->email)) {
+                $email = $record->{$emailField};
+
+                if (! filled($email)) {
                     Notification::make()
                         ->title('E-mail obrigatório')
-                        ->body('Preencha o e-mail do cliente antes de gerar o acesso ao portal.')
+                        ->body("Preencha o campo \"{$config['campo_label']}\" antes de gerar o acesso.")
                         ->danger()
                         ->send();
 
                     return;
                 }
 
-                if (User::where('email', $record->email)->exists()) {
+                if (User::where('email', $email)->exists()) {
                     Notification::make()
                         ->title('E-mail já cadastrado')
-                        ->body("Já existe um usuário com o e-mail {$record->email}. Altere o e-mail do cliente e tente novamente.")
+                        ->body("Já existe um usuário com o e-mail {$email}. Altere o e-mail e tente novamente.")
                         ->danger()
                         ->persistent()
                         ->send();
@@ -51,20 +64,22 @@ class GeneratePortalAccess
                 }
 
                 $password = Str::password(length: 8, symbols: false);
-                $name = filled($record->nome_fantasia) ? $record->nome_fantasia : $record->razao_social;
+                $nomeBase = filled($record->nome_fantasia) ? $record->nome_fantasia : $record->razao_social;
+                $name = "{$nomeBase} ({$config['sufixo_nome']})";
 
                 $user = User::create([
                     'name'     => $name,
-                    'email'    => $record->email,
+                    'email'    => $email,
                     'password' => Hash::make($password),
                     'is_admin' => false,
                 ]);
 
                 $user->assignRole('cliente');
 
-                $record->update(['portal_user_id' => $user->id]);
+                $record->update([$fk => $user->id]);
 
                 Log::info('Portal access generated', [
+                    'tipo'       => $config['tipo'],
                     'client_id'  => $record->id,
                     'user_id'    => $user->id,
                     'created_by' => Auth::id(),
@@ -73,7 +88,7 @@ class GeneratePortalAccess
                 Notification::make()
                     ->title('Acesso ao portal criado!')
                     ->body(
-                        "Login: {$record->email}\n" .
+                        "Login: {$email}\n" .
                         "Senha: {$password}\n\n" .
                         "Copie a senha agora — ela não será exibida novamente."
                     )
