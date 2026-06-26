@@ -8,7 +8,7 @@ use App\Models\BankRetorno;
 use App\Models\Receivable;
 use Eduardokum\LaravelBoleto\Cnab\Retorno\Detalhe;
 use Eduardokum\LaravelBoleto\Cnab\Retorno\Factory as RetornoFactory;
-use Illuminate\Support\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -116,17 +116,41 @@ class CnabRetornoService
      */
     protected function aplicarDetalhe($detalhe, BankRetorno $retorno): array
     {
-        $nossoNumero = method_exists($detalhe, 'get')
+        $nossoNumeroRaw = method_exists($detalhe, 'get')
             ? (string) $detalhe->get('nossoNumero')
             : (string) ($detalhe->nossoNumero ?? '');
-        $nossoNumero = ltrim($nossoNumero, '0');
+
+        // O retorno do banco normalmente traz o nosso número COM o dígito
+        // verificador no final (ex.: "000000000054" = nosso "00000000005" + DV "4"),
+        // enquanto o BankBoleto é armazenado SEM o DV. Geramos candidatos com e
+        // sem o último dígito para casar nas duas situações.
+        $candidatos = [];
+        $semZeros = ltrim($nossoNumeroRaw, '0');
+        if ($semZeros !== '') {
+            $candidatos[] = $semZeros;
+        }
+        if (strlen($nossoNumeroRaw) > 1) {
+            $semDv = ltrim(substr($nossoNumeroRaw, 0, -1), '0');
+            if ($semDv !== '') {
+                $candidatos[] = $semDv;
+            }
+        }
+        $candidatos = array_values(array_unique($candidatos));
 
         $tipo = $detalhe->getTipoOcorrencia();
 
         $boleto = BankBoleto::query()
-            ->whereRaw('TRIM(LEADING "0" FROM nosso_numero) = ?', [$nossoNumero])
-            ->orWhere('nosso_numero', $nossoNumero)
+            ->where(function ($query) use ($candidatos, $nossoNumeroRaw) {
+                foreach ($candidatos as $candidato) {
+                    $query->orWhereRaw('TRIM(LEADING "0" FROM nosso_numero) = ?', [$candidato]);
+                }
+                $query->orWhere('nosso_numero', $nossoNumeroRaw);
+            })
             ->first();
+
+        // Para o log usamos o nosso número efetivamente armazenado quando casamos,
+        // caso contrário o valor limpo lido do arquivo.
+        $nossoNumero = $boleto?->nosso_numero ?? ($semZeros !== '' ? $semZeros : $nossoNumeroRaw);
 
         if (! $boleto) {
             return [
@@ -137,9 +161,20 @@ class CnabRetornoService
         }
 
         $valor = (float) ($detalhe->get('valorRecebido') ?: $detalhe->get('valor') ?: 0);
+
+        // A biblioteca eduardokum/laravel-boleto devolve objetos \Carbon\Carbon
+        // (classe base), por isso checamos via CarbonInterface — um teste contra
+        // Illuminate\Support\Carbon falharia e cairia indevidamente no now().
+        //
+        // Para "data de pagamento" usamos sempre a DATA DE CRÉDITO (dataCredito),
+        // que é a data em que o valor é efetivamente creditado/conciliado em conta.
+        // Só caímos para a data da ocorrência (e, em último caso, now()) quando o
+        // arquivo não traz a data de crédito.
         $dataOcorrencia = $detalhe->get('dataOcorrencia');
         $dataCredito = $detalhe->get('dataCredito');
-        $dataPagamento = $dataCredito instanceof Carbon ? $dataCredito : ($dataOcorrencia instanceof Carbon ? $dataOcorrencia : now());
+        $dataPagamento = $dataCredito instanceof CarbonInterface
+            ? $dataCredito
+            : ($dataOcorrencia instanceof CarbonInterface ? $dataOcorrencia : now());
 
         switch ($tipo) {
             case Detalhe::OCORRENCIA_LIQUIDADA:
@@ -223,10 +258,10 @@ class CnabRetornoService
         return $filename;
     }
 
-    protected function extractDate($header): ?Carbon
+    protected function extractDate($header): ?CarbonInterface
     {
         $data = method_exists($header, 'get') ? $header->get('data') : ($header->data ?? null);
 
-        return $data instanceof Carbon ? $data : null;
+        return $data instanceof CarbonInterface ? $data : null;
     }
 }

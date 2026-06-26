@@ -38,9 +38,11 @@ class ListBankRetornos extends ListRecords
                         ->disk('local')
                         ->directory('retornos/tmp')
                         ->preserveFilenames()
-                        ->acceptedFileTypes(['text/plain', 'application/octet-stream'])
+                        // CNAB (.ret/.rem) não possui MIME padrão: navegadores reportam
+                        // tipo vazio/octet-stream conforme o SO. Validamos por extensão
+                        // no submit (abaixo) em vez de bloquear pelo MIME no FilePond.
                         ->maxSize(10240)
-                        ->helperText('Arquivo CNAB 400 enviado pelo banco.'),
+                        ->helperText('Arquivo CNAB 400 (.ret) enviado pelo banco.'),
                 ])
                 ->action(function (array $data): void {
                     $relativePath = $data['arquivo'];
@@ -49,6 +51,19 @@ class ListBankRetornos extends ListRecords
                     $bankAccount = filled($data['bank_account_id'] ?? null)
                         ? BankAccount::find($data['bank_account_id'])
                         : null;
+
+                    $extensao = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+                    if (! in_array($extensao, ['ret', 'txt'], true)) {
+                        Storage::disk('local')->delete($relativePath);
+
+                        Notification::make()
+                            ->title('Tipo de arquivo inválido')
+                            ->body('Envie um arquivo de retorno CNAB com extensão .ret (ou .txt).')
+                            ->danger()
+                            ->send();
+
+                        return;
+                    }
 
                     try {
                         $retorno = app(CnabRetornoService::class)
