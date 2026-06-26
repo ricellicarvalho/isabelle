@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Contracts\RelationManagers;
 
+use App\Filament\Resources\Contracts\Schemas\ContractForm;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\EditAction;
@@ -172,11 +173,13 @@ class ReceivablesRelationManager extends RelationManager
             ]);
     }
 
-    private static function parseMoney(?string $state): ?float
+    private static function parseMoney(mixed $state): ?float
     {
-        if (blank($state)) return null;
-
-        return (float) str_replace(['.', ','], ['', '.'], $state);
+        // Reaproveita a implementação canônica do ContractForm, que trata os
+        // valores intermediários gerados pela máscara Alpine (ex.: "0,15000")
+        // capturados pelo wire:model antes do reformat. Mantê-las separadas já
+        // causou divergência: aqui o valor saía deslocado (150,00 -> 15,00).
+        return ContractForm::parseMoney($state);
     }
 
     private static function formatMoney(mixed $state): ?string
