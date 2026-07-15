@@ -42,7 +42,7 @@ class EnsurePortalClient
         $request->merge(['_portal_client' => $client, '_portal_scope' => $scope]);
 
         if ($scope === PortalAccess::SCOPE_FINANCEIRO && $request->routeIs('filament.portal.pages.dashboard')) {
-            return redirect()->route('filament.portal.resources.bank-boletos.index');
+            return redirect()->route('filament.portal.pages.solucoes');
         }
 
         return $next($request);

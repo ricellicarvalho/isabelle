@@ -2,22 +2,22 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Portal\Pages\Dashboard;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Navigation\NavigationGroup;
-use App\Filament\Portal\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
-use Illuminate\Support\HtmlString;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\HtmlString;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class PortalPanelProvider extends PanelProvider
@@ -66,6 +66,21 @@ class PortalPanelProvider extends PanelProvider
                     color: rgb(209 213 219) !important;
                 }
 
+                /* Mantém Soluções no mesmo ritmo visual dos grupos do menu. */
+                .fi-sidebar-item:has(a[href$="/solucoes"]) {
+                    margin-top: 1rem !important;
+                }
+                .fi-sidebar-item a[href$="/solucoes"] .fi-icon {
+                    color: rgb(55 65 81) !important;
+                    fill: none !important;
+                }
+                .fi-sidebar-item a[href$="/solucoes"] .fi-sidebar-item-label {
+                    font-weight: 900 !important;
+                }
+                .dark .fi-sidebar-item a[href$="/solucoes"] .fi-icon {
+                    color: rgb(209 213 219) !important;
+                }
+
                 /* ── Login card: borda amber destacada + correção mobile ── */
                 .fi-simple-main {
                     border-radius: 0.75rem !important;
@@ -83,6 +98,10 @@ class PortalPanelProvider extends PanelProvider
                 </style>
                 <script>localStorage.removeItem('collapsedGroups');</script>
                 HTML)
+            )
+            ->renderHook(
+                PanelsRenderHook::HEAD_END,
+                fn (): HtmlString => new HtmlString(view('filament.portal.styles.solutions')->render())
             )
             ->renderHook(
                 PanelsRenderHook::BODY_END,
