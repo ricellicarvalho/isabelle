@@ -7,6 +7,7 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\DatePicker;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
@@ -104,6 +105,34 @@ class PayablesTable
                     ->relationship('category', 'descricao')
                     ->searchable()
                     ->preload(),
+
+                SelectFilter::make('supplier_id')
+                    ->label('Fornecedor')
+                    ->relationship('supplier', 'nome')
+                    ->searchable()
+                    ->preload(),
+
+                Filter::make('data_vencimento')
+                    ->label('Vencimento')
+                    ->schema([
+                        DatePicker::make('de')
+                            ->label('Vencimento de')
+                            ->native(false)
+                            ->displayFormat('d/m/Y'),
+                        DatePicker::make('ate')
+                            ->label('Vencimento até')
+                            ->native(false)
+                            ->displayFormat('d/m/Y'),
+                    ])
+                    ->query(fn (Builder $query, array $data): Builder => $query
+                        ->when(
+                            $data['de'] ?? null,
+                            fn (Builder $query, $date): Builder => $query->whereDate('data_vencimento', '>=', $date),
+                        )
+                        ->when(
+                            $data['ate'] ?? null,
+                            fn (Builder $query, $date): Builder => $query->whereDate('data_vencimento', '<=', $date),
+                        )),
 
                 Filter::make('vencidas')
                     ->label('Vencidas (não pagas)')
