@@ -22,7 +22,22 @@ class PayablesTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->defaultSort('data_vencimento', 'asc')
+            ->defaultSort(fn (Builder $query): Builder => $query
+                ->orderByRaw(
+                    "CASE
+                        WHEN status IN ('pendente', 'vencido') AND data_vencimento < ? THEN 0
+                        WHEN status IN ('pendente', 'vencido') THEN 1
+                        ELSE 2
+                    END",
+                    [today()->toDateString()],
+                )
+                ->orderByRaw(
+                    "CASE
+                        WHEN status IN ('pendente', 'vencido') AND data_vencimento < ? THEN data_vencimento
+                    END DESC",
+                    [today()->toDateString()],
+                )
+                ->orderBy('data_vencimento'))
             ->columns([
                 TextColumn::make('supplier.nome')
                     ->label('Fornecedor')
