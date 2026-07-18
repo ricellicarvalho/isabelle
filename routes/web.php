@@ -8,6 +8,8 @@ use App\Models\Contract;
 use App\Models\Nfse;
 use App\Models\Pricing;
 use App\Services\BankBoletoService;
+use App\Services\PayablesReportService;
+use App\Services\ReceivablesReportService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -126,6 +128,44 @@ Route::get('/relatorios/contratos-a-vencer/pdf', function (Request $request) {
         'Content-Disposition' => 'inline; filename="contratos-a-vencer-' . now()->format('Y-m-d') . '.pdf"',
     ]);
 })->name('reports.expiring-contracts.pdf')->middleware(['signed', 'auth:web']);
+
+// Relatório de Contas a Receber em PDF — abre inline em nova aba, URL assinada
+Route::get('/relatorios/contas-a-receber/pdf', function (Request $request) {
+    $filters = $request->only(['client_id', 'contract_id', 'data_inicio', 'data_fim', 'status']);
+    $report = ReceivablesReportService::generate($filters);
+
+    $logoPath = public_path('images/logo.png');
+    $logoBase64 = file_exists($logoPath)
+        ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath))
+        : null;
+
+    $pdf = Pdf::loadView('pdf.receivables-report', compact('report', 'logoBase64'))
+        ->setPaper('a4', 'landscape');
+
+    return response($pdf->output(), 200, [
+        'Content-Type' => 'application/pdf',
+        'Content-Disposition' => 'inline; filename="contas-a-receber-' . now()->format('Y-m-d') . '.pdf"',
+    ]);
+})->name('reports.receivables.pdf')->middleware(['signed', 'auth:web']);
+
+// Relatório de Contas a Pagar em PDF — abre inline em nova aba, URL assinada
+Route::get('/relatorios/contas-a-pagar/pdf', function (Request $request) {
+    $filters = $request->only(['supplier_id', 'category_id', 'data_inicio', 'data_fim', 'status']);
+    $report = PayablesReportService::generate($filters);
+
+    $logoPath = public_path('images/logo.png');
+    $logoBase64 = file_exists($logoPath)
+        ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath))
+        : null;
+
+    $pdf = Pdf::loadView('pdf.payables-report', compact('report', 'logoBase64'))
+        ->setPaper('a4', 'landscape');
+
+    return response($pdf->output(), 200, [
+        'Content-Type' => 'application/pdf',
+        'Content-Disposition' => 'inline; filename="contas-a-pagar-' . now()->format('Y-m-d') . '.pdf"',
+    ]);
+})->name('reports.payables.pdf')->middleware(['signed', 'auth:web']);
 
 // Servir arquivos de documentos do portal com suporte a visualização inline
 Route::get('/portal/documents/{document}/file/{index}', function (ClientDocument $document, int $index) {
