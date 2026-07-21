@@ -131,7 +131,7 @@ class ContractResource extends PortalResource
             ->columns([
                 TextColumn::make('numero')->label('Nº Contrato')->searchable()->sortable(),
                 TextColumn::make('tipo_servico')->label('Serviço')->limit(30),
-                TextColumn::make('valor_total')->label('Valor Total')->money('BRL')->sortable(),
+                //TextColumn::make('valor_total')->label('Valor Total')->money('BRL')->sortable(),
                 TextColumn::make('quantidade_parcelas')->label('Parcelas'),
                 TextColumn::make('data_inicio')->label('Início')->date('d/m/Y')->sortable(),
                 TextColumn::make('data_fim')->label('Fim')->date('d/m/Y')->placeholder('Indeterminado'),
