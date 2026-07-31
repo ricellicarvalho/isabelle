@@ -6,13 +6,13 @@ use App\Filament\Resources\Contracts\Pages\CreateContract;
 use App\Filament\Resources\Contracts\Pages\EditContract;
 use App\Filament\Resources\Contracts\Pages\ListContracts;
 use App\Filament\Resources\Contracts\RelationManagers\ReceivablesRelationManager;
+use App\Filament\Resources\Contracts\RelationManagers\VersionsRelationManager;
 use App\Filament\Resources\Contracts\Schemas\ContractForm;
 use App\Filament\Resources\Contracts\Tables\ContractsTable;
 use App\Models\Contract;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use UnitEnum;
 
@@ -61,6 +61,7 @@ class ContractResource extends Resource
     {
         return [
             ReceivablesRelationManager::class,
+            VersionsRelationManager::class,
         ];
     }
 

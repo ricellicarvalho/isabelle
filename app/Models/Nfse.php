@@ -14,6 +14,7 @@ class Nfse extends Model
 
     protected $fillable = [
         'contract_id',
+        'contract_version_id',
         'receivable_id',
         'numero_rps',
         'serie_rps',
@@ -45,13 +46,22 @@ class Nfse extends Model
     protected function casts(): array
     {
         return [
-            'valor'       => 'decimal:2',
-            'aliquota'    => 'decimal:2',
-            'valor_iss'   => 'decimal:2',
+            'valor' => 'decimal:2',
+            'aliquota' => 'decimal:2',
+            'valor_iss' => 'decimal:2',
             'data_emissao' => 'datetime',
             'competencia' => 'date',
-            'tentativas'  => 'integer',
+            'tentativas' => 'integer',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (Nfse $nfse): void {
+            if ($nfse->contract_id && ! $nfse->contract_version_id) {
+                $nfse->contract_version_id = Contract::find($nfse->contract_id)?->current_version_id;
+            }
+        });
     }
 
     public function pdfBytes(): ?string
@@ -82,6 +92,11 @@ class Nfse extends Model
     public function receivable(): BelongsTo
     {
         return $this->belongsTo(Receivable::class);
+    }
+
+    public function contractVersion(): BelongsTo
+    {
+        return $this->belongsTo(ContractVersion::class);
     }
 
     public function createdBy(): BelongsTo

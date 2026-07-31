@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Contracts\Pages;
 
+use App\Filament\Resources\Contracts\Actions\RenewContractAction;
 use App\Filament\Resources\Contracts\ContractResource;
 use App\Filament\Resources\Contracts\Schemas\ContractForm;
 use Filament\Actions\Action;
@@ -16,6 +17,7 @@ class EditContract extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            RenewContractAction::make(),
             Action::make('cancelarContrato')
                 ->label('Cancelar Contrato')
                 ->icon('heroicon-o-x-circle')

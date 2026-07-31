@@ -112,6 +112,7 @@ class EmitirNFSeAction
 
                 $nfse = Nfse::create([
                     'contract_id'        => $isReceivable ? $record->contract_id : $record->id,
+                    'contract_version_id' => $isReceivable ? $record->contract_version_id : $record->current_version_id,
                     'receivable_id'      => $isReceivable ? $record->id : null,
                     'numero_rps'         => $numeroRps,
                     'serie_rps'          => $config->serie_rps,

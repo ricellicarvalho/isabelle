@@ -7,11 +7,17 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
         DB::statement("ALTER TABLE clients MODIFY COLUMN nr1_status ENUM('pendente','em_andamento','regularizada','finalizada') DEFAULT 'pendente'");
     }
 
     public function down(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
         DB::statement("ALTER TABLE clients MODIFY COLUMN nr1_status ENUM('pendente','em_andamento','regularizada') DEFAULT 'pendente'");
     }
 };

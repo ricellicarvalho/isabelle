@@ -287,6 +287,7 @@ class ReceivablesTable
                         $numeroRps   = $config->reservarNumeroRps();
                         $nfse = Nfse::create([
                             'contract_id'        => $record->contract_id,
+                            'contract_version_id' => $record->contract_version_id,
                             'receivable_id'      => $record->id,
                             'numero_rps'         => $numeroRps,
                             'serie_rps'          => $config->serie_rps,

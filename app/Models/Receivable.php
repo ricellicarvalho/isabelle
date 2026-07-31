@@ -15,6 +15,7 @@ class Receivable extends Model
     protected $fillable = [
         'client_id',
         'contract_id',
+        'contract_version_id',
         'category_id',
         'descricao',
         'valor',
@@ -39,6 +40,15 @@ class Receivable extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::creating(function (Receivable $receivable): void {
+            if ($receivable->contract_id && ! $receivable->contract_version_id) {
+                $receivable->contract_version_id = Contract::find($receivable->contract_id)?->current_version_id;
+            }
+        });
+    }
+
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class);
@@ -47,6 +57,11 @@ class Receivable extends Model
     public function contract(): BelongsTo
     {
         return $this->belongsTo(Contract::class);
+    }
+
+    public function contractVersion(): BelongsTo
+    {
+        return $this->belongsTo(ContractVersion::class);
     }
 
     public function category(): BelongsTo

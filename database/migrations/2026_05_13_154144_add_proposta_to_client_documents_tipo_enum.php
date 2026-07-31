@@ -7,11 +7,17 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
         DB::statement("ALTER TABLE client_documents MODIFY COLUMN tipo ENUM('laudo','foto','relatorio','matriz_risco','certificado','outro','proposta') NOT NULL DEFAULT 'outro'");
     }
 
     public function down(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
         DB::statement("UPDATE client_documents SET tipo = 'outro' WHERE tipo = 'proposta'");
         DB::statement("ALTER TABLE client_documents MODIFY COLUMN tipo ENUM('laudo','foto','relatorio','matriz_risco','certificado','outro') NOT NULL DEFAULT 'outro'");
     }

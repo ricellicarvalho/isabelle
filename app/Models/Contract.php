@@ -28,6 +28,7 @@ class Contract extends Model
         'observacoes',
         'created_by',
         'deleted_by',
+        'current_version_id',
     ];
 
     protected function casts(): array
@@ -72,5 +73,15 @@ class Contract extends Model
     public function nfses(): HasMany
     {
         return $this->hasMany(\App\Models\Nfse::class);
+    }
+
+    public function versions(): HasMany
+    {
+        return $this->hasMany(ContractVersion::class)->orderByDesc('version_number');
+    }
+
+    public function currentVersion(): BelongsTo
+    {
+        return $this->belongsTo(ContractVersion::class, 'current_version_id');
     }
 }

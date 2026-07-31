@@ -2,14 +2,15 @@
 
 namespace App\Filament\Resources\Contracts\Tables;
 
+use App\Filament\Resources\Contracts\Actions\RenewContractAction;
 use App\Models\Contract;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Actions\ActionGroup;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -27,6 +28,12 @@ class ContractsTable
                     ->label('Nº Contrato')
                     ->searchable()
                     ->sortable(),
+
+                TextColumn::make('currentVersion.version_number')
+                    ->label('Versão')
+                    ->formatStateUsing(fn ($state): string => "v{$state}")
+                    ->badge()
+                    ->color('gray'),
 
                 TextColumn::make('client.razao_social')
                     ->label('Cliente')
@@ -153,37 +160,41 @@ class ContractsTable
                         $config = \App\Models\NfseConfig::ativa();
                         if (! $config) {
                             Notification::make()->title('Configuração NFSe não encontrada')->body('Acesse Configurações > Config NFSe e cadastre os dados do prestador.')->danger()->persistent()->send();
+
                             return;
                         }
                         $client = $record->client;
                         if (blank($client?->cnpj_cpf)) {
                             Notification::make()->title('CPF/CNPJ do cliente não informado')->danger()->send();
+
                             return;
                         }
                         if (blank($client?->municipio_ibge)) {
                             Notification::make()->title('Código IBGE do município do cliente não informado')->body("Acesse o cadastro do cliente '{$client->razao_social}' e preencha o campo Código IBGE.")->danger()->persistent()->send();
+
                             return;
                         }
                         $serviceCode = \App\Models\NfseServiceCode::paraTipoServico($record->tipo_servico);
-                        $aliquota    = $serviceCode?->aliquota ?? $config->aliquota_iss_padrao ?? 2.00;
-                        $itemLista   = $serviceCode?->item_lista_servico ?? $config->item_lista_servico ?? '17.01';
-                        $numeroRps   = $config->reservarNumeroRps();
+                        $aliquota = $serviceCode?->aliquota ?? $config->aliquota_iss_padrao ?? 2.00;
+                        $itemLista = $serviceCode?->item_lista_servico ?? $config->item_lista_servico ?? '17.01';
+                        $numeroRps = $config->reservarNumeroRps();
                         $nfse = \App\Models\Nfse::create([
-                            'contract_id'        => $record->id,
-                            'receivable_id'      => null,
-                            'numero_rps'         => $numeroRps,
-                            'serie_rps'          => $config->serie_rps,
-                            'tipo_rps'           => 1,
-                            'status'             => 'pendente',
-                            'ambiente'           => config('nfse.ambiente'),
-                            'valor'              => (float) $record->valor_total,
-                            'aliquota'           => (float) $aliquota,
-                            'iss_retido'         => $config->iss_retido,
-                            'valor_iss'          => round((float) $record->valor_total * (float) $aliquota / 100, 2),
+                            'contract_id' => $record->id,
+                            'contract_version_id' => $record->current_version_id,
+                            'receivable_id' => null,
+                            'numero_rps' => $numeroRps,
+                            'serie_rps' => $config->serie_rps,
+                            'tipo_rps' => 1,
+                            'status' => 'pendente',
+                            'ambiente' => config('nfse.ambiente'),
+                            'valor' => (float) $record->valor_total,
+                            'aliquota' => (float) $aliquota,
+                            'iss_retido' => $config->iss_retido,
+                            'valor_iss' => round((float) $record->valor_total * (float) $aliquota / 100, 2),
                             'item_lista_servico' => $itemLista,
-                            'discriminacao'      => $data['discriminacao'],
-                            'competencia'        => $data['competencia'],
-                            'created_by'         => auth()->id(),
+                            'discriminacao' => $data['discriminacao'],
+                            'competencia' => $data['competencia'],
+                            'created_by' => auth()->id(),
                         ]);
                         try {
                             \App\Jobs\EmitirNFSeJob::dispatch($nfse);
@@ -200,6 +211,7 @@ class ContractsTable
                     }),
                 ActionGroup::make([
                     EditAction::make(),
+                    RenewContractAction::make(),
 
                     Action::make('cancelar')
                         ->label('Cancelar Contrato')

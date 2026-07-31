@@ -14,6 +14,7 @@ class Event extends Model
     protected $fillable = [
         'client_id',
         'contract_id',
+        'contract_version_id',
         'user_id',
         'user_ids',
         'titulo',
@@ -33,12 +34,21 @@ class Event extends Model
     protected function casts(): array
     {
         return [
-            'data_inicio'    => 'datetime',
-            'data_fim'       => 'datetime',
-            'dia_inteiro'    => 'boolean',
+            'data_inicio' => 'datetime',
+            'data_fim' => 'datetime',
+            'dia_inteiro' => 'boolean',
             'bloquear_agenda' => 'boolean',
-            'user_ids'       => 'array',
+            'user_ids' => 'array',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (Event $event): void {
+            if ($event->contract_id && ! $event->contract_version_id) {
+                $event->contract_version_id = Contract::find($event->contract_id)?->current_version_id;
+            }
+        });
     }
 
     public function client(): BelongsTo
@@ -49,6 +59,11 @@ class Event extends Model
     public function contract(): BelongsTo
     {
         return $this->belongsTo(Contract::class);
+    }
+
+    public function contractVersion(): BelongsTo
+    {
+        return $this->belongsTo(ContractVersion::class);
     }
 
     public function user(): BelongsTo
