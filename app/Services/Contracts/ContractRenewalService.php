@@ -35,7 +35,7 @@ class ContractRenewalService
             'data_fim' => ['required', 'date', 'after_or_equal:data_inicio'],
             'arquivo_pdf' => ['nullable', 'string'],
             'observacoes' => ['nullable', 'string'],
-            'change_reason' => ['required', 'string', 'max:5000'],
+            'change_reason' => ['nullable', 'string', 'max:5000'],
         ])->validate();
 
         return DB::transaction(function () use ($contract, $data, $userId): ContractVersion {
@@ -56,6 +56,14 @@ class ContractRenewalService
                 ]);
             }
 
+            foreach (['client_id', 'category_id', 'numero', 'tipo_servico'] as $immutableField) {
+                if ((string) $data[$immutableField] !== (string) $previous->getAttribute($immutableField)) {
+                    throw ValidationException::withMessages([
+                        $immutableField => 'Este campo não pode ser alterado durante uma renovação.',
+                    ]);
+                }
+            }
+
             $values = Arr::only($data, self::VERSIONED_FIELDS);
             $values['valor_total'] = (float) $values['valor_total'];
             $values['quantidade_parcelas'] = (int) $values['quantidade_parcelas'];
@@ -67,7 +75,7 @@ class ContractRenewalService
                 'version_number' => $previous->version_number + 1,
                 'change_type' => 'renewal',
                 'status' => 'active',
-                'change_reason' => $data['change_reason'],
+                'change_reason' => $data['change_reason'] ?? null,
                 'activated_at' => now(),
                 'created_by' => $userId,
                 'activated_by' => $userId,

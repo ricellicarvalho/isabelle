@@ -44,15 +44,15 @@ class RenewContractAction
             ->form([
                 Select::make('client_id')->label('Cliente')
                     ->options(fn (): array => Client::query()->orderBy('razao_social')->pluck('razao_social', 'id')->all())
-                    ->searchable()->required()->native(false),
+                    ->searchable()->required()->native(false)->disabled()->dehydrated(),
                 Select::make('category_id')->label('Categoria')
                     ->options(fn (): array => Category::query()->orderBy('descricao')->pluck('descricao', 'id')->all())
-                    ->searchable()->required()->native(false),
-                TextInput::make('numero')->label('Número do Contrato')->required()->maxLength(255),
+                    ->searchable()->required()->native(false)->disabled()->dehydrated(),
+                TextInput::make('numero')->label('Número do Contrato')->required()->maxLength(255)->disabled()->dehydrated(),
                 Select::make('tipo_servico')->label('Tipo de Serviço')->options([
                     'nr1' => 'NR-1', 'palestra' => 'Palestra', 'consultoria' => 'Consultoria',
                     'treinamento' => 'Treinamento', 'outro' => 'Outro',
-                ])->required()->native(false),
+                ])->required()->native(false)->disabled()->dehydrated(),
                 Textarea::make('descricao')->label('Descrição')->rows(2)->columnSpanFull(),
                 TextInput::make('valor_total')->label('Valor Total')->prefix('R$')->required(),
                 TextInput::make('quantidade_parcelas')->label('Quantidade de Parcelas')->numeric()->minValue(1)->maxValue(120)->required(),
@@ -65,8 +65,8 @@ class RenewContractAction
                 FileUpload::make('arquivo_pdf')->label('Novo contrato/aditivo em PDF')
                     ->acceptedFileTypes(['application/pdf'])->directory('contratos')->preserveFilenames()->maxSize(10240),
                 Textarea::make('observacoes')->label('Observações')->rows(2)->columnSpanFull(),
-                Textarea::make('change_reason')->label('Motivo da renovação')->required()->rows(3)
-                    ->helperText('Este texto ficará permanentemente registrado no histórico.')
+                Textarea::make('change_reason')->label('Motivo da renovação')->rows(3)
+                    ->helperText('Opcional. Quando informado, este texto ficará registrado no histórico.')
                     ->columnSpanFull(),
             ])
             ->requiresConfirmation()

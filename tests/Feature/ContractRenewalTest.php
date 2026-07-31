@@ -99,6 +99,35 @@ class ContractRenewalTest extends TestCase
         $this->assertSame(2, $contract->receivables()->where('status', 'cancelado')->count());
     }
 
+    public function test_reason_is_optional_but_identification_fields_cannot_change(): void
+    {
+        [$user, $client, $category] = $this->dependencies();
+        $contract = $this->contract($user, $client, $category);
+
+        $data = [
+            'client_id' => $client->id,
+            'category_id' => $category->id,
+            'numero' => 'CT-TESTE',
+            'tipo_servico' => 'consultoria',
+            'descricao' => 'Renovação sem motivo',
+            'valor_total' => 1500,
+            'forma_pagamento' => 'pix',
+            'quantidade_parcelas' => 3,
+            'data_inicio' => '2027-01-01',
+            'data_fim' => '2027-12-31',
+            'arquivo_pdf' => null,
+            'observacoes' => null,
+            'change_reason' => null,
+        ];
+
+        $version = app(ContractRenewalService::class)->renew($contract, $data, $user->id);
+        $this->assertNull($version->change_reason);
+
+        $data['numero'] = 'OUTRO-CONTRATO';
+        $this->expectException(ValidationException::class);
+        app(ContractRenewalService::class)->renew($contract->fresh(), $data, $user->id);
+    }
+
     private function dependencies(): array
     {
         $user = User::factory()->create();
