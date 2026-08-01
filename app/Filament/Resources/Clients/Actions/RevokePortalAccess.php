@@ -12,12 +12,13 @@ use Illuminate\Support\Facades\Log;
 class RevokePortalAccess
 {
     /**
-     * @param 'documentacao'|'financeiro' $tipo
+     * @param  'documentacao'|'financeiro'  $tipo
      */
     public static function make(?Client $record = null, string $tipo = 'documentacao'): Action
     {
         $config = PortalAccessSlots::get($tipo);
         $fk = $config['fk'];
+        $passwordField = $config['password_field'];
 
         return Action::make("revokePortalAccess_{$tipo}")
             ->label($config['item_revogar'])
@@ -28,7 +29,7 @@ class RevokePortalAccess
             ->modalHeading($config['label_revogar'])
             ->modalDescription('O acesso será removido imediatamente. Você pode gerar um novo depois se necessário.')
             ->modalSubmitActionLabel('Revogar Acesso')
-            ->action(function () use ($record, $fk, $config): void {
+            ->action(function () use ($record, $fk, $passwordField, $config): void {
                 if (! $record || ! $record->{$fk}) {
                     return;
                 }
@@ -36,16 +37,19 @@ class RevokePortalAccess
                 $userId = $record->{$fk};
                 $user = User::find($userId);
 
-                $record->update([$fk => null]);
+                $record->update([
+                    $fk => null,
+                    $passwordField => null,
+                ]);
 
                 if ($user) {
                     $user->delete();
                 }
 
                 Log::info('Portal access revoked', [
-                    'tipo'       => $config['tipo'],
-                    'client_id'  => $record->id,
-                    'user_id'    => $userId,
+                    'tipo' => $config['tipo'],
+                    'client_id' => $record->id,
+                    'user_id' => $userId,
                     'revoked_by' => Auth::id(),
                 ]);
 

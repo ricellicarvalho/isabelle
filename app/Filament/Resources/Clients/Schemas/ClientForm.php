@@ -445,29 +445,15 @@ class ClientForm
                         Tab::make('Portal do Cliente')
                             ->icon(Heroicon::GlobeAlt)
                             ->components([
-                                Section::make('Acesso ao Portal')
+                                Section::make('Acesso à Documentação')
                                     ->icon(Heroicon::LockClosed)
                                     ->iconColor('primary')
-                                    ->description('Gerencie o acesso do cliente ao portal usando os botões no topo da página.')
+                                    ->description('Gerencie o acesso aos documentos usando os botões no topo da página.')
                                     ->columns(2)
                                     ->components([
                                         Placeholder::make('portal_status_badge')
                                             ->label('Status do Acesso')
-                                            ->content(function ($record): HtmlString {
-                                                if (! $record?->portal_user_id) {
-                                                    return new HtmlString(
-                                                        '<span style="display:inline-flex;align-items:center;gap:6px;background:#f3f4f6;color:#6b7280;border:1px solid #e5e7eb;border-radius:9999px;padding:4px 12px;font-size:0.75rem;font-weight:500;">'
-                                                        . '<span style="width:7px;height:7px;border-radius:9999px;background:#9ca3af;display:inline-block;"></span>'
-                                                        . 'Sem acesso</span>'
-                                                    );
-                                                }
-
-                                                return new HtmlString(
-                                                    '<span style="display:inline-flex;align-items:center;gap:6px;background:#dcfce7;color:#16a34a;border:1px solid #bbf7d0;border-radius:9999px;padding:4px 12px;font-size:0.75rem;font-weight:600;">'
-                                                    . '<span style="width:7px;height:7px;border-radius:9999px;background:#22c55e;display:inline-block;"></span>'
-                                                    . 'Ativo</span>'
-                                                );
-                                            }),
+                                            ->content(fn ($record): HtmlString => self::portalStatusBadge((bool) $record?->portal_user_id)),
 
                                         Placeholder::make('portal_access_email')
                                             ->label('E-mail de Login')
@@ -479,16 +465,80 @@ class ClientForm
                                             ->content(fn ($record): string => $record?->portalUser?->created_at?->format('d/m/Y H:i') ?? '—')
                                             ->visible(fn ($record): bool => (bool) $record?->portal_user_id),
 
+                                        TextInput::make('portal_last_generated_password')
+                                            ->label('Senha gerada')
+                                            ->password()
+                                            ->revealable()
+                                            ->disabled()
+                                            ->dehydrated(false)
+                                            ->visible(fn ($record): bool => (bool) $record?->portal_user_id && filled($record?->portal_last_generated_password)),
+
+                                        Placeholder::make('portal_password_unavailable')
+                                            ->label('Senha gerada')
+                                            ->content(new HtmlString(
+                                                '<p class="text-sm text-gray-500 dark:text-gray-400">'
+                                                .'Senha não disponível para exibição. Use <strong>Resetar Senha</strong> para gerar uma nova senha visível.'
+                                                .'</p>'
+                                            ))
+                                            ->visible(fn ($record): bool => (bool) $record?->portal_user_id && blank($record?->portal_last_generated_password)),
+
                                         Placeholder::make('portal_no_access_info')
                                             ->label('')
                                             ->content(new HtmlString(
                                                 '<p class="text-sm text-gray-500 dark:text-gray-400">'
-                                                . 'Nenhum acesso configurado. Use o botão <strong>"Gerar Acesso ao Portal"</strong> '
-                                                . 'no topo desta página para criar um login e senha para este cliente.'
-                                                . '</p>'
+                                                .'Nenhum acesso de documentação configurado. Use <strong>Acesso à Documentação > Gerar Acesso</strong> no topo da página.'
+                                                .'</p>'
                                             ))
                                             ->columnSpanFull()
                                             ->visible(fn ($record): bool => ! $record?->portal_user_id),
+                                    ]),
+
+                                Section::make('Acesso Financeiro')
+                                    ->icon(Heroicon::Banknotes)
+                                    ->iconColor('warning')
+                                    ->description('Gerencie o acesso aos boletos e notas fiscais usando os botões no topo da página.')
+                                    ->columns(2)
+                                    ->components([
+                                        Placeholder::make('portal_financeiro_status_badge')
+                                            ->label('Status do Acesso')
+                                            ->content(fn ($record): HtmlString => self::portalStatusBadge((bool) $record?->portal_financeiro_user_id)),
+
+                                        Placeholder::make('portal_financeiro_access_email')
+                                            ->label('E-mail de Login')
+                                            ->content(fn ($record): string => $record?->contato_financeiro_email ?? '—')
+                                            ->visible(fn ($record): bool => (bool) $record?->portal_financeiro_user_id),
+
+                                        Placeholder::make('portal_financeiro_access_created')
+                                            ->label('Acesso criado em')
+                                            ->content(fn ($record): string => $record?->portalFinanceiroUser?->created_at?->format('d/m/Y H:i') ?? '—')
+                                            ->visible(fn ($record): bool => (bool) $record?->portal_financeiro_user_id),
+
+                                        TextInput::make('portal_financeiro_last_generated_password')
+                                            ->label('Senha gerada')
+                                            ->password()
+                                            ->revealable()
+                                            ->disabled()
+                                            ->dehydrated(false)
+                                            ->visible(fn ($record): bool => (bool) $record?->portal_financeiro_user_id && filled($record?->portal_financeiro_last_generated_password)),
+
+                                        Placeholder::make('portal_financeiro_password_unavailable')
+                                            ->label('Senha gerada')
+                                            ->content(new HtmlString(
+                                                '<p class="text-sm text-gray-500 dark:text-gray-400">'
+                                                .'Senha não disponível para exibição. Use <strong>Resetar Senha</strong> para gerar uma nova senha visível.'
+                                                .'</p>'
+                                            ))
+                                            ->visible(fn ($record): bool => (bool) $record?->portal_financeiro_user_id && blank($record?->portal_financeiro_last_generated_password)),
+
+                                        Placeholder::make('portal_financeiro_no_access_info')
+                                            ->label('')
+                                            ->content(new HtmlString(
+                                                '<p class="text-sm text-gray-500 dark:text-gray-400">'
+                                                .'Nenhum acesso financeiro configurado. Use <strong>Acesso Financeiro > Gerar Acesso</strong> no topo da página.'
+                                                .'</p>'
+                                            ))
+                                            ->columnSpanFull()
+                                            ->visible(fn ($record): bool => ! $record?->portal_financeiro_user_id),
                                     ]),
                             ]),
                     ])
@@ -496,6 +546,23 @@ class ClientForm
                     ->contained(false)
                     ->columnSpanFull(),
             ]);
+    }
+
+    private static function portalStatusBadge(bool $active): HtmlString
+    {
+        if (! $active) {
+            return new HtmlString(
+                '<span style="display:inline-flex;align-items:center;gap:6px;background:#f3f4f6;color:#6b7280;border:1px solid #e5e7eb;border-radius:9999px;padding:4px 12px;font-size:0.75rem;font-weight:500;">'
+                .'<span style="width:7px;height:7px;border-radius:9999px;background:#9ca3af;display:inline-block;"></span>'
+                .'Sem acesso</span>'
+            );
+        }
+
+        return new HtmlString(
+            '<span style="display:inline-flex;align-items:center;gap:6px;background:#dcfce7;color:#16a34a;border:1px solid #bbf7d0;border-radius:9999px;padding:4px 12px;font-size:0.75rem;font-weight:600;">'
+            .'<span style="width:7px;height:7px;border-radius:9999px;background:#22c55e;display:inline-block;"></span>'
+            .'Ativo</span>'
+        );
     }
 
     /**

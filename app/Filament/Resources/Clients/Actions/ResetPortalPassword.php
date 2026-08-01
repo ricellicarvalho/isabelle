@@ -14,12 +14,13 @@ use Illuminate\Support\Str;
 class ResetPortalPassword
 {
     /**
-     * @param 'documentacao'|'financeiro' $tipo
+     * @param  'documentacao'|'financeiro'  $tipo
      */
     public static function make(?Client $record = null, string $tipo = 'documentacao'): Action
     {
         $config = PortalAccessSlots::get($tipo);
         $fk = $config['fk'];
+        $passwordField = $config['password_field'];
 
         return Action::make("resetPortalPassword_{$tipo}")
             ->label($config['item_resetar'])
@@ -30,7 +31,7 @@ class ResetPortalPassword
             ->modalHeading($config['label_resetar'])
             ->modalDescription('Uma nova senha aleatória será gerada. A senha anterior será invalidada imediatamente.')
             ->modalSubmitActionLabel('Resetar Senha')
-            ->action(function () use ($record, $fk, $config): void {
+            ->action(function () use ($record, $fk, $passwordField, $config): void {
                 if (! $record || ! $record->{$fk}) {
                     return;
                 }
@@ -50,20 +51,21 @@ class ResetPortalPassword
                 $password = Str::password(length: 8, symbols: false);
 
                 $user->update(['password' => Hash::make($password)]);
+                $record->update([$passwordField => $password]);
 
                 Log::info('Portal password reset', [
-                    'tipo'      => $config['tipo'],
+                    'tipo' => $config['tipo'],
                     'client_id' => $record->id,
-                    'user_id'   => $user->id,
-                    'reset_by'  => Auth::id(),
+                    'user_id' => $user->id,
+                    'reset_by' => Auth::id(),
                 ]);
 
                 Notification::make()
                     ->title('Senha resetada!')
                     ->body(
-                        "Login: {$user->email}\n" .
-                        "Nova Senha: {$password}\n\n" .
-                        "Copie a senha agora — ela não será exibida novamente."
+                        "Login: {$user->email}\n".
+                        "Nova Senha: {$password}\n\n".
+                        'A senha também ficará disponível no cadastro do cliente, no campo com botão de mostrar.'
                     )
                     ->warning()
                     ->persistent()

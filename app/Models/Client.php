@@ -36,7 +36,9 @@ class Client extends Model
         'nr1_status',
         'nr1_checklist',
         'portal_user_id',
+        'portal_last_generated_password',
         'portal_financeiro_user_id',
+        'portal_financeiro_last_generated_password',
         'status',
         'observacoes',
         'cadastro_token',
@@ -50,10 +52,12 @@ class Client extends Model
     protected function casts(): array
     {
         return [
-            'nr1_checklist'            => 'array',
-            'telefones'                => 'array',
+            'nr1_checklist' => 'array',
+            'telefones' => 'array',
             'cadastro_token_expira_em' => 'datetime',
-            'cadastro_preenchido'      => 'boolean',
+            'cadastro_preenchido' => 'boolean',
+            'portal_last_generated_password' => 'encrypted',
+            'portal_financeiro_last_generated_password' => 'encrypted',
         ];
     }
 

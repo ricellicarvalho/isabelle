@@ -14,13 +14,14 @@ use Illuminate\Support\Str;
 class GeneratePortalAccess
 {
     /**
-     * @param 'documentacao'|'financeiro' $tipo
+     * @param  'documentacao'|'financeiro'  $tipo
      */
     public static function make(?Client $record = null, string $tipo = 'documentacao'): Action
     {
         $config = PortalAccessSlots::get($tipo);
         $emailField = $config['email_field'];
         $fk = $config['fk'];
+        $passwordField = $config['password_field'];
 
         return Action::make("generatePortalAccess_{$tipo}")
             ->label($config['item_gerar'])
@@ -35,7 +36,7 @@ class GeneratePortalAccess
             ->modalHeading($config['label_gerar'])
             ->modalDescription("Será criado um login e senha para o {$config['descricao_pessoa']}. O e-mail informado em \"{$config['campo_label']}\" será usado como login.")
             ->modalSubmitActionLabel('Gerar Acesso')
-            ->action(function () use ($record, $emailField, $fk, $config): void {
+            ->action(function () use ($record, $emailField, $fk, $passwordField, $config): void {
                 if (! $record) {
                     return;
                 }
@@ -68,29 +69,32 @@ class GeneratePortalAccess
                 $name = "{$nomeBase} ({$config['sufixo_nome']})";
 
                 $user = User::create([
-                    'name'     => $name,
-                    'email'    => $email,
+                    'name' => $name,
+                    'email' => $email,
                     'password' => Hash::make($password),
                     'is_admin' => false,
                 ]);
 
                 $user->assignRole('cliente');
 
-                $record->update([$fk => $user->id]);
+                $record->update([
+                    $fk => $user->id,
+                    $passwordField => $password,
+                ]);
 
                 Log::info('Portal access generated', [
-                    'tipo'       => $config['tipo'],
-                    'client_id'  => $record->id,
-                    'user_id'    => $user->id,
+                    'tipo' => $config['tipo'],
+                    'client_id' => $record->id,
+                    'user_id' => $user->id,
                     'created_by' => Auth::id(),
                 ]);
 
                 Notification::make()
                     ->title('Acesso ao portal criado!')
                     ->body(
-                        "Login: {$email}\n" .
-                        "Senha: {$password}\n\n" .
-                        "Copie a senha agora — ela não será exibida novamente."
+                        "Login: {$email}\n".
+                        "Senha: {$password}\n\n".
+                        'A senha também ficará disponível no cadastro do cliente, no campo com botão de mostrar.'
                     )
                     ->success()
                     ->persistent()
