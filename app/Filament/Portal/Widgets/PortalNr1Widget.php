@@ -2,7 +2,7 @@
 
 namespace App\Filament\Portal\Widgets;
 
-use App\Models\Client;
+use App\Support\PortalAccess;
 use Filament\Widgets\Widget;
 use Illuminate\Support\Facades\Auth;
 
@@ -21,7 +21,7 @@ class PortalNr1Widget extends Widget
 
     public function mount(): void
     {
-        $client = Client::where('portal_user_id', Auth::id())->first();
+        $client = PortalAccess::client(Auth::id());
 
         if (! $client) {
             return;

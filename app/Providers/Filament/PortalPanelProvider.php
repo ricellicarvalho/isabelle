@@ -104,6 +104,10 @@ class PortalPanelProvider extends PanelProvider
                 fn (): HtmlString => new HtmlString(view('filament.portal.styles.solutions')->render())
             )
             ->renderHook(
+                PanelsRenderHook::SIDEBAR_NAV_START,
+                fn (): HtmlString => new HtmlString(view('filament.portal.partials.client-switcher')->render())
+            )
+            ->renderHook(
                 PanelsRenderHook::BODY_END,
                 fn (): HtmlString => new HtmlString(<<<'HTML'
                 <script>

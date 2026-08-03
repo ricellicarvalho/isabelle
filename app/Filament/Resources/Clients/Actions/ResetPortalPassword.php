@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Livewire\Component;
 
 class ResetPortalPassword
 {
@@ -29,9 +30,22 @@ class ResetPortalPassword
             ->visible(fn (): bool => $record !== null && (bool) $record->{$fk})
             ->requiresConfirmation()
             ->modalHeading($config['label_resetar'])
-            ->modalDescription('Uma nova senha aleatória será gerada. A senha anterior será invalidada imediatamente.')
+            ->modalDescription(function () use ($record, $fk): string {
+                if (! $record || ! $record->{$fk}) {
+                    return 'Uma nova senha aleatória será gerada. A senha anterior será invalidada imediatamente.';
+                }
+
+                $vinculos = Client::query()
+                    ->where('portal_user_id', $record->{$fk})
+                    ->orWhere('portal_financeiro_user_id', $record->{$fk})
+                    ->count();
+
+                return $vinculos > 1
+                    ? 'Este usuário acessa mais de uma empresa. A nova senha valerá para todos os acessos vinculados a este e-mail.'
+                    : 'Uma nova senha aleatória será gerada. A senha anterior será invalidada imediatamente.';
+            })
             ->modalSubmitActionLabel('Resetar Senha')
-            ->action(function () use ($record, $fk, $passwordField, $config): void {
+            ->action(function (Component $livewire) use ($record, $fk, $passwordField, $config): void {
                 if (! $record || ! $record->{$fk}) {
                     return;
                 }
@@ -51,7 +65,20 @@ class ResetPortalPassword
                 $password = Str::password(length: 8, symbols: false);
 
                 $user->update(['password' => Hash::make($password)]);
-                $record->update([$passwordField => $password]);
+                Client::query()
+                    ->where('portal_user_id', $user->id)
+                    ->get()
+                    ->each(fn (Client $client) => $client->update(['portal_last_generated_password' => $password]));
+
+                Client::query()
+                    ->where('portal_financeiro_user_id', $user->id)
+                    ->get()
+                    ->each(fn (Client $client) => $client->update(['portal_financeiro_last_generated_password' => $password]));
+                $record->refresh();
+                self::refreshClientForm($livewire, [
+                    'portal_last_generated_password',
+                    'portal_financeiro_last_generated_password',
+                ]);
 
                 Log::info('Portal password reset', [
                     'tipo' => $config['tipo'],
@@ -71,5 +98,15 @@ class ResetPortalPassword
                     ->persistent()
                     ->send();
             });
+    }
+
+    /**
+     * @param  array<string>  $statePaths
+     */
+    private static function refreshClientForm(Component $livewire, array $statePaths): void
+    {
+        if (method_exists($livewire, 'refreshFormData')) {
+            $livewire->refreshFormData($statePaths);
+        }
     }
 }

@@ -8,6 +8,7 @@ use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Livewire\Component;
 
 class RevokePortalAccess
 {
@@ -27,9 +28,22 @@ class RevokePortalAccess
             ->visible(fn (): bool => $record !== null && (bool) $record->{$fk})
             ->requiresConfirmation()
             ->modalHeading($config['label_revogar'])
-            ->modalDescription('O acesso será removido imediatamente. Você pode gerar um novo depois se necessário.')
+            ->modalDescription(function () use ($record, $fk): string {
+                if (! $record || ! $record->{$fk}) {
+                    return 'O acesso será removido imediatamente. Você pode gerar um novo depois se necessário.';
+                }
+
+                $vinculos = Client::query()
+                    ->where('portal_user_id', $record->{$fk})
+                    ->orWhere('portal_financeiro_user_id', $record->{$fk})
+                    ->count();
+
+                return $vinculos > 1
+                    ? 'Este usuário acessa mais de uma empresa. Apenas o vínculo deste cliente será removido.'
+                    : 'O acesso será removido imediatamente. Você pode gerar um novo depois se necessário.';
+            })
             ->modalSubmitActionLabel('Revogar Acesso')
-            ->action(function () use ($record, $fk, $passwordField, $config): void {
+            ->action(function (Component $livewire) use ($record, $fk, $passwordField, $config): void {
                 if (! $record || ! $record->{$fk}) {
                     return;
                 }
@@ -41,8 +55,15 @@ class RevokePortalAccess
                     $fk => null,
                     $passwordField => null,
                 ]);
+                $record->refresh();
+                self::refreshClientForm($livewire, [$fk, $passwordField]);
 
-                if ($user) {
+                $userStillLinked = Client::query()
+                    ->where('portal_user_id', $userId)
+                    ->orWhere('portal_financeiro_user_id', $userId)
+                    ->exists();
+
+                if ($user && ! $userStillLinked) {
                     $user->delete();
                 }
 
@@ -59,5 +80,15 @@ class RevokePortalAccess
                     ->success()
                     ->send();
             });
+    }
+
+    /**
+     * @param  array<string>  $statePaths
+     */
+    private static function refreshClientForm(Component $livewire, array $statePaths): void
+    {
+        if (method_exists($livewire, 'refreshFormData')) {
+            $livewire->refreshFormData($statePaths);
+        }
     }
 }

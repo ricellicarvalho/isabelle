@@ -2,7 +2,7 @@
 
 namespace App\Filament\Portal\Widgets;
 
-use App\Models\Client;
+use App\Support\PortalAccess;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 use Illuminate\Support\Facades\Auth;
@@ -13,7 +13,7 @@ class PortalStatsWidget extends BaseWidget
 
     protected function getStats(): array
     {
-        $client = Client::where('portal_user_id', Auth::id())->first();
+        $client = PortalAccess::client(Auth::id());
 
         if (! $client) {
             return [];

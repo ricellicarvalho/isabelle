@@ -5,11 +5,13 @@ namespace App\Filament\Resources\Clients\Actions;
 use App\Models\Client;
 use App\Models\User;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Checkbox;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Livewire\Component;
 
 class GeneratePortalAccess
 {
@@ -34,9 +36,29 @@ class GeneratePortalAccess
                 : null)
             ->requiresConfirmation()
             ->modalHeading($config['label_gerar'])
-            ->modalDescription("Será criado um login e senha para o {$config['descricao_pessoa']}. O e-mail informado em \"{$config['campo_label']}\" será usado como login.")
+            ->modalDescription(function () use ($record, $emailField, $config): string {
+                if ($record !== null
+                    && filled($record->{$emailField})
+                    && User::where('email', $record->{$emailField})->exists()) {
+                    return "Já existe um usuário com o e-mail informado em \"{$config['campo_label']}\". Confirme que é o mesmo responsável para vincular este cliente ao acesso existente.";
+                }
+
+                return "Será criado um login e senha para o {$config['descricao_pessoa']}. O e-mail informado em \"{$config['campo_label']}\" será usado como login.";
+            })
+            ->form([
+                Checkbox::make('confirmar_usuario_existente')
+                    ->label('Vincular este cliente ao usuário já existente deste e-mail')
+                    ->helperText('Use esta opção somente quando o mesmo responsável administra mais de uma empresa. A senha será a mesma do acesso já existente.')
+                    ->visible(fn (): bool => $record !== null
+                        && filled($record->{$emailField})
+                        && User::where('email', $record->{$emailField})->exists())
+                    ->accepted()
+                    ->validationMessages([
+                        'accepted' => 'Confirme que este e-mail pertence ao mesmo responsável antes de vincular o acesso.',
+                    ]),
+            ])
             ->modalSubmitActionLabel('Gerar Acesso')
-            ->action(function () use ($record, $emailField, $fk, $passwordField, $config): void {
+            ->action(function (array $data, Component $livewire) use ($record, $emailField, $fk, $passwordField, $config): void {
                 if (! $record) {
                     return;
                 }
@@ -53,11 +75,60 @@ class GeneratePortalAccess
                     return;
                 }
 
-                if (User::where('email', $email)->exists()) {
+                $existingUser = User::where('email', $email)->first();
+
+                if ($existingUser && ! ($data['confirmar_usuario_existente'] ?? false)) {
                     Notification::make()
                         ->title('E-mail já cadastrado')
-                        ->body("Já existe um usuário com o e-mail {$email}. Altere o e-mail e tente novamente.")
+                        ->body("Já existe um usuário com o e-mail {$email}. Confirme no modal que este e-mail pertence ao mesmo responsável para reutilizar o acesso.")
                         ->danger()
+                        ->persistent()
+                        ->send();
+
+                    return;
+                }
+
+                if ($existingUser) {
+                    $password = Client::query()
+                        ->where(function ($query) use ($existingUser): void {
+                            $query
+                                ->where('portal_user_id', $existingUser->id)
+                                ->orWhere('portal_financeiro_user_id', $existingUser->id);
+                        })
+                        ->whereKeyNot($record->id)
+                        ->get()
+                        ->map(fn (Client $client): ?string => $client->portal_last_generated_password ?: $client->portal_financeiro_last_generated_password)
+                        ->filter()
+                        ->first();
+
+                    if (! $existingUser->hasRole('cliente')) {
+                        $existingUser->assignRole('cliente');
+                    }
+
+                    $record->update([
+                        $fk => $existingUser->id,
+                        $passwordField => $password,
+                    ]);
+                    $record->refresh();
+                    self::refreshClientForm($livewire, [$fk, $passwordField]);
+
+                    Log::info('Portal access linked to existing user', [
+                        'tipo' => $config['tipo'],
+                        'client_id' => $record->id,
+                        'user_id' => $existingUser->id,
+                        'linked_by' => Auth::id(),
+                    ]);
+
+                    Notification::make()
+                        ->title('Acesso vinculado ao usuário existente')
+                        ->body(
+                            "Login: {$email}\n".
+                            ($password
+                                ? "Senha: {$password}\n\n"
+                                : "Senha: mesma já utilizada por este usuário.\n\n").
+                            'Ao entrar no portal, este usuário poderá alternar entre as empresas vinculadas.'
+                        )
+                        ->success()
                         ->persistent()
                         ->send();
 
@@ -81,6 +152,8 @@ class GeneratePortalAccess
                     $fk => $user->id,
                     $passwordField => $password,
                 ]);
+                $record->refresh();
+                self::refreshClientForm($livewire, [$fk, $passwordField]);
 
                 Log::info('Portal access generated', [
                     'tipo' => $config['tipo'],
@@ -100,5 +173,15 @@ class GeneratePortalAccess
                     ->persistent()
                     ->send();
             });
+    }
+
+    /**
+     * @param  array<string>  $statePaths
+     */
+    private static function refreshClientForm(Component $livewire, array $statePaths): void
+    {
+        if (method_exists($livewire, 'refreshFormData')) {
+            $livewire->refreshFormData($statePaths);
+        }
     }
 }

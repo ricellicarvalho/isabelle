@@ -11,6 +11,7 @@ use App\Services\BankBoletoService;
 use App\Services\PayablesReportService;
 use App\Services\PaymentsReportService;
 use App\Services\ReceivablesReportService;
+use App\Support\PortalAccess;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -187,11 +188,24 @@ Route::get('/relatorios/pagamentos/pdf', function (Request $request) {
     ]);
 })->name('reports.payments.pdf')->middleware(['signed', 'auth:web']);
 
+Route::post('/portal/select-client', function (Request $request) {
+    $userId = Auth::guard('portal')->id();
+    abort_unless($userId, 403);
+
+    $data = $request->validate([
+        'client_id' => ['required', 'integer'],
+    ]);
+
+    abort_unless(PortalAccess::selectClient($userId, (int) $data['client_id']), 403);
+
+    return back();
+})->name('portal.select-client')->middleware(['auth:portal']);
+
 // Servir arquivos de documentos do portal com suporte a visualização inline
 Route::get('/portal/documents/{document}/file/{index}', function (ClientDocument $document, int $index) {
     $userId = Auth::guard('portal')->id();
-    $client = \App\Support\PortalAccess::client($userId);
-    $escopo = \App\Support\PortalAccess::scope($userId);
+    $client = PortalAccess::client($userId);
+    $escopo = PortalAccess::scope($userId);
     $tiposFinanceiro = ['boleto', 'nota_fiscal'];
     $tipoCompativel = $escopo === 'financeiro'
         ? in_array($document->tipo, $tiposFinanceiro, true)
