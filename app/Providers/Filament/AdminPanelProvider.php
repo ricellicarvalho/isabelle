@@ -2,16 +2,17 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\Dashboard;
+use App\Filament\Widgets\ExpenseCompositionChart;
 use App\Filament\Widgets\FinanceStatsOverview;
-use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
 use App\Filament\Widgets\OverdueReceivablesTable;
+use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
 use Filament\Enums\ThemeMode;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Navigation\NavigationGroup;
-use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -19,11 +20,11 @@ use Filament\Support\Enums\Width;
 use Filament\View\PanelsRenderHook;
 use Filament\Widgets\AccountWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
-use Illuminate\Support\HtmlString;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\HtmlString;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Saade\FilamentFullCalendar\FilamentFullCalendarPlugin;
 
@@ -91,7 +92,7 @@ class AdminPanelProvider extends PanelProvider
                 ],
 
                 // Alterando os cinzas padrão para o tom azulado (Slate)
-                //'gray' => Color::Slate,
+                // 'gray' => Color::Slate,
             ])
             ->navigationGroups([
                 NavigationGroup::make('CRM')
@@ -130,6 +131,14 @@ class AdminPanelProvider extends PanelProvider
                 }
                 .dark .fi-sidebar-group-btn .fi-icon {
                     color: rgb(209 213 219) !important;
+                }
+                .dashboard-stat-receivable .fi-wi-stats-overview-stat-value {
+                    color: #16a34a !important;
+                    font-weight: 800 !important;
+                }
+                .dashboard-stat-payable .fi-wi-stats-overview-stat-value {
+                    color: #dc2626 !important;
+                    font-weight: 800 !important;
                 }
 
                 /* ── Login card: borda destacada + correção mobile ── */
@@ -184,6 +193,7 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 AccountWidget::class,
                 FinanceStatsOverview::class,
+                ExpenseCompositionChart::class,
                 OverdueReceivablesTable::class,
             ])
             ->middleware([

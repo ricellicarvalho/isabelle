@@ -14,6 +14,7 @@ use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\HtmlString;
+
 class ContractForm
 {
     public static function configure(Schema $schema): Schema
@@ -65,22 +66,22 @@ class ContractForm
                                             ->label('Status')
                                             ->options(fn ($record): array => in_array($record?->status, ['finalizado', 'cancelado'])
                                                 ? [
-                                                    'rascunho'   => 'Rascunho',
-                                                    'ativo'      => 'Ativo',
+                                                    'rascunho' => 'Rascunho',
+                                                    'ativo' => 'Ativo',
                                                     'finalizado' => 'Finalizado',
-                                                    'cancelado'  => 'Cancelado',
+                                                    'cancelado' => 'Cancelado',
                                                 ]
                                                 : [
                                                     'rascunho' => 'Rascunho',
-                                                    'ativo'    => 'Ativo',
+                                                    'ativo' => 'Ativo',
                                                 ]
                                             )
                                             ->disabled(fn ($record): bool => in_array($record?->status, ['finalizado', 'cancelado']))
                                             ->dehydrated()
                                             ->helperText(fn ($record): string|HtmlString|null => match ($record?->status) {
                                                 'finalizado' => new HtmlString('<span style="color:#16a34a;font-weight:600;">Este contrato foi finalizado automaticamente pelo sistema ao atingir a data de encerramento.</span>'),
-                                                'cancelado'  => new HtmlString('<span style="color:#dc2626;font-weight:600;">Este contrato foi cancelado.</span>'),
-                                                default      => null,
+                                                'cancelado' => new HtmlString('<span style="color:#dc2626;font-weight:600;">Este contrato foi cancelado.</span>'),
+                                                default => null,
                                             })
                                             ->default('rascunho')
                                             ->required()
@@ -134,17 +135,22 @@ class ContractForm
                             ->icon(Heroicon::CalendarDays)
                             ->components([
                                 Section::make('Período de Vigência')
+                                    ->description(fn ($record): ?string => $record && $record->status !== 'rascunho'
+                                        ? 'Para ajustar uma vigência cadastrada incorretamente, use a ação “Corrigir contrato” no topo da página.'
+                                        : null)
                                     ->columns(2)
                                     ->components([
                                         DatePicker::make('data_inicio')
                                             ->label('Data de Início')
                                             ->required()
+                                            ->disabled(fn ($record): bool => $record && $record->status !== 'rascunho')
                                             ->native(false)
                                             ->displayFormat('d/m/Y'),
 
                                         DatePicker::make('data_fim')
                                             ->label('Data de Fim')
                                             ->required()
+                                            ->disabled(fn ($record): bool => $record && $record->status !== 'rascunho')
                                             ->native(false)
                                             ->displayFormat('d/m/Y')
                                             ->afterOrEqual('data_inicio'),
@@ -164,6 +170,10 @@ class ContractForm
                                     ->components([
                                         Textarea::make('observacoes')
                                             ->label('Observações')
+                                            ->disabled(fn ($record): bool => $record && $record->status !== 'rascunho')
+                                            ->helperText(fn ($record): ?string => $record && $record->status !== 'rascunho'
+                                                ? 'Use “Corrigir contrato” para alterar esta informação com registro no histórico.'
+                                                : null)
                                             ->rows(4)
                                             ->columnSpanFull(),
                                     ]),
@@ -177,8 +187,12 @@ class ContractForm
 
     public static function parseMoney(mixed $state): ?float
     {
-        if (blank($state)) return null;
-        if (is_numeric($state)) return (float) $state;
+        if (blank($state)) {
+            return null;
+        }
+        if (is_numeric($state)) {
+            return (float) $state;
+        }
 
         $str = (string) $state;
 
@@ -188,6 +202,7 @@ class ContractForm
         $lastComma = strrpos($str, ',');
         if ($lastComma !== false && strlen(substr($str, $lastComma + 1)) > 2) {
             $digits = preg_replace('/\D/', '', $str);
+
             return $digits !== '' ? (float) $digits / 100 : 0.0;
         }
 
@@ -196,7 +211,9 @@ class ContractForm
 
     private static function formatMoney(mixed $state): ?string
     {
-        if (blank($state)) return null;
+        if (blank($state)) {
+            return null;
+        }
 
         return number_format((float) $state, 2, ',', '.');
     }

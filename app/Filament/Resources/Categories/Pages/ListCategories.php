@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Categories\Pages;
 
 use App\Filament\Resources\Categories\CategoryResource;
+use Illuminate\Database\Eloquent\Model;
 use SolutionForest\FilamentTree\Resources\Pages\TreePage as BasePage;
 
 class ListCategories extends BasePage
@@ -27,5 +28,14 @@ class ListCategories extends BasePage
     public static function getMaxDepth(): int
     {
         return 4;
+    }
+
+    public function getTreeRecordTitle(?Model $record = null): string
+    {
+        if (! $record) {
+            return '';
+        }
+
+        return '<strong>'.e($record->codigo).'</strong> — '.e($record->descricao);
     }
 }

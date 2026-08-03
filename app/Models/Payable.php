@@ -13,6 +13,9 @@ class Payable extends Model
 
     protected $fillable = [
         'category_id',
+        'payable_recurrence_id',
+        'recurrence_sequence',
+        'recurrence_total',
         'supplier_id',
         'fornecedor',
         'descricao',
@@ -34,12 +37,19 @@ class Payable extends Model
             'valor_pago' => 'decimal:2',
             'data_vencimento' => 'date',
             'data_pagamento' => 'date',
+            'recurrence_sequence' => 'integer',
+            'recurrence_total' => 'integer',
         ];
     }
 
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
+    }
+
+    public function recurrence(): BelongsTo
+    {
+        return $this->belongsTo(PayableRecurrence::class, 'payable_recurrence_id');
     }
 
     public function supplier(): BelongsTo

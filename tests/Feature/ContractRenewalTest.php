@@ -6,6 +6,7 @@ use App\Models\Category;
 use App\Models\Client;
 use App\Models\Contract;
 use App\Models\User;
+use App\Services\Contracts\ContractCorrectionService;
 use App\Services\Contracts\ContractRenewalService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
@@ -126,6 +127,65 @@ class ContractRenewalTest extends TestCase
         $data['numero'] = 'OUTRO-CONTRATO';
         $this->expectException(ValidationException::class);
         app(ContractRenewalService::class)->renew($contract->fresh(), $data, $user->id);
+    }
+
+    public function test_it_corrects_the_current_version_and_pending_installments_without_renewing(): void
+    {
+        [$user, $client, $category] = $this->dependencies();
+        $contract = $this->contract($user, $client, $category)->fresh();
+        $previousVersionId = $contract->current_version_id;
+        $receivableIds = $contract->receivables()->orderBy('numero_parcela')->pluck('id')->all();
+
+        $version = app(ContractCorrectionService::class)->correct($contract, [
+            'data_inicio' => '2026-09-01',
+            'data_fim' => '2027-08-31',
+            'observacoes' => 'Vigência corrigida.',
+            'change_reason' => 'A data original foi informada incorretamente.',
+        ], $user->id);
+
+        $this->assertSame('correction', $version->change_type);
+        $this->assertSame(2, $version->version_number);
+        $this->assertSame('superseded', $contract->versions()->find($previousVersionId)->status);
+        $this->assertSame($receivableIds, $contract->receivables()->orderBy('numero_parcela')->pluck('id')->all());
+        $this->assertSame(
+            ['2026-09-01', '2026-10-01'],
+            $contract->receivables()->orderBy('numero_parcela')->get()->map(fn ($item): string => $item->data_vencimento->toDateString())->all(),
+        );
+        $this->assertSame([$version->id], $contract->receivables()->pluck('contract_version_id')->unique()->values()->all());
+        $this->assertDatabaseHas('contracts', [
+            'id' => $contract->id,
+            'current_version_id' => $version->id,
+            'observacoes' => 'Vigência corrigida.',
+        ]);
+        $correctedContract = $contract->fresh();
+        $this->assertSame('2026-09-01', $correctedContract->data_inicio->toDateString());
+        $this->assertSame('2027-08-31', $correctedContract->data_fim->toDateString());
+        $this->assertDatabaseHas('contract_version_changes', [
+            'contract_version_id' => $version->id,
+            'field' => 'data_inicio',
+            'old_value' => '2026-01-01',
+            'new_value' => '2026-09-01',
+        ]);
+    }
+
+    public function test_it_blocks_date_correction_when_the_current_version_has_a_paid_installment(): void
+    {
+        [$user, $client, $category] = $this->dependencies();
+        $contract = $this->contract($user, $client, $category)->fresh();
+        $contract->receivables()->first()->update([
+            'status' => 'pago',
+            'data_pagamento' => now(),
+            'valor_pago' => 600,
+        ]);
+
+        $this->expectException(ValidationException::class);
+
+        app(ContractCorrectionService::class)->correct($contract, [
+            'data_inicio' => '2026-09-01',
+            'data_fim' => '2027-08-31',
+            'observacoes' => null,
+            'change_reason' => 'Correção de teste.',
+        ], $user->id);
     }
 
     private function dependencies(): array

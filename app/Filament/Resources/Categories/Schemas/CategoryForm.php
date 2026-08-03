@@ -2,12 +2,13 @@
 
 namespace App\Filament\Resources\Categories\Schemas;
 
-use App\Models\Category;
+use App\Services\CategoryCodeGenerator;
 use CodeWithDennis\FilamentSelectTree\SelectTree;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 
 class CategoryForm
@@ -26,13 +27,20 @@ class CategoryForm
                             ->searchable()
                             ->placeholder('Nenhuma (conta raiz)')
                             ->enableBranchNode()
+                            ->live()
+                            ->afterStateUpdated(fn ($state, Set $set) => $set(
+                                'codigo',
+                                app(CategoryCodeGenerator::class)->next(filled($state) ? (int) $state : null),
+                            ))
                             ->columnSpanFull(),
 
                         TextInput::make('codigo')
                             ->label('Código')
                             ->required()
+                            ->default(fn (): string => app(CategoryCodeGenerator::class)->next())
+                            ->readOnly()
                             ->maxLength(255)
-                            ->placeholder('Ex: 1.1'),
+                            ->helperText('Gerado automaticamente de acordo com a conta pai.'),
 
                         TextInput::make('descricao')
                             ->label('Descrição')
@@ -48,12 +56,6 @@ class CategoryForm
                             ])
                             ->required()
                             ->native(false),
-
-                        TextInput::make('order')
-                            ->label('Ordem')
-                            ->numeric()
-                            ->default(0)
-                            ->minValue(0),
 
                         Toggle::make('ativo')
                             ->label('Ativo')

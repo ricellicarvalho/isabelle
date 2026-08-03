@@ -9,8 +9,6 @@ use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Pages\Page;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
-use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Carbon;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use UnitEnum;
@@ -43,6 +41,11 @@ class DreReport extends Page
             'data_fim' => now()->endOfMonth()->format('Y-m-d'),
         ]);
         $this->generateReport();
+    }
+
+    public function getHeading(): string
+    {
+        return '';
     }
 
     public function form(Schema $schema): Schema
@@ -97,8 +100,8 @@ class DreReport extends Page
         $pdf = Pdf::loadView('pdf.dre', ['report' => $this->report]);
 
         return response()->streamDownload(
-            fn () => print($pdf->output()),
-            'dre-' . now()->format('Y-m-d-His') . '.pdf'
+            fn () => print ($pdf->output()),
+            'dre-'.now()->format('Y-m-d-His').'.pdf'
         );
     }
 }

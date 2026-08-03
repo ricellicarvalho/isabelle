@@ -32,7 +32,7 @@ class DreService
         $receivablesPagos = Receivable::query()
             ->where('status', 'pago')
             ->whereBetween('data_pagamento', [$inicio, $fim])
-            ->get(['category_id', 'valor_pago', 'valor']);
+            ->get(['category_id', 'valor_pago', 'valor', 'data_vencimento', 'data_pagamento']);
 
         $payablesPagos = Payable::query()
             ->where('status', 'pago')
@@ -50,15 +50,29 @@ class DreService
         };
 
         $receitasMap = $somaPorCategoria($receivablesPagos);
+        $receitasDoMesMap = $somaPorCategoria($receivablesPagos->filter(
+            fn (Receivable $receivable): bool => ! Carbon::parse($receivable->data_vencimento)
+                ->startOfMonth()
+                ->lt(Carbon::parse($receivable->data_pagamento)->startOfMonth()),
+        ));
+        $receitasAnterioresMap = $somaPorCategoria($receivablesPagos->filter(
+            fn (Receivable $receivable): bool => Carbon::parse($receivable->data_vencimento)
+                ->startOfMonth()
+                ->lt(Carbon::parse($receivable->data_pagamento)->startOfMonth()),
+        ));
         $pagosMap = $somaPorCategoria($payablesPagos);
 
         $categorias = Category::query()->orderBy('order')->get();
 
         $receitas = self::buildTree($categorias, 'receita', $receitasMap);
+        $receitasDoMes = self::buildTree($categorias, 'receita', $receitasDoMesMap);
+        $receitasAnteriores = self::buildTree($categorias, 'receita', $receitasAnterioresMap);
         $custos = self::buildTree($categorias, 'custo', $pagosMap);
         $despesas = self::buildTree($categorias, 'despesa', $pagosMap);
 
         $totalReceitas = self::sumNodes($receitas);
+        $totalReceitasDoMes = self::sumNodes($receitasDoMes);
+        $totalReceitasAnteriores = self::sumNodes($receitasAnteriores);
         $totalCustos = self::sumNodes($custos);
         $totalDespesas = self::sumNodes($despesas);
 
@@ -69,10 +83,14 @@ class DreService
         return [
             'periodo' => ['inicio' => $inicio, 'fim' => $fim],
             'receitas' => $receitas,
+            'entradas_mes' => $receitasDoMes,
+            'entradas_periodos_anteriores' => $receitasAnteriores,
             'custos' => $custos,
             'despesas' => $despesas,
             'totais' => [
                 'receitas' => $totalReceitas,
+                'entradas_mes' => $totalReceitasDoMes,
+                'entradas_periodos_anteriores' => $totalReceitasAnteriores,
                 'custos' => $totalCustos,
                 'lucro_bruto' => $lucroBruto,
                 'despesas' => $totalDespesas,

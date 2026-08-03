@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Payables\Tables;
 
+use App\Filament\Resources\Payables\Pages\ListPayables;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -51,6 +52,16 @@ class PayablesTable
                     ->searchable()
                     ->limit(35),
 
+                TextColumn::make('recurrence_sequence')
+                    ->label('Recorrência')
+                    ->formatStateUsing(fn ($state, $record): string => $state
+                        ? "{$state}/{$record->recurrence_total}"
+                        : '—')
+                    ->badge()
+                    ->color('info')
+                    ->placeholder('—')
+                    ->toggleable(),
+
                 TextColumn::make('category.descricao')
                     ->label('Categoria')
                     ->searchable()
@@ -77,7 +88,7 @@ class PayablesTable
                             return null;
                         }
 
-                        return abs($dias) . ' dias';
+                        return abs($dias).' dias';
                     })
                     ->badge()
                     ->color('danger')
@@ -155,6 +166,11 @@ class PayablesTable
                         ->whereIn('status', ['pendente', 'vencido'])
                         ->whereDate('data_vencimento', '<', now()))
                     ->toggle(),
+
+                Filter::make('recorrentes')
+                    ->label('Contas recorrentes')
+                    ->query(fn (Builder $query): Builder => $query->whereNotNull('payable_recurrence_id'))
+                    ->toggle(),
             ])
             ->actions([
                 EditAction::make(),
@@ -188,6 +204,11 @@ class PayablesTable
                         }),
                     DeleteBulkAction::make(),
                 ]),
-            ]);
+            ])
+            ->contentFooter(function (ListPayables $livewire) {
+                $resumo = $livewire->getSelectedPayablesSummary();
+
+                return view('filament.resources.payables.selected-total-footer', $resumo);
+            });
     }
 }

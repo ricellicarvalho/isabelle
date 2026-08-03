@@ -6,89 +6,96 @@
     @if ($report)
         @php
             $totais = $report['totais'];
-            $renderNode = function ($node, $depth = 0) use (&$renderNode) {
-                $padding = $depth * 24;
-                $html = '<tr class="border-b border-gray-100 dark:border-gray-700">';
-                $html .= '<td class="py-2" style="padding-left: ' . $padding . 'px;">';
-                $html .= '<span class="text-xs text-gray-500 mr-2">' . e($node['codigo']) . '</span>';
-                $html .= e($node['descricao']);
-                $html .= '</td>';
-                $html .= '<td class="py-2 text-right tabular-nums">R$ ' . number_format($node['total'], 2, ',', '.') . '</td>';
-                $html .= '</tr>';
+            $basePercentual = (float) $totais['receitas'];
+            $percentual = fn ($valor) => $basePercentual > 0 ? ((float) $valor / $basePercentual) * 100 : 0;
+            $fmt = fn ($valor) => 'R$ ' . number_format((float) $valor, 2, ',', '.');
+            $pct = fn ($valor) => number_format($percentual($valor), 2, ',', '.') . '%';
+            $renderNode = function ($node) use (&$renderNode, $fmt, $pct) {
+                $isGroup = ! empty($node['children']);
+                $background = $isGroup ? 'background:#d8f3ff;color:#1976d2;font-weight:700;' : '';
+                $html = '<tr>';
+                $html .= '<td style="padding:8px 12px;text-align:center;' . $background . '"><strong style="margin-right:8px;">' . e($node['codigo']) . '</strong>' . e($node['descricao']) . '</td>';
+                $html .= '<td style="padding:8px 12px;text-align:right;font-variant-numeric:tabular-nums;' . ($isGroup ? 'font-weight:700;' : '') . '">' . $fmt($node['total']) . '</td>';
+                $html .= '<td style="padding:8px 12px;text-align:right;font-variant-numeric:tabular-nums;' . ($isGroup ? 'font-weight:700;' : '') . '">' . $pct($node['total']) . '</td></tr>';
                 foreach ($node['children'] as $child) {
-                    $html .= $renderNode($child, $depth + 1);
+                    $html .= $renderNode($child);
+                }
+                return $html;
+            };
+            $renderSection = function ($nodes) use ($renderNode) {
+                $html = '';
+                foreach ($nodes as $node) {
+                    if (! str_contains((string) $node['codigo'], '.') && ! empty($node['children'])) {
+                        foreach ($node['children'] as $child) {
+                            $html .= $renderNode($child);
+                        }
+                    } else {
+                        $html .= $renderNode($node);
+                    }
                 }
                 return $html;
             };
         @endphp
 
         <x-filament::section>
-            <x-slot name="heading">
-                Período: {{ $report['periodo']['inicio']->format('d/m/Y') }} a {{ $report['periodo']['fim']->format('d/m/Y') }}
-            </x-slot>
+            <div style="text-align:center;margin-bottom:20px;">
+                <h2 style="margin:0;color:#2488df;font-size:24px;font-weight:800;">DRE — Demonstração de Resultados</h2>
+                <p style="margin:6px 0 0;color:#64748b;font-size:14px;">Período: {{ $report['periodo']['inicio']->format('d/m/Y') }} a {{ $report['periodo']['fim']->format('d/m/Y') }}</p>
+            </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <div class="rounded-lg border border-success-200 bg-success-50 dark:bg-success-950/30 p-4">
-                    <div class="text-xs text-success-700 dark:text-success-300 uppercase">Receitas</div>
-                    <div class="text-2xl font-bold text-success-700 dark:text-success-300 tabular-nums">R$ {{ number_format($totais['receitas'], 2, ',', '.') }}</div>
+            <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:24px;">
+                <div style="border:1px solid #b9e9fb;background:#eaf8fe;border-radius:10px;padding:14px;text-align:center;">
+                    <div style="font-size:11px;font-weight:800;color:#1976d2;letter-spacing:.04em;">ENTRADAS</div>
+                    <div style="margin-top:5px;font-size:20px;font-weight:800;color:#1976d2;">{{ $fmt($totais['receitas']) }}</div>
                 </div>
-                <div class="rounded-lg border border-warning-200 bg-warning-50 dark:bg-warning-950/30 p-4">
-                    <div class="text-xs text-warning-700 dark:text-warning-300 uppercase">Custos + Despesas</div>
-                    <div class="text-2xl font-bold text-warning-700 dark:text-warning-300 tabular-nums">R$ {{ number_format($totais['custos'] + $totais['despesas'], 2, ',', '.') }}</div>
+                <div style="border:1px solid #fed7aa;background:#fff7ed;border-radius:10px;padding:14px;text-align:center;">
+                    <div style="font-size:11px;font-weight:800;color:#c56a18;letter-spacing:.04em;">CUSTOS + DESPESAS</div>
+                    <div style="margin-top:5px;font-size:20px;font-weight:800;color:#9a4e12;">{{ $fmt($totais['custos'] + $totais['despesas']) }}</div>
                 </div>
-                <div class="rounded-lg border {{ $totais['lucro_liquido'] >= 0 ? 'border-info-200 bg-info-50 dark:bg-info-950/30' : 'border-danger-200 bg-danger-50 dark:bg-danger-950/30' }} p-4">
-                    <div class="text-xs uppercase {{ $totais['lucro_liquido'] >= 0 ? 'text-info-700 dark:text-info-300' : 'text-danger-700 dark:text-danger-300' }}">Lucro Líquido</div>
-                    <div class="text-2xl font-bold tabular-nums {{ $totais['lucro_liquido'] >= 0 ? 'text-info-700 dark:text-info-300' : 'text-danger-700 dark:text-danger-300' }}">R$ {{ number_format($totais['lucro_liquido'], 2, ',', '.') }}</div>
+                <div style="border:1px solid {{ $totais['lucro_liquido'] >= 0 ? '#bbf7d0' : '#fecaca' }};background:{{ $totais['lucro_liquido'] >= 0 ? '#f0fdf4' : '#fef2f2' }};border-radius:10px;padding:14px;text-align:center;">
+                    <div style="font-size:11px;font-weight:800;color:{{ $totais['lucro_liquido'] >= 0 ? '#42804c' : '#b91c1c' }};letter-spacing:.04em;">LUCRO LÍQUIDO</div>
+                    <div style="margin-top:5px;font-size:20px;font-weight:800;color:{{ $totais['lucro_liquido'] >= 0 ? '#42804c' : '#b91c1c' }};">{{ $fmt($totais['lucro_liquido']) }}</div>
                 </div>
-                <div class="rounded-lg border border-gray-200 bg-gray-50 dark:bg-gray-900 p-4">
-                    <div class="text-xs text-gray-600 dark:text-gray-400 uppercase">Margem</div>
-                    <div class="text-2xl font-bold tabular-nums">{{ number_format($totais['margem_percentual'], 2, ',', '.') }}%</div>
+                <div style="border:1px solid #dbe4ef;background:#f8fafc;border-radius:10px;padding:14px;text-align:center;">
+                    <div style="font-size:11px;font-weight:800;color:#64748b;letter-spacing:.04em;">MARGEM</div>
+                    <div style="margin-top:5px;font-size:20px;font-weight:800;color:#475569;">{{ number_format($totais['margem_percentual'], 2, ',', '.') }}%</div>
                 </div>
             </div>
 
-            <table class="w-full text-sm">
-                <thead>
-                    <tr class="border-b-2 border-gray-300 dark:border-gray-600">
-                        <th class="text-left py-2 font-bold">Conta</th>
-                        <th class="text-right py-2 font-bold">Valor</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr class="bg-success-50 dark:bg-success-950/20 font-bold">
-                        <td class="py-2 px-2">(=) RECEITAS</td>
-                        <td class="py-2 px-2 text-right tabular-nums text-success-700 dark:text-success-300">R$ {{ number_format($totais['receitas'], 2, ',', '.') }}</td>
-                    </tr>
-                    @foreach ($report['receitas'] as $node)
-                        {!! $renderNode($node, 1) !!}
-                    @endforeach
+            <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:separate;border-spacing:0 3px;font-size:14px;color:#64748b;">
+                    <thead><tr style="background:#d8f3ff;color:#1976d2;">
+                        <th style="padding:10px 12px;text-align:center;font-weight:800;">Conta</th>
+                        <th style="padding:10px 12px;text-align:right;font-weight:800;">Valor</th>
+                        <th title="Valor da linha dividido pelo total de receitas do período" style="padding:10px 12px;text-align:right;font-weight:800;">Participação nas receitas (%)</th>
+                    </tr></thead>
+                    <tbody>
+                        <tr style="color:#1976d2;font-weight:800;"><td style="padding:12px;text-align:center;background:#d8f3ff;">(+) RECEITAS</td><td style="padding:12px;text-align:right;">{{ $fmt($totais['receitas']) }}</td><td style="padding:12px;text-align:right;">{{ $pct($totais['receitas']) }}</td></tr>
+                        @if ($totais['entradas_mes'] > 0)
+                            <tr style="font-weight:700;"><td style="padding:8px 12px;text-align:center;">Receitas do mês</td><td style="padding:8px 12px;text-align:right;">{{ $fmt($totais['entradas_mes']) }}</td><td style="padding:8px 12px;text-align:right;">{{ $pct($totais['entradas_mes']) }}</td></tr>
+                            {!! $renderSection($report['entradas_mes']) !!}
+                        @endif
+                        @if ($totais['entradas_periodos_anteriores'] > 0)
+                            <tr style="font-weight:700;"><td style="padding:8px 12px;text-align:center;">Receitas referentes a meses anteriores</td><td style="padding:8px 12px;text-align:right;">{{ $fmt($totais['entradas_periodos_anteriores']) }}</td><td style="padding:8px 12px;text-align:right;">{{ $pct($totais['entradas_periodos_anteriores']) }}</td></tr>
+                            {!! $renderSection($report['entradas_periodos_anteriores']) !!}
+                        @endif
 
-                    <tr class="bg-warning-50 dark:bg-warning-950/20 font-bold">
-                        <td class="py-2 px-2">(–) CUSTOS</td>
-                        <td class="py-2 px-2 text-right tabular-nums text-warning-700 dark:text-warning-300">R$ {{ number_format($totais['custos'], 2, ',', '.') }}</td>
-                    </tr>
-                    @foreach ($report['custos'] as $node)
-                        {!! $renderNode($node, 1) !!}
-                    @endforeach
+                        <tr><td colspan="3" style="height:12px;"></td></tr>
+                        @if ($totais['custos'] > 0)
+                            <tr style="color:#1976d2;font-weight:800;"><td style="padding:12px;text-align:center;background:#d8f3ff;">(−) CUSTOS</td><td style="padding:12px;text-align:right;">{{ $fmt($totais['custos']) }}</td><td style="padding:12px;text-align:right;">{{ $pct($totais['custos']) }}</td></tr>
+                            {!! $renderSection($report['custos']) !!}
+                            <tr style="font-weight:800;"><td style="padding:10px 12px;text-align:center;">(=) LUCRO BRUTO</td><td style="padding:10px 12px;text-align:right;">{{ $fmt($totais['lucro_bruto']) }}</td><td style="padding:10px 12px;text-align:right;">{{ $pct($totais['lucro_bruto']) }}</td></tr>
+                        @endif
 
-                    <tr class="bg-info-50 dark:bg-info-950/20 font-bold border-t-2 border-gray-300">
-                        <td class="py-3 px-2">(=) LUCRO BRUTO</td>
-                        <td class="py-3 px-2 text-right tabular-nums">R$ {{ number_format($totais['lucro_bruto'], 2, ',', '.') }}</td>
-                    </tr>
+                        <tr><td colspan="3" style="height:12px;"></td></tr>
+                        <tr style="color:#1976d2;font-weight:800;"><td style="padding:12px;text-align:center;background:#d8f3ff;">(−) DESPESAS</td><td style="padding:12px;text-align:right;">{{ $fmt($totais['despesas']) }}</td><td style="padding:12px;text-align:right;">{{ $pct($totais['despesas']) }}</td></tr>
+                        {!! $renderSection($report['despesas']) !!}
 
-                    <tr class="bg-warning-50 dark:bg-warning-950/20 font-bold">
-                        <td class="py-2 px-2">(–) DESPESAS</td>
-                        <td class="py-2 px-2 text-right tabular-nums text-warning-700 dark:text-warning-300">R$ {{ number_format($totais['despesas'], 2, ',', '.') }}</td>
-                    </tr>
-                    @foreach ($report['despesas'] as $node)
-                        {!! $renderNode($node, 1) !!}
-                    @endforeach
-
-                    <tr class="font-bold border-t-4 border-gray-400 {{ $totais['lucro_liquido'] >= 0 ? 'bg-info-100 dark:bg-info-950/40' : 'bg-danger-100 dark:bg-danger-950/40' }}">
-                        <td class="py-3 px-2 text-base">(=) LUCRO/PREJUÍZO LÍQUIDO</td>
-                        <td class="py-3 px-2 text-right tabular-nums text-base">R$ {{ number_format($totais['lucro_liquido'], 2, ',', '.') }}</td>
-                    </tr>
-                </tbody>
-            </table>
+                        <tr style="background:#ffe2d2;color:#7c6f68;font-weight:800;"><td style="padding:11px 12px;text-align:center;">Total de custos e despesas</td><td style="padding:11px 12px;text-align:right;">{{ $fmt($totais['custos'] + $totais['despesas']) }}</td><td style="padding:11px 12px;text-align:right;">{{ $pct($totais['custos'] + $totais['despesas']) }}</td></tr>
+                        <tr style="background:#d8f8d5;color:#42794a;font-weight:800;font-size:16px;"><td style="padding:12px;text-align:center;">Resultado do período</td><td style="padding:12px;text-align:right;">{{ $fmt($totais['lucro_liquido']) }}</td><td style="padding:12px;text-align:right;">{{ number_format($totais['margem_percentual'], 2, ',', '.') }}%</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </x-filament::section>
     @endif
 </x-filament-panels::page>
