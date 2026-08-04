@@ -2,19 +2,21 @@
 
 namespace App\Filament\Resources\Receivables\Tables;
 
+use App\Filament\Resources\Receivables\Pages\ListReceivables;
+use App\Jobs\EmitirNFSeJob;
 use App\Models\Nfse;
 use App\Models\NfseConfig;
 use App\Models\NfseServiceCode;
 use App\Models\Receivable;
 use App\Services\BankBoletoService;
-use App\Jobs\EmitirNFSeJob;
+use App\Services\BoletoBatchService;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Actions\ActionGroup;
 use Filament\Forms\Components\DatePicker;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
@@ -35,18 +37,14 @@ class ReceivablesTable
                 ->orderByRaw(
                     "CASE
                         WHEN status IN ('pendente', 'vencido') AND data_vencimento < ? THEN 0
-                        WHEN status IN ('pendente', 'vencido') THEN 1
-                        ELSE 2
+                        WHEN status IN ('pendente', 'vencido') AND data_vencimento = ? THEN 1
+                        WHEN status IN ('pendente', 'vencido') AND data_vencimento > ? THEN 2
+                        ELSE 3
                     END",
-                    [today()->toDateString()],
+                    array_fill(0, 3, today()->toDateString()),
                 )
-                ->orderByRaw(
-                    "CASE
-                        WHEN status IN ('pendente', 'vencido') AND data_vencimento < ? THEN data_vencimento
-                    END DESC",
-                    [today()->toDateString()],
-                )
-                ->orderBy('data_vencimento'))
+                ->orderBy('data_vencimento')
+                ->orderBy('id'))
             ->columns([
                 TextColumn::make('client.razao_social')
                     ->label('Cliente')
@@ -91,7 +89,7 @@ class ReceivablesTable
                             return null;
                         }
 
-                        return abs($dias) . ' dias';
+                        return abs($dias).' dias';
                     })
                     ->badge()
                     ->color('danger')
@@ -103,20 +101,39 @@ class ReceivablesTable
                     ->placeholder('—')
                     ->toggleable(),
 
-                TextColumn::make('status')
-                    ->label('Status')
+                TextColumn::make('situacao_cobranca')
+                    ->label('Situação')
+                    ->state(function (Receivable $record): string {
+                        if ($record->status === 'pago') {
+                            return 'pago';
+                        }
+
+                        if ($record->status === 'cancelado') {
+                            return 'cancelado';
+                        }
+
+                        $vencimento = $record->data_vencimento->startOfDay();
+
+                        return match (true) {
+                            $vencimento->isBefore(today()) => 'em_atraso',
+                            $vencimento->isToday() => 'vence_hoje',
+                            default => 'a_receber',
+                        };
+                    })
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
-                        'pendente' => 'warning',
+                        'em_atraso' => 'danger',
+                        'vence_hoje' => 'warning',
+                        'a_receber' => 'info',
                         'pago' => 'success',
                         'cancelado' => 'gray',
-                        'vencido' => 'danger',
                     })
                     ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'pendente' => 'Pendente',
+                        'em_atraso' => 'Em atraso',
+                        'vence_hoje' => 'Vence hoje',
+                        'a_receber' => 'A receber',
                         'pago' => 'Pago',
                         'cancelado' => 'Cancelado',
-                        'vencido' => 'Vencido',
                     }),
 
                 // Indicador de boleto(s) gerado(s) — eager loaded via counts()
@@ -128,12 +145,12 @@ class ReceivablesTable
                     ->color(fn (int $state): string => match (true) {
                         $state === 0 => 'gray',
                         $state === 1 => 'success',
-                        default      => 'warning',
+                        default => 'warning',
                     })
                     ->formatStateUsing(fn (int $state): string => match (true) {
                         $state === 0 => 'Sem boleto',
                         $state === 1 => '1 boleto',
-                        default      => "{$state} boletos",
+                        default => "{$state} boletos",
                     }),
             ])
             ->filters([
@@ -151,6 +168,28 @@ class ReceivablesTable
                     ->relationship('client', 'razao_social')
                     ->searchable()
                     ->preload(),
+
+                SelectFilter::make('contract_id')
+                    ->label('Contrato')
+                    ->relationship('contract', 'numero')
+                    ->searchable()
+                    ->preload(),
+
+                SelectFilter::make('category_id')
+                    ->label('Categoria')
+                    ->relationship('category', 'descricao')
+                    ->searchable()
+                    ->preload(),
+
+                SelectFilter::make('forma_pagamento')
+                    ->label('Forma de pagamento')
+                    ->options([
+                        'boleto' => 'Boleto',
+                        'pix' => 'PIX',
+                        'transferencia' => 'Transferência',
+                        'dinheiro' => 'Dinheiro',
+                        'cartao' => 'Cartão',
+                    ]),
 
                 Filter::make('data_vencimento')
                     ->label('Vencimento')
@@ -181,6 +220,20 @@ class ReceivablesTable
                         ->whereDate('data_vencimento', '<', now()))
                     ->toggle(),
 
+                Filter::make('vencendo_hoje')
+                    ->label('Vencendo hoje')
+                    ->query(fn (Builder $query): Builder => $query
+                        ->whereIn('status', ['pendente', 'vencido'])
+                        ->whereDate('data_vencimento', today()))
+                    ->toggle(),
+
+                Filter::make('a_receber_futuras')
+                    ->label('A receber (futuras)')
+                    ->query(fn (Builder $query): Builder => $query
+                        ->whereIn('status', ['pendente', 'vencido'])
+                        ->whereDate('data_vencimento', '>', today()))
+                    ->toggle(),
+
                 Filter::make('sem_boleto')
                     ->label('Sem boleto gerado')
                     ->query(fn (Builder $query): Builder => $query->whereDoesntHave('bankBoletos'))
@@ -192,131 +245,128 @@ class ReceivablesTable
                     ->toggle(),
             ])
             ->actions([
-                // RN11/RN16 - Gerar Boleto a partir da parcela (detecta 2ª via pelo count eager loaded)
-                Action::make('gerarBoleto')
-                    ->label(fn (Receivable $record): string =>
-                        ($record->bank_boletos_count ?? 0) > 0 ? 'Gerar 2ª Via' : 'Gerar Boleto'
-                    )
-                    ->icon(fn (Receivable $record): string =>
-                        ($record->bank_boletos_count ?? 0) > 0
-                            ? 'heroicon-o-document-duplicate'
-                            : 'heroicon-o-document-plus'
-                    )
-                    ->color(fn (Receivable $record): string =>
-                        ($record->bank_boletos_count ?? 0) > 0 ? 'warning' : 'info'
-                    )
-                    ->visible(fn (Receivable $record): bool => in_array($record->status, ['pendente', 'vencido']))
-                    ->requiresConfirmation()
-                    ->modalHeading(fn (Receivable $record): string =>
-                        ($record->bank_boletos_count ?? 0) > 0 ? 'Gerar 2ª Via de Boleto' : 'Gerar Boleto'
-                    )
-                    ->modalDescription(fn (Receivable $record): string =>
-                        ($record->bank_boletos_count ?? 0) > 0
-                            ? 'Já existe pelo menos um boleto para esta parcela. Confirma a geração de uma 2ª via?'
-                            : 'Confirma a geração do boleto para esta parcela?'
-                    )
-                    ->action(function (Receivable $record): void {
-                        try {
-                            $boleto = BankBoletoService::createFromReceivable($record);
-
-                            Notification::make()
-                                ->title('Boleto gerado com sucesso')
-                                ->body("Nosso Número: {$boleto->nosso_numero}")
-                                ->success()
-                                ->send();
-                        } catch (Throwable $e) {
-                            Notification::make()
-                                ->title('Erro ao gerar boleto')
-                                ->body($e->getMessage())
-                                ->danger()
-                                ->send();
-                        }
-                    }),
-                // Emissão de NFSe por parcela
-                Action::make('emitirNfse')
-                    ->label('Emitir NFSe')
-                    ->icon('heroicon-o-document-check')
-                    ->color('success')
-                    ->visible(fn (Receivable $record): bool => in_array($record->status, ['pendente', 'pago', 'vencido']))
-                    ->modalHeading('Emitir NFSe para esta Parcela')
-                    ->modalDescription('Cada parcela gera uma NFSe independente (RN conforme contrato).')
-                    ->modalWidth('lg')
-                    ->form([
-                        \Filament\Forms\Components\TextInput::make('valor')
-                            ->label('Valor (R$)')
-                            ->default(fn (Receivable $record): string => number_format((float) $record->valor, 2, ',', '.'))
-                            ->disabled()
-                            ->dehydrated(false),
-                        \Filament\Forms\Components\DatePicker::make('competencia')
-                            ->label('Competência')
-                            ->required()
-                            ->native(false)
-                            ->displayFormat('m/Y')
-                            ->default(fn (Receivable $record) => $record->data_vencimento ?? now())
-                            ->helperText('Mês de referência da prestação do serviço'),
-                        \Filament\Forms\Components\Textarea::make('discriminacao')
-                            ->label('Descrição do Serviço')
-                            ->required()
-                            ->default(fn (Receivable $record): string =>
-                                $record->descricao
-                                ?? $record->contract?->descricao
-                                ?? ''
-                            )
-                            ->rows(3)
-                            ->maxLength(2000),
-                    ])
-                    ->action(function (array $data, Receivable $record): void {
-                        $config = NfseConfig::ativa();
-                        if (! $config) {
-                            Notification::make()->title('Configuração NFSe não encontrada')->body('Acesse Configurações > Config NFSe.')->danger()->persistent()->send();
-                            return;
-                        }
-                        $client = $record->client;
-                        if (blank($client?->cnpj_cpf)) {
-                            Notification::make()->title('CPF/CNPJ do cliente não informado')->danger()->send();
-                            return;
-                        }
-                        if (blank($client?->municipio_ibge)) {
-                            Notification::make()->title('Código IBGE não informado')->body("Preencha o Código IBGE no cadastro do cliente '{$client->razao_social}'.")->danger()->persistent()->send();
-                            return;
-                        }
-                        $tipoServico = $record->contract?->tipo_servico ?? 'outro';
-                        $serviceCode = NfseServiceCode::paraTipoServico($tipoServico);
-                        $aliquota    = $serviceCode?->aliquota ?? $config->aliquota_iss_padrao ?? 2.00;
-                        $itemLista   = $serviceCode?->item_lista_servico ?? $config->item_lista_servico ?? '17.01';
-                        $numeroRps   = $config->reservarNumeroRps();
-                        $nfse = Nfse::create([
-                            'contract_id'        => $record->contract_id,
-                            'contract_version_id' => $record->contract_version_id,
-                            'receivable_id'      => $record->id,
-                            'numero_rps'         => $numeroRps,
-                            'serie_rps'          => $config->serie_rps,
-                            'tipo_rps'           => 1,
-                            'status'             => 'pendente',
-                            'ambiente'           => config('nfse.ambiente'),
-                            'valor'              => (float) $record->valor,
-                            'aliquota'           => (float) $aliquota,
-                            'iss_retido'         => $config->iss_retido,
-                            'valor_iss'          => round((float) $record->valor * (float) $aliquota / 100, 2),
-                            'item_lista_servico' => $itemLista,
-                            'discriminacao'      => $data['discriminacao'],
-                            'competencia'        => $data['competencia'],
-                            'created_by'         => auth()->id(),
-                        ]);
-                        try {
-                            EmitirNFSeJob::dispatch($nfse);
-                            Notification::make()->title('NFSe enviada para processamento')->body("RPS #{$numeroRps} gerado.")->success()->send();
-                        } catch (\Throwable $e) {
-                            $nfse->refresh();
-                            Notification::make()
-                                ->title('Falha ao emitir NFSe')
-                                ->body($nfse->ultimo_erro ?: $e->getMessage())
-                                ->danger()
-                                ->persistent()
-                                ->send();
-                        }
-                    }),
                 ActionGroup::make([
+                    // RN11/RN16 - Gerar Boleto a partir da parcela (detecta 2ª via pelo count eager loaded)
+                    Action::make('gerarBoleto')
+                        ->label(fn (Receivable $record): string => ($record->bank_boletos_count ?? 0) > 0 ? 'Gerar 2ª Via' : 'Gerar Boleto'
+                        )
+                        ->icon(fn (Receivable $record): string => ($record->bank_boletos_count ?? 0) > 0
+                                ? 'heroicon-o-document-duplicate'
+                                : 'heroicon-o-document-plus'
+                        )
+                        ->color(fn (Receivable $record): string => ($record->bank_boletos_count ?? 0) > 0 ? 'warning' : 'info'
+                        )
+                        ->visible(fn (Receivable $record): bool => in_array($record->status, ['pendente', 'vencido']))
+                        ->requiresConfirmation()
+                        ->modalHeading(fn (Receivable $record): string => ($record->bank_boletos_count ?? 0) > 0 ? 'Gerar 2ª Via de Boleto' : 'Gerar Boleto'
+                        )
+                        ->modalDescription(fn (Receivable $record): string => ($record->bank_boletos_count ?? 0) > 0
+                                ? 'Já existe pelo menos um boleto para esta parcela. Confirma a geração de uma 2ª via?'
+                                : 'Confirma a geração do boleto para esta parcela?'
+                        )
+                        ->action(function (Receivable $record): void {
+                            try {
+                                $boleto = BankBoletoService::createFromReceivable($record);
+
+                                Notification::make()
+                                    ->title('Boleto gerado com sucesso')
+                                    ->body("Nosso Número: {$boleto->nosso_numero}")
+                                    ->success()
+                                    ->send();
+                            } catch (Throwable $e) {
+                                Notification::make()
+                                    ->title('Erro ao gerar boleto')
+                                    ->body($e->getMessage())
+                                    ->danger()
+                                    ->send();
+                            }
+                        }),
+                    // Emissão de NFSe por parcela
+                    Action::make('emitirNfse')
+                        ->label('Emitir NFSe')
+                        ->icon('heroicon-o-document-check')
+                        ->color('success')
+                        ->visible(fn (Receivable $record): bool => in_array($record->status, ['pendente', 'pago', 'vencido']))
+                        ->modalHeading('Emitir NFSe para esta Parcela')
+                        ->modalDescription('Cada parcela gera uma NFSe independente (RN conforme contrato).')
+                        ->modalWidth('lg')
+                        ->form([
+                            \Filament\Forms\Components\TextInput::make('valor')
+                                ->label('Valor (R$)')
+                                ->default(fn (Receivable $record): string => number_format((float) $record->valor, 2, ',', '.'))
+                                ->disabled()
+                                ->dehydrated(false),
+                            \Filament\Forms\Components\DatePicker::make('competencia')
+                                ->label('Competência')
+                                ->required()
+                                ->native(false)
+                                ->displayFormat('m/Y')
+                                ->default(fn (Receivable $record) => $record->data_vencimento ?? now())
+                                ->helperText('Mês de referência da prestação do serviço'),
+                            \Filament\Forms\Components\Textarea::make('discriminacao')
+                                ->label('Descrição do Serviço')
+                                ->required()
+                                ->default(fn (Receivable $record): string => $record->descricao
+                                    ?? $record->contract?->descricao
+                                    ?? ''
+                                )
+                                ->rows(3)
+                                ->maxLength(2000),
+                        ])
+                        ->action(function (array $data, Receivable $record): void {
+                            $config = NfseConfig::ativa();
+                            if (! $config) {
+                                Notification::make()->title('Configuração NFSe não encontrada')->body('Acesse Configurações > Config NFSe.')->danger()->persistent()->send();
+
+                                return;
+                            }
+                            $client = $record->client;
+                            if (blank($client?->cnpj_cpf)) {
+                                Notification::make()->title('CPF/CNPJ do cliente não informado')->danger()->send();
+
+                                return;
+                            }
+                            if (blank($client?->municipio_ibge)) {
+                                Notification::make()->title('Código IBGE não informado')->body("Preencha o Código IBGE no cadastro do cliente '{$client->razao_social}'.")->danger()->persistent()->send();
+
+                                return;
+                            }
+                            $tipoServico = $record->contract?->tipo_servico ?? 'outro';
+                            $serviceCode = NfseServiceCode::paraTipoServico($tipoServico);
+                            $aliquota = $serviceCode?->aliquota ?? $config->aliquota_iss_padrao ?? 2.00;
+                            $itemLista = $serviceCode?->item_lista_servico ?? $config->item_lista_servico ?? '17.01';
+                            $numeroRps = $config->reservarNumeroRps();
+                            $nfse = Nfse::create([
+                                'contract_id' => $record->contract_id,
+                                'contract_version_id' => $record->contract_version_id,
+                                'receivable_id' => $record->id,
+                                'numero_rps' => $numeroRps,
+                                'serie_rps' => $config->serie_rps,
+                                'tipo_rps' => 1,
+                                'status' => 'pendente',
+                                'ambiente' => config('nfse.ambiente'),
+                                'valor' => (float) $record->valor,
+                                'aliquota' => (float) $aliquota,
+                                'iss_retido' => $config->iss_retido,
+                                'valor_iss' => round((float) $record->valor * (float) $aliquota / 100, 2),
+                                'item_lista_servico' => $itemLista,
+                                'discriminacao' => $data['discriminacao'],
+                                'competencia' => $data['competencia'],
+                                'created_by' => auth()->id(),
+                            ]);
+                            try {
+                                EmitirNFSeJob::dispatch($nfse);
+                                Notification::make()->title('NFSe enviada para processamento')->body("RPS #{$numeroRps} gerado.")->success()->send();
+                            } catch (\Throwable $e) {
+                                $nfse->refresh();
+                                Notification::make()
+                                    ->title('Falha ao emitir NFSe')
+                                    ->body($nfse->ultimo_erro ?: $e->getMessage())
+                                    ->danger()
+                                    ->persistent()
+                                    ->send();
+                            }
+                        }),
                     EditAction::make(),
                     DeleteAction::make(),
                 ]),
@@ -348,50 +398,53 @@ class ReceivablesTable
                                 ->send();
                         }),
 
-                    // Geração de boletos em lote — reporta erros individuais sem interromper o lote
+                    // Gera/reutiliza os boletos e entrega um PDF com uma página por vencimento.
                     BulkAction::make('gerarBoletosLote')
-                        ->label('Gerar Boletos')
-                        ->icon('heroicon-o-document-plus')
+                        ->label('Gerar boletos em PDF')
+                        ->icon('heroicon-o-document-arrow-down')
                         ->color('info')
                         ->requiresConfirmation()
-                        ->modalDescription('Gera boletos para todas as parcelas selecionadas com forma de pagamento "boleto" que ainda não possuem boleto vinculado.')
-                        ->action(function (Collection $records): void {
-                            $count = 0;
-                            $errors = 0;
+                        ->modalHeading(fn (Collection $records): string => app(BoletoBatchService::class)->validationMessage($records)
+                            ? 'Não foi possível gerar os boletos'
+                            : 'Gerar boletos em PDF')
+                        ->modalDescription(fn (Collection $records): string => app(BoletoBatchService::class)->validationMessage($records)
+                            ?? 'As parcelas devem pertencer ao mesmo cliente. Boletos existentes serão reutilizados e o arquivo terá uma página por boleto, em ordem de vencimento.')
+                        ->modalSubmitAction(fn (Action $action, Collection $records): Action => $action
+                            ->disabled(app(BoletoBatchService::class)->validationMessage($records) !== null))
+                        ->modalCancelActionLabel(fn (Collection $records): string => app(BoletoBatchService::class)->validationMessage($records)
+                            ? 'Fechar'
+                            : 'Cancelar')
+                        ->action(function (Collection $records) {
+                            try {
+                                $result = app(BoletoBatchService::class)->generate($records);
 
-                            foreach ($records as $record) {
-                                if ($record->forma_pagamento !== 'boleto') {
-                                    continue;
-                                }
-                                if (! in_array($record->status, ['pendente', 'vencido'])) {
-                                    continue;
-                                }
-                                if ($record->bankBoletos()->exists()) {
-                                    continue;
-                                }
-
-                                try {
-                                    BankBoletoService::createFromReceivable($record);
-                                    $count++;
-                                } catch (Throwable) {
-                                    $errors++;
-                                }
-                            }
-
-                            if ($errors > 0) {
                                 Notification::make()
-                                    ->title("{$count} boleto(s) gerado(s) — {$errors} erro(s)")
-                                    ->warning()
-                                    ->send();
-                            } else {
-                                Notification::make()
-                                    ->title("{$count} boleto(s) gerado(s)")
+                                    ->title(count($result['boletos']).' boleto(s) reunido(s) no PDF')
+                                    ->body("{$result['created']} novo(s) e {$result['reused']} reutilizado(s).")
                                     ->success()
+                                    ->send();
+
+                                return response()->streamDownload(
+                                    fn () => print ($result['pdf']),
+                                    $result['filename'],
+                                    ['Content-Type' => 'application/pdf'],
+                                );
+                            } catch (Throwable $e) {
+                                Notification::make()
+                                    ->title('Não foi possível gerar os boletos')
+                                    ->body($e->getMessage())
+                                    ->danger()
+                                    ->persistent()
                                     ->send();
                             }
                         }),
                     DeleteBulkAction::make(),
                 ]),
-            ]);
+            ])
+            ->contentFooter(function (ListReceivables $livewire) {
+                $summary = $livewire->getSelectedReceivablesSummary();
+
+                return view('filament.resources.receivables.selected-total-footer', $summary);
+            });
     }
 }
