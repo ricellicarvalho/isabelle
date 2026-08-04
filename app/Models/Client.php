@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Crypt;
 
 class Client extends Model
 {
@@ -56,9 +59,41 @@ class Client extends Model
             'telefones' => 'array',
             'cadastro_token_expira_em' => 'datetime',
             'cadastro_preenchido' => 'boolean',
-            'portal_last_generated_password' => 'encrypted',
-            'portal_financeiro_last_generated_password' => 'encrypted',
         ];
+    }
+
+    protected function portalLastGeneratedPassword(): Attribute
+    {
+        return Attribute::make(
+            get: fn (?string $value): ?string => $this->decryptStoredPassword($value),
+            set: fn (?string $value): ?string => $this->encryptStoredPassword($value),
+        );
+    }
+
+    protected function portalFinanceiroLastGeneratedPassword(): Attribute
+    {
+        return Attribute::make(
+            get: fn (?string $value): ?string => $this->decryptStoredPassword($value),
+            set: fn (?string $value): ?string => $this->encryptStoredPassword($value),
+        );
+    }
+
+    private function decryptStoredPassword(?string $value): ?string
+    {
+        if (! filled($value)) {
+            return null;
+        }
+
+        try {
+            return Crypt::decryptString($value);
+        } catch (DecryptException) {
+            return null;
+        }
+    }
+
+    private function encryptStoredPassword(?string $value): ?string
+    {
+        return filled($value) ? Crypt::encryptString($value) : null;
     }
 
     /**

@@ -20,6 +20,7 @@ class ResetPortalPassword
     public static function make(?Client $record = null, string $tipo = 'documentacao'): Action
     {
         $config = PortalAccessSlots::get($tipo);
+        $emailField = $config['email_field'];
         $fk = $config['fk'];
         $passwordField = $config['password_field'];
 
@@ -45,7 +46,7 @@ class ResetPortalPassword
                     : 'Uma nova senha aleatória será gerada. A senha anterior será invalidada imediatamente.';
             })
             ->modalSubmitActionLabel('Resetar Senha')
-            ->action(function (Component $livewire) use ($record, $fk, $passwordField, $config): void {
+            ->action(function (Component $livewire) use ($record, $emailField, $fk, $config): void {
                 if (! $record || ! $record->{$fk}) {
                     return;
                 }
@@ -62,9 +63,56 @@ class ResetPortalPassword
                     return;
                 }
 
+                $email = Str::lower(trim((string) $record->{$emailField}));
+
+                if (! filled($email)) {
+                    Notification::make()
+                        ->title('E-mail obrigatório')
+                        ->body("Preencha o campo \"{$config['campo_label']}\" antes de resetar a senha.")
+                        ->danger()
+                        ->send();
+
+                    return;
+                }
+
+                $emailAlreadyUsed = User::query()
+                    ->where('email', $email)
+                    ->whereKeyNot($user->id)
+                    ->exists();
+
+                if ($emailAlreadyUsed) {
+                    Notification::make()
+                        ->title('E-mail já usado em outro acesso')
+                        ->body("O e-mail {$email} já pertence a outro usuário. Revogue o acesso atual ou ajuste o cadastro antes de resetar a senha.")
+                        ->danger()
+                        ->persistent()
+                        ->send();
+
+                    return;
+                }
+
+                $vinculos = Client::query()
+                    ->where('portal_user_id', $user->id)
+                    ->orWhere('portal_financeiro_user_id', $user->id)
+                    ->count();
+
+                if (! hash_equals(Str::lower($user->email), $email) && $vinculos > 1) {
+                    Notification::make()
+                        ->title('Usuário compartilhado com e-mail divergente')
+                        ->body('Este usuário acessa mais de uma empresa. Revogue e gere um novo acesso para este cliente antes de alterar o e-mail de login.')
+                        ->danger()
+                        ->persistent()
+                        ->send();
+
+                    return;
+                }
+
                 $password = Str::password(length: 8, symbols: false);
 
-                $user->update(['password' => Hash::make($password)]);
+                $user->update([
+                    'email' => $email,
+                    'password' => Hash::make($password),
+                ]);
                 Client::query()
                     ->where('portal_user_id', $user->id)
                     ->get()
@@ -84,6 +132,7 @@ class ResetPortalPassword
                     'tipo' => $config['tipo'],
                     'client_id' => $record->id,
                     'user_id' => $user->id,
+                    'login_email' => $user->email,
                     'reset_by' => Auth::id(),
                 ]);
 

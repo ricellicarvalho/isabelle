@@ -10,17 +10,16 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
-use Filament\Schemas\Components\Utilities\Get;
-use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Support\RawJs;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\HtmlString;
-use Illuminate\Support\Str;
 
 class ClientForm
 {
@@ -39,8 +38,8 @@ class ClientForm
                                         Select::make('tipo_pessoa')
                                             ->label('Tipo de Pessoa')
                                             ->options([
-                                                'pj'    => 'Pessoa Jurídica',
-                                                'pf'    => 'Pessoa Física',
+                                                'pj' => 'Pessoa Jurídica',
+                                                'pf' => 'Pessoa Física',
                                                 'caepf' => 'CAEPF',
                                             ])
                                             ->default('pj')
@@ -50,22 +49,22 @@ class ClientForm
 
                                         TextInput::make('cnpj_cpf')
                                             ->label(fn (Get $get): string => match ($get('tipo_pessoa')) {
-                                                'pf'    => 'CPF',
+                                                'pf' => 'CPF',
                                                 'caepf' => 'CAEPF',
                                                 default => 'CNPJ',
                                             })
                                             ->mask(fn (Get $get): ?string => match ($get('tipo_pessoa')) {
-                                                'pf'    => '999.999.999-99',
+                                                'pf' => '999.999.999-99',
                                                 'caepf' => null,
                                                 default => '99.999.999/9999-99',
                                             })
                                             ->placeholder(fn (Get $get): string => match ($get('tipo_pessoa')) {
-                                                'pf'    => '000.000.000-00',
+                                                'pf' => '000.000.000-00',
                                                 'caepf' => 'Digite o CAEPF',
                                                 default => '00.000.000/0000-00',
                                             })
                                             ->maxLength(fn (Get $get): int => match ($get('tipo_pessoa')) {
-                                                'pf'    => 14,
+                                                'pf' => 14,
                                                 'caepf' => 30,
                                                 default => 18,
                                             })
@@ -97,7 +96,7 @@ class ClientForm
                                         Select::make('status')
                                             ->label('Status')
                                             ->options([
-                                                'ativo'   => 'Ativo',
+                                                'ativo' => 'Ativo',
                                                 'inativo' => 'Inativo',
                                             ])
                                             ->default('ativo')
@@ -225,11 +224,11 @@ class ClientForm
                                                 Select::make('tipo')
                                                     ->label('Tipo')
                                                     ->options([
-                                                        'celular'  => '📱 Celular',
-                                                        'fixo'     => '📞 Fixo',
+                                                        'celular' => '📱 Celular',
+                                                        'fixo' => '📞 Fixo',
                                                         'whatsapp' => '💬 WhatsApp',
                                                         'trabalho' => '🏢 Trabalho',
-                                                        'recado'   => '📝 Recado',
+                                                        'recado' => '📝 Recado',
                                                     ])
                                                     ->native(false)
                                                     ->default('celular'),
@@ -280,10 +279,10 @@ class ClientForm
                                         Select::make('nr1_status')
                                             ->label('Status NR-1')
                                             ->options([
-                                                'pendente'     => 'Pendente',
+                                                'pendente' => 'Pendente',
                                                 'em_andamento' => 'Em Andamento',
                                                 'regularizada' => 'Regularizada',
-                                                'finalizada'   => 'Finalizada',
+                                                'finalizada' => 'Finalizada',
                                             ])
                                             ->default('pendente')
                                             ->disabled()
@@ -301,21 +300,21 @@ class ClientForm
 
                                                 $color = match (true) {
                                                     $pct === 100 => '#22c55e',
-                                                    $pct >= 60   => '#8b5cf6',
-                                                    $pct > 0     => '#f59e0b',
-                                                    default      => '#e5e7eb',
+                                                    $pct >= 60 => '#8b5cf6',
+                                                    $pct > 0 => '#f59e0b',
+                                                    default => '#e5e7eb',
                                                 };
 
                                                 return new HtmlString(
                                                     '<div style="margin-top: 6px;">'
-                                                    . '<div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">'
-                                                    . '<span style="font-size:1.25rem; font-weight:700; color:' . $color . ';">' . $pct . '%</span>'
-                                                    . '<span style="color:#6b7280; font-size:0.85rem;">' . $done . ' de 5 etapas</span>'
-                                                    . '</div>'
-                                                    . '<div style="width:100%; height:8px; background:#e5e7eb; border-radius:9999px; overflow:hidden;">'
-                                                    . '<div style="width:' . $pct . '%; height:100%; background:' . $color . '; border-radius:9999px; transition:width 0.4s ease;"></div>'
-                                                    . '</div>'
-                                                    . '</div>'
+                                                    .'<div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">'
+                                                    .'<span style="font-size:1.25rem; font-weight:700; color:'.$color.';">'.$pct.'%</span>'
+                                                    .'<span style="color:#6b7280; font-size:0.85rem;">'.$done.' de 5 etapas</span>'
+                                                    .'</div>'
+                                                    .'<div style="width:100%; height:8px; background:#e5e7eb; border-radius:9999px; overflow:hidden;">'
+                                                    .'<div style="width:'.$pct.'%; height:100%; background:'.$color.'; border-radius:9999px; transition:width 0.4s ease;"></div>'
+                                                    .'</div>'
+                                                    .'</div>'
                                                 );
                                             }),
                                     ]),
@@ -343,17 +342,15 @@ class ClientForm
                                                     ->label('Modalidade')
                                                     ->options([
                                                         'presencial' => 'Presencial',
-                                                        'online'     => 'Online',
+                                                        'online' => 'Online',
                                                     ])
                                                     ->native(false)
-                                                    ->placeholder('Selecione')
-                                                    ,
+                                                    ->placeholder('Selecione'),
 
                                                 DatePicker::make('nr1_checklist.etapa1_data')
                                                     ->label('Data')
                                                     ->native(false)
-                                                    ->displayFormat('d/m/Y')
-                                                    ,
+                                                    ->displayFormat('d/m/Y'),
                                             ]),
 
                                         // Etapa 2
@@ -371,8 +368,7 @@ class ClientForm
                                                 DatePicker::make('nr1_checklist.etapa2_data')
                                                     ->label('Data')
                                                     ->native(false)
-                                                    ->displayFormat('d/m/Y')
-                                                    ,
+                                                    ->displayFormat('d/m/Y'),
                                             ]),
 
                                         // Etapa 3
@@ -390,8 +386,7 @@ class ClientForm
                                                 DatePicker::make('nr1_checklist.etapa3_data')
                                                     ->label('Data')
                                                     ->native(false)
-                                                    ->displayFormat('d/m/Y')
-                                                    ,
+                                                    ->displayFormat('d/m/Y'),
                                             ]),
 
                                         // Etapa 4
@@ -409,8 +404,7 @@ class ClientForm
                                                 DatePicker::make('nr1_checklist.etapa4_data')
                                                     ->label('Data')
                                                     ->native(false)
-                                                    ->displayFormat('d/m/Y')
-                                                    ,
+                                                    ->displayFormat('d/m/Y'),
                                             ]),
 
                                         // Etapa 5
@@ -428,8 +422,7 @@ class ClientForm
                                                 DatePicker::make('nr1_checklist.etapa5_data')
                                                     ->label('Data')
                                                     ->native(false)
-                                                    ->displayFormat('d/m/Y')
-                                                    ,
+                                                    ->displayFormat('d/m/Y'),
                                             ]),
                                     ]),
 
@@ -457,7 +450,7 @@ class ClientForm
 
                                         Placeholder::make('portal_access_email')
                                             ->label('E-mail de Login')
-                                            ->content(fn ($record): string => $record?->email ?? '—')
+                                            ->content(fn ($record): string => $record?->portalUser?->email ?? '—')
                                             ->visible(fn ($record): bool => (bool) $record?->portal_user_id),
 
                                         Placeholder::make('portal_access_created')
@@ -505,7 +498,7 @@ class ClientForm
 
                                         Placeholder::make('portal_financeiro_access_email')
                                             ->label('E-mail de Login')
-                                            ->content(fn ($record): string => $record?->contato_financeiro_email ?? '—')
+                                            ->content(fn ($record): string => $record?->portalFinanceiroUser?->email ?? '—')
                                             ->visible(fn ($record): bool => (bool) $record?->portal_financeiro_user_id),
 
                                         Placeholder::make('portal_financeiro_access_created')
@@ -581,9 +574,9 @@ class ClientForm
 
         $status = match (true) {
             $etapa1 && $etapa2 && $etapa3 && $etapa4 && $etapa5 => 'finalizada',
-            $etapa1 && $etapa2 && $etapa3 && $etapa4            => 'regularizada',
-            $etapa1 && $etapa2 && $etapa3                       => 'em_andamento',
-            default                                              => 'pendente',
+            $etapa1 && $etapa2 && $etapa3 && $etapa4 => 'regularizada',
+            $etapa1 && $etapa2 && $etapa3 => 'em_andamento',
+            default => 'pendente',
         };
 
         $set('nr1_status', $status);
