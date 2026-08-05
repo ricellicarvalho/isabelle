@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 
 class CnabRemessaService
 {
@@ -30,55 +31,58 @@ class CnabRemessaService
     {
         $account = BankAccount::active();
         if (! $account) {
-            throw new \RuntimeException('Nenhuma conta bancária ativa cadastrada.');
+            throw new RuntimeException('Nenhuma conta bancária ativa cadastrada.');
         }
 
         $elegiveis = $boletos->filter(fn (BankBoleto $b) => in_array($b->status, ['pendente', 'cancelado']))->values();
 
         if ($elegiveis->isEmpty()) {
-            throw new \RuntimeException('Nenhum boleto elegível para remessa (apenas pendentes ou cancelados).');
+            throw new RuntimeException('Nenhum boleto elegível para remessa (apenas pendentes ou cancelados).');
         }
 
         return DB::transaction(function () use ($account, $elegiveis) {
             $sequencial = $account->reserveSequencialRemessa();
 
-            $cnab = self::buildCnab($account, $sequencial);
+            return self::createRemessa($account, $elegiveis, $sequencial);
+        });
+    }
 
-            foreach ($elegiveis as $boleto) {
-                self::addDetalhe($cnab, $boleto);
-            }
+    /**
+     * Gera uma remessa corretiva com sequencial definido para boletos que ja
+     * foram incluidos em remessas anteriores rejeitadas pelo banco.
+     *
+     * @param  Collection<int,BankBoleto>  $boletos
+     */
+    public static function generateCorrective(Collection $boletos, int $sequencial): BankRemessa
+    {
+        $account = BankAccount::active();
+        if (! $account) {
+            throw new RuntimeException('Nenhuma conta bancária ativa cadastrada.');
+        }
 
-            $conteudo = $cnab->gerar();
+        if ($boletos->isEmpty()) {
+            throw new RuntimeException('Nenhum boleto informado para remessa corretiva.');
+        }
 
-            $filename = sprintf(
-                'remessa_%s_%s_%s.rem',
-                $account->banco,
-                str_pad((string) $sequencial, 6, '0', STR_PAD_LEFT),
-                now()->format('YmdHis')
-            );
+        if (BankRemessa::query()->where('sequencial_arquivo', $sequencial)->exists()) {
+            throw new RuntimeException("A remessa sequencial {$sequencial} já existe.");
+        }
 
-            Storage::disk('local')->put('remessas/' . $filename, $conteudo);
+        return DB::transaction(function () use ($account, $boletos, $sequencial) {
+            $remessa = self::createRemessa($account, $boletos->values(), $sequencial);
 
-            $remessa = BankRemessa::create([
-                'sequencial_arquivo' => $sequencial,
-                'data_geracao' => now(),
-                'caminho_arquivo' => 'remessas/' . $filename,
-                'quantidade_titulos' => $elegiveis->count(),
-                'valor_total' => $elegiveis->sum('valor'),
-                'layout' => 'cnab' . $account->layout_remessa,
-                'status' => 'gerado',
-                'created_by' => auth()->id() ?? $elegiveis->first()->created_by,
-            ]);
-
-            foreach ($elegiveis as $boleto) {
-                $boleto->update([
-                    'remessa_id' => $remessa->id,
-                    'status' => $boleto->status === 'cancelado' ? 'cancelado' : 'emitido',
-                ]);
+            $account->refresh();
+            if ($account->proximo_sequencial_remessa <= $sequencial) {
+                $account->update(['proximo_sequencial_remessa' => $sequencial + 1]);
             }
 
             return $remessa;
         });
+    }
+
+    public static function filename(int $sequencial): string
+    {
+        return sprintf('REMESSA%06d.REM', $sequencial);
     }
 
     protected static function buildCnab(BankAccount $account, int $sequencial): AbstractCnab
@@ -89,7 +93,7 @@ class CnabRemessaService
             '104' => new Caixa,
             '237' => new Bradesco,
             '341' => new Itau,
-            default => throw new \RuntimeException("Banco {$account->banco} não suportado."),
+            default => throw new RuntimeException("Banco {$account->banco} não suportado."),
         };
 
         $cnab->idremessa = $sequencial;
@@ -148,5 +152,42 @@ class CnabRemessaService
         }
 
         $cnab->addDetalhe($detalhe);
+    }
+
+    /**
+     * @param  Collection<int,BankBoleto>  $boletos
+     */
+    protected static function createRemessa(BankAccount $account, Collection $boletos, int $sequencial): BankRemessa
+    {
+        $cnab = self::buildCnab($account, $sequencial);
+
+        foreach ($boletos as $boleto) {
+            self::addDetalhe($cnab, $boleto);
+        }
+
+        $conteudo = $cnab->gerar();
+        $path = 'remessas/' . self::filename($sequencial);
+
+        Storage::disk('local')->put($path, $conteudo);
+
+        $remessa = BankRemessa::create([
+            'sequencial_arquivo' => $sequencial,
+            'data_geracao' => now(),
+            'caminho_arquivo' => $path,
+            'quantidade_titulos' => $boletos->count(),
+            'valor_total' => $boletos->sum('valor'),
+            'layout' => 'cnab' . $account->layout_remessa,
+            'status' => 'gerado',
+            'created_by' => auth()->id() ?? $boletos->first()->created_by,
+        ]);
+
+        foreach ($boletos as $boleto) {
+            $boleto->update([
+                'remessa_id' => $remessa->id,
+                'status' => $boleto->status === 'cancelado' ? 'cancelado' : 'emitido',
+            ]);
+        }
+
+        return $remessa;
     }
 }

@@ -71,7 +71,10 @@ class BankAccount extends Model
     {
         return DB::transaction(function () {
             $fresh = static::query()->lockForUpdate()->find($this->id);
-            $next = $fresh->proximo_sequencial_remessa;
+            $next = max(
+                (int) $fresh->proximo_sequencial_remessa,
+                (int) BankRemessa::query()->max('sequencial_arquivo') + 1,
+            );
             $fresh->update(['proximo_sequencial_remessa' => $next + 1]);
 
             return $next;
