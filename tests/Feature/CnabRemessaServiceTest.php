@@ -86,6 +86,31 @@ class CnabRemessaServiceTest extends TestCase
         $this->assertSame(1, BankRemessa::query()->where('sequencial_arquivo', 5)->count());
     }
 
+    public function test_remessa_download_tracking_marks_generated_remessa_as_sent(): void
+    {
+        $user = User::factory()->create();
+        $remessa = $this->remessa($user, 1);
+
+        $remessa->registrarDownloadArquivo($user->id);
+
+        $this->assertSame('enviado', $remessa->fresh()->status);
+        $this->assertSame($user->id, $remessa->fresh()->arquivo_baixado_by);
+        $this->assertNotNull($remessa->fresh()->arquivo_baixado_at);
+    }
+
+    public function test_remessa_download_tracking_preserves_processed_status(): void
+    {
+        $user = User::factory()->create();
+        $remessa = $this->remessa($user, 1);
+        $remessa->update(['status' => 'processado']);
+
+        $remessa->registrarDownloadArquivo($user->id);
+
+        $this->assertSame('processado', $remessa->fresh()->status);
+        $this->assertSame($user->id, $remessa->fresh()->arquivo_baixado_by);
+        $this->assertNotNull($remessa->fresh()->arquivo_baixado_at);
+    }
+
     private function dependencies(): array
     {
         $user = User::factory()->create();

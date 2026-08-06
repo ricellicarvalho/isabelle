@@ -31,6 +31,8 @@ class ViewBankRemessa extends ViewRecord
                     /** @var BankRemessa $record */
                     $record = $this->getRecord();
 
+                    $record->registrarDownloadArquivo(auth()->id());
+
                     return response()->streamDownload(
                         fn () => print(Storage::disk('local')->get($record->caminho_arquivo)),
                         basename($record->caminho_arquivo),

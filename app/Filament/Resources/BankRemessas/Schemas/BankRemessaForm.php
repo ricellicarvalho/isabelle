@@ -20,6 +20,9 @@ class BankRemessaForm
                         TextInput::make('data_geracao')->label('Geração')->disabled(),
                         TextInput::make('quantidade_titulos')->label('Qtd. Títulos')->disabled(),
                         TextInput::make('valor_total')->label('Valor Total')->prefix('R$')->disabled(),
+                        TextInput::make('status')->label('Status')->disabled(),
+                        TextInput::make('arquivo_baixado_at')->label('Baixado em')->disabled(),
+                        TextInput::make('arquivoBaixadoBy.name')->label('Baixado por')->disabled(),
                         TextInput::make('caminho_arquivo')->label('Arquivo')->disabled()->columnSpanFull(),
                     ]),
             ]);

@@ -20,6 +20,8 @@ class BankRemessa extends Model
         'valor_total',
         'layout',
         'status',
+        'arquivo_baixado_at',
+        'arquivo_baixado_by',
         'created_by',
         'deleted_by',
     ];
@@ -28,6 +30,7 @@ class BankRemessa extends Model
     {
         return [
             'data_geracao' => 'datetime',
+            'arquivo_baixado_at' => 'datetime',
             'valor_total' => 'decimal:2',
         ];
     }
@@ -42,8 +45,27 @@ class BankRemessa extends Model
         return $this->belongsTo(User::class, 'deleted_by');
     }
 
+    public function arquivoBaixadoBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'arquivo_baixado_by');
+    }
+
     public function boletos(): HasMany
     {
         return $this->hasMany(BankBoleto::class, 'remessa_id');
+    }
+
+    public function registrarDownloadArquivo(?int $userId = null): void
+    {
+        $updates = [
+            'arquivo_baixado_at' => now(),
+            'arquivo_baixado_by' => $userId,
+        ];
+
+        if ($this->status === 'gerado') {
+            $updates['status'] = 'enviado';
+        }
+
+        $this->update($updates);
     }
 }

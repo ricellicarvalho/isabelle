@@ -44,7 +44,30 @@ class BankRemessasTable
                 TextColumn::make('status')
                     ->label('Status')
                     ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'gerado' => 'warning',
+                        'enviado' => 'info',
+                        'processado' => 'success',
+                        default => 'gray',
+                    })
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        'gerado' => 'Gerado',
+                        'enviado' => 'Arquivo baixado',
+                        'processado' => 'Processado',
+                        default => $state,
+                    })
                     ->placeholder('—'),
+
+                TextColumn::make('arquivo_baixado_at')
+                    ->label('Baixado em')
+                    ->dateTime('d/m/Y H:i')
+                    ->placeholder('—')
+                    ->sortable(),
+
+                TextColumn::make('arquivoBaixadoBy.name')
+                    ->label('Baixado por')
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->actions([
                 Action::make('baixarArquivo')
@@ -53,6 +76,8 @@ class BankRemessasTable
                     ->color('info')
                     ->visible(fn (BankRemessa $record): bool => $record->caminho_arquivo && Storage::disk('local')->exists($record->caminho_arquivo))
                     ->action(function (BankRemessa $record): StreamedResponse {
+                        $record->registrarDownloadArquivo(auth()->id());
+
                         return response()->streamDownload(
                             fn () => print(Storage::disk('local')->get($record->caminho_arquivo)),
                             basename($record->caminho_arquivo),
