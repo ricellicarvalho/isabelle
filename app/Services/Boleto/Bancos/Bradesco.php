@@ -60,7 +60,7 @@ class Bradesco extends LibBradesco
         $this->codigoBarras .= Util::numberFormatGeral($this->getConta(), 7, 0);
         $this->codigoBarras .= '0';
 
-        $r = Util::modulo11($this->codigoBarras, 9, 1);
+        $r = Util::modulo11($this->codigoBarras, 2, 9, 1);
         $dv = ($r == 0 || $r == 1 || $r == 10) ? 1 : (11 - $r);
         $this->codigoBarras = substr($this->codigoBarras, 0, 4) . $dv . substr($this->codigoBarras, 4);
 
