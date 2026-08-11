@@ -1,5 +1,7 @@
 FROM php:8.4-fpm
 
+COPY docker/php/uploads.ini /usr/local/etc/php/conf.d/uploads.ini
+
 # 1. Instalar dependências do sistema, bibliotecas de desenvolvimento, suporte a idiomas e configurar UTF-8
 RUN apt-get update && apt-get install -y \
     libpng-dev \

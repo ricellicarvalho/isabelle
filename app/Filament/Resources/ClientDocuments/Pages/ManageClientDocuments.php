@@ -80,6 +80,7 @@ class ManageClientDocuments extends ManageRelatedRecords
 
                 FileUpload::make('caminho_arquivo')
                     ->label('Arquivos')
+                    ->helperText('Tamanho máximo: 25 MB por arquivo. Até 20 arquivos por documento.')
                     ->required()
                     ->multiple()
                     ->reorderable()
@@ -105,7 +106,7 @@ class ManageClientDocuments extends ManageRelatedRecords
                         'video/quicktime',
                         'video/x-msvideo',
                     ])
-                    ->maxSize(20480)
+                    ->maxSize(config('client_documents.max_file_size_kb'))
                     ->maxFiles(20)
                     ->columnSpanFull(),
 
