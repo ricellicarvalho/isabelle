@@ -114,3 +114,24 @@ Pronto! Seu ambiente Laravel 12 com Docker está funcionando! 🎉
 ## 🐞 Dúvidas ou problemas?
 
 Abra uma issue no repositório.
+
+## Produção
+
+Em produção, sempre carregue explicitamente o arquivo de override e recrie os
+containers quando o Compose for alterado:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate
+```
+
+O MySQL roda no host e o `.env` deve usar `DB_HOST=host.docker.internal`. O
+mapeamento desse nome para o gateway do host fica no `docker-compose.yml`, para
+que ele também exista em servidores Linux.
+
+Confira a resolução do host e a conexão antes de limpar os caches:
+
+```bash
+docker exec isabelle_app getent hosts host.docker.internal
+docker exec isabelle_app php artisan db:show
+docker exec isabelle_app php artisan optimize:clear
+```

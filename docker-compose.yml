@@ -19,6 +19,10 @@ services:
     restart: unless-stopped
     environment:
       - TZ=America/Araguaina
+    # Necessário quando DB_HOST=host.docker.internal (MySQL nativo no host).
+    # No Linux esse nome não é criado automaticamente pelo Docker.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     working_dir: /var/www
     networks:
       - network_isabelle
