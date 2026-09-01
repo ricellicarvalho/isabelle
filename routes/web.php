@@ -131,9 +131,9 @@ Route::get('/relatorios/contratos-a-vencer/pdf', function (Request $request) {
     ]);
 })->name('reports.expiring-contracts.pdf')->middleware(['signed', 'auth:web']);
 
-// Relatório de Contas a Receber em PDF — abre inline em nova aba, URL assinada
+// Relatório de Recebimentos em PDF — abre inline em nova aba, URL assinada
 Route::get('/relatorios/contas-a-receber/pdf', function (Request $request) {
-    $filters = $request->only(['client_id', 'contract_id', 'data_inicio', 'data_fim', 'status']);
+    $filters = $request->only(['client_id', 'contract_id', 'data_inicio', 'data_fim', 'forma_pagamento']);
     $report = ReceivablesReportService::generate($filters);
 
     $logoPath = public_path('images/logo.png');
@@ -146,7 +146,7 @@ Route::get('/relatorios/contas-a-receber/pdf', function (Request $request) {
 
     return response($pdf->output(), 200, [
         'Content-Type' => 'application/pdf',
-        'Content-Disposition' => 'inline; filename="contas-a-receber-' . now()->format('Y-m-d') . '.pdf"',
+        'Content-Disposition' => 'inline; filename="recebimentos-' . now()->format('Y-m-d') . '.pdf"',
     ]);
 })->name('reports.receivables.pdf')->middleware(['signed', 'auth:web']);
 

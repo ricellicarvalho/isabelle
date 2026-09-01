@@ -14,17 +14,18 @@ class ReceivablesReportService
         $contractId = $filters['contract_id'] ?? null;
         $dataInicio = $filters['data_inicio'] ?? null;
         $dataFim = $filters['data_fim'] ?? null;
-        $status = $filters['status'] ?? null;
+        $formaPagamento = $filters['forma_pagamento'] ?? null;
 
         $query = Receivable::query()
             ->with(['client', 'contract'])
+            ->whereNotNull('data_pagamento')
             ->when($clientId, fn ($query, $id) => $query->where('client_id', $id))
             ->when($contractId, fn ($query, $id) => $query->where('contract_id', $id))
-            ->when($dataInicio, fn ($query, $date) => $query->whereDate('data_vencimento', '>=', $date))
-            ->when($dataFim, fn ($query, $date) => $query->whereDate('data_vencimento', '<=', $date))
-            ->when($status, fn ($query, $value) => $query->where('status', $value))
-            ->orderBy('data_vencimento')
-            ->orderBy('id');
+            ->when($dataInicio, fn ($query, $date) => $query->whereDate('data_pagamento', '>=', $date))
+            ->when($dataFim, fn ($query, $date) => $query->whereDate('data_pagamento', '<=', $date))
+            ->when($formaPagamento, fn ($query, $value) => $query->where('forma_pagamento', $value))
+            ->orderByDesc('data_pagamento')
+            ->orderByDesc('id');
 
         $receivables = $query->get();
 
@@ -34,19 +35,20 @@ class ReceivablesReportService
                 'cliente' => $receivable->client?->razao_social ?? '—',
                 'contrato' => $receivable->contract?->numero ?? '—',
                 'descricao' => $receivable->descricao,
-                'parcela' => $receivable->numero_parcela,
-                'vencimento' => $receivable->data_vencimento?->format('d/m/Y'),
-                'status' => $receivable->status,
-                'valor' => (float) $receivable->valor,
+                'pagamento' => $receivable->data_pagamento?->format('d/m/Y'),
+                'forma_pagamento' => $receivable->forma_pagamento,
+                'valor' => (float) ($receivable->valor_pago ?? $receivable->valor),
             ])->toArray(),
-            'total' => (float) $receivables->sum('valor'),
+            'total' => (float) $receivables->sum(
+                fn (Receivable $receivable): float => (float) ($receivable->valor_pago ?? $receivable->valor)
+            ),
             'count' => $receivables->count(),
             'filters' => [
                 'cliente' => $clientId ? Client::find($clientId)?->razao_social : null,
                 'contrato' => $contractId ? Contract::find($contractId)?->numero : null,
                 'data_inicio' => $dataInicio,
                 'data_fim' => $dataFim,
-                'status' => $status,
+                'forma_pagamento' => $formaPagamento,
             ],
         ];
     }

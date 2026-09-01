@@ -24,7 +24,7 @@ class ReceivablesReport extends Page
 
     protected static ?int $navigationSort = 4;
 
-    protected static ?string $title = 'Contas a Receber';
+    protected static ?string $title = 'Recebimentos';
 
     public ?array $data = [];
 
@@ -42,7 +42,7 @@ class ReceivablesReport extends Page
             'contract_id' => null,
             'data_inicio' => now()->startOfMonth()->format('Y-m-d'),
             'data_fim' => now()->endOfMonth()->format('Y-m-d'),
-            'status' => null,
+            'forma_pagamento' => null,
         ]);
 
         $this->generateReport();
@@ -69,7 +69,7 @@ class ReceivablesReport extends Page
                         ->orderBy('numero')
                         ->get()
                         ->mapWithKeys(fn (Contract $contract): array => [
-                            $contract->id => $contract->numero . ' — ' . ($contract->client?->razao_social ?? 'Sem cliente'),
+                            $contract->id => $contract->numero.' — '.($contract->client?->razao_social ?? 'Sem cliente'),
                         ])
                         ->toArray())
                     ->placeholder('Todos os contratos')
@@ -79,7 +79,7 @@ class ReceivablesReport extends Page
                     ->columnSpan(3),
 
                 DatePicker::make('data_inicio')
-                    ->label('Vencimento de')
+                    ->label('Pagamento de')
                     ->required()
                     ->native(false)
                     ->displayFormat('d/m/Y')
@@ -87,7 +87,7 @@ class ReceivablesReport extends Page
                     ->columnSpan(2),
 
                 DatePicker::make('data_fim')
-                    ->label('Vencimento até')
+                    ->label('Pagamento até')
                     ->required()
                     ->native(false)
                     ->displayFormat('d/m/Y')
@@ -95,15 +95,16 @@ class ReceivablesReport extends Page
                     ->live()
                     ->columnSpan(2),
 
-                Select::make('status')
-                    ->label('Status')
+                Select::make('forma_pagamento')
+                    ->label('Forma de Pagamento')
                     ->options([
-                        'pendente' => 'Pendente',
-                        'pago' => 'Pago',
-                        'cancelado' => 'Cancelado',
-                        'vencido' => 'Vencido',
+                        'boleto' => 'Boleto',
+                        'pix' => 'PIX',
+                        'transferencia' => 'Transferência',
+                        'dinheiro' => 'Dinheiro',
+                        'cartao' => 'Cartão',
                     ])
-                    ->placeholder('Todos os status')
+                    ->placeholder('Todas as formas')
                     ->native(false)
                     ->live()
                     ->columnSpan(2),

@@ -4,32 +4,26 @@
     </form>
 
     @php
-        $statusLabel = fn (string $status): string => match ($status) {
-            'pendente' => 'Pendente',
-            'pago' => 'Pago',
-            'cancelado' => 'Cancelado',
-            'vencido' => 'Vencido',
-            default => $status,
-        };
-
-        $statusColor = fn (string $status): string => match ($status) {
-            'pago' => 'color:#15803d;background:#dcfce7;',
-            'cancelado' => 'color:#4b5563;background:#f3f4f6;',
-            'vencido' => 'color:#b91c1c;background:#fee2e2;',
-            default => 'color:#a16207;background:#fef9c3;',
+        $formaPagamentoLabel = fn (?string $forma): string => match ($forma) {
+            'boleto' => 'Boleto',
+            'pix' => 'PIX',
+            'transferencia' => 'Transferência',
+            'dinheiro' => 'Dinheiro',
+            'cartao' => 'Cartão',
+            default => '—',
         };
     @endphp
 
     <x-filament::section>
         <x-slot name="heading">
-            Contas a Receber
+            Recebimentos
             <span class="ml-2 text-sm font-normal text-gray-500">
                 {{ $report['count'] ?? 0 }} {{ ($report['count'] ?? 0) === 1 ? 'registro encontrado' : 'registros encontrados' }}
             </span>
         </x-slot>
 
         <div class="mb-5 rounded-lg bg-primary-50 p-4 dark:bg-primary-950/30">
-            <div class="text-sm text-gray-500 dark:text-gray-400">Valor total das contas a receber</div>
+            <div class="text-sm text-gray-500 dark:text-gray-400">Valor total recebido</div>
             <div class="mt-1 text-2xl font-bold text-primary-700 dark:text-primary-300">
                 R$ {{ number_format($report['total'] ?? 0, 2, ',', '.') }}
             </div>
@@ -37,7 +31,7 @@
 
         @if (empty($report['items']))
             <div class="py-12 text-center text-sm text-gray-400">
-                Nenhuma conta a receber encontrada para os filtros selecionados.
+                Nenhum recebimento encontrado para os filtros selecionados.
             </div>
         @else
             <div class="overflow-x-auto">
@@ -47,10 +41,9 @@
                             <th class="px-2 py-3 text-left font-semibold">Cliente</th>
                             <th class="px-2 py-3 text-left font-semibold">Contrato</th>
                             <th class="px-2 py-3 text-left font-semibold">Descrição</th>
-                            <th class="px-2 py-3 text-center font-semibold">Parcela</th>
-                            <th class="px-2 py-3 text-center font-semibold">Vencimento</th>
-                            <th class="px-2 py-3 text-center font-semibold">Status</th>
-                            <th class="px-2 py-3 text-right font-semibold">Valor</th>
+                            <th class="px-2 py-3 text-center font-semibold">Pagamento</th>
+                            <th class="px-2 py-3 text-center font-semibold">Forma</th>
+                            <th class="px-2 py-3 text-right font-semibold">Valor Recebido</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -59,20 +52,15 @@
                                 <td class="px-2 py-3">{{ $item['cliente'] }}</td>
                                 <td class="px-2 py-3 font-mono">{{ $item['contrato'] }}</td>
                                 <td class="px-2 py-3">{{ $item['descricao'] }}</td>
-                                <td class="px-2 py-3 text-center">{{ $item['parcela'] ?? '—' }}</td>
-                                <td class="px-2 py-3 text-center tabular-nums">{{ $item['vencimento'] }}</td>
-                                <td class="px-2 py-3 text-center">
-                                    <span style="{{ $statusColor($item['status']) }}display:inline-block;padding:2px 9px;border-radius:9999px;font-size:.75rem;font-weight:600;">
-                                        {{ $statusLabel($item['status']) }}
-                                    </span>
-                                </td>
+                                <td class="px-2 py-3 text-center tabular-nums">{{ $item['pagamento'] }}</td>
+                                <td class="px-2 py-3 text-center">{{ $formaPagamentoLabel($item['forma_pagamento']) }}</td>
                                 <td class="px-2 py-3 text-right tabular-nums">R$ {{ number_format($item['valor'], 2, ',', '.') }}</td>
                             </tr>
                         @endforeach
                     </tbody>
                     <tfoot>
                         <tr class="border-t-2 border-primary-600 font-bold">
-                            <td colspan="6" class="px-2 py-3">Total geral</td>
+                            <td colspan="5" class="px-2 py-3">Total geral</td>
                             <td class="px-2 py-3 text-right">R$ {{ number_format($report['total'] ?? 0, 2, ',', '.') }}</td>
                         </tr>
                     </tfoot>

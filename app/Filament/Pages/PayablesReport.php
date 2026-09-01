@@ -26,6 +26,8 @@ class PayablesReport extends Page
 
     protected static ?string $title = 'Contas a Pagar';
 
+    protected static bool $shouldRegisterNavigation = false;
+
     public ?array $data = [];
 
     public array $report = [];

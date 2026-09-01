@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="utf-8">
-    <title>Relatório de Contas a Receber</title>
+    <title>Relatório de Recebimentos</title>
     <style>
         @page { margin: 18mm 12mm 16mm; }
         body { font-family: DejaVu Sans, sans-serif; font-size: 9px; color: #222; }
@@ -34,7 +34,7 @@
                 @endif
             </td>
             <td style="width:65%;">
-                <h1>Relatório de Contas a Receber</h1>
+                <h1>Relatório de Recebimentos</h1>
                 <div class="generated">Gerado em {{ now()->format('d/m/Y \à\s H:i') }}</div>
             </td>
         </tr>
@@ -42,41 +42,49 @@
 
     @php
         $filters = $report['filters'];
-        $statusLabel = match ($filters['status']) {
-            'pendente' => 'Pendente',
-            'pago' => 'Pago',
-            'cancelado' => 'Cancelado',
-            'vencido' => 'Vencido',
-            default => 'Todos',
+        $formaPagamentoLabel = match ($filters['forma_pagamento']) {
+            'boleto' => 'Boleto',
+            'pix' => 'PIX',
+            'transferencia' => 'Transferência',
+            'dinheiro' => 'Dinheiro',
+            'cartao' => 'Cartão',
+            default => 'Todas',
+        };
+        $itemFormaPagamentoLabel = fn (?string $forma): string => match ($forma) {
+            'boleto' => 'Boleto',
+            'pix' => 'PIX',
+            'transferencia' => 'Transferência',
+            'dinheiro' => 'Dinheiro',
+            'cartao' => 'Cartão',
+            default => '—',
         };
     @endphp
 
     <div class="filters">
         <strong>Cliente:</strong> {{ $filters['cliente'] ?? 'Todos' }} &nbsp;|&nbsp;
         <strong>Contrato:</strong> {{ $filters['contrato'] ?? 'Todos' }} &nbsp;|&nbsp;
-        <strong>Status:</strong> {{ $statusLabel }}<br>
-        <strong>Vencimento:</strong>
+        <strong>Forma:</strong> {{ $formaPagamentoLabel }}<br>
+        <strong>Pagamento:</strong>
         {{ $filters['data_inicio'] ? \Illuminate\Support\Carbon::parse($filters['data_inicio'])->format('d/m/Y') : 'Início' }}
         a
         {{ $filters['data_fim'] ? \Illuminate\Support\Carbon::parse($filters['data_fim'])->format('d/m/Y') : 'Fim' }}
         &nbsp;|&nbsp; <strong>Registros:</strong> {{ $report['count'] }}
     </div>
 
-    <div class="summary">Valor total: R$ {{ number_format($report['total'], 2, ',', '.') }}</div>
+    <div class="summary">Valor total recebido: R$ {{ number_format($report['total'], 2, ',', '.') }}</div>
 
     @if (empty($report['items']))
-        <div class="empty">Nenhuma conta a receber encontrada para os filtros selecionados.</div>
+        <div class="empty">Nenhum recebimento encontrado para os filtros selecionados.</div>
     @else
         <table class="items">
             <thead>
                 <tr>
                     <th class="left" style="width:22%;">Cliente</th>
-                    <th class="left" style="width:12%;">Contrato</th>
-                    <th class="left" style="width:25%;">Descrição</th>
-                    <th class="center" style="width:8%;">Parcela</th>
-                    <th class="center" style="width:12%;">Vencimento</th>
-                    <th class="center" style="width:10%;">Status</th>
-                    <th class="right" style="width:11%;">Valor</th>
+                    <th class="left" style="width:15%;">Contrato</th>
+                    <th class="left" style="width:31%;">Descrição</th>
+                    <th class="center" style="width:11%;">Pagamento</th>
+                    <th class="center" style="width:10%;">Forma</th>
+                    <th class="right" style="width:11%;">Valor Recebido</th>
                 </tr>
             </thead>
             <tbody>
@@ -85,14 +93,13 @@
                         <td>{{ $item['cliente'] }}</td>
                         <td>{{ $item['contrato'] }}</td>
                         <td>{{ $item['descricao'] }}</td>
-                        <td class="center">{{ $item['parcela'] ?? '—' }}</td>
-                        <td class="center">{{ $item['vencimento'] }}</td>
-                        <td class="center">{{ ucfirst($item['status']) }}</td>
+                        <td class="center">{{ $item['pagamento'] }}</td>
+                        <td class="center">{{ $itemFormaPagamentoLabel($item['forma_pagamento']) }}</td>
                         <td class="right">R$ {{ number_format($item['valor'], 2, ',', '.') }}</td>
                     </tr>
                 @endforeach
                 <tr class="total">
-                    <td colspan="6">Total geral</td>
+                    <td colspan="5">Total geral</td>
                     <td class="right">R$ {{ number_format($report['total'], 2, ',', '.') }}</td>
                 </tr>
             </tbody>
