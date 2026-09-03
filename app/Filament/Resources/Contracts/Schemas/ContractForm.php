@@ -12,8 +12,12 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Schema;
+use Filament\Schemas\Components\Utilities\Set;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Forms\Components\Placeholder;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\HtmlString;
+use Carbon\CarbonImmutable;
 
 class ContractForm
 {
@@ -60,6 +64,7 @@ class ContractForm
                                             ])
                                             ->default('nr1')
                                             ->required()
+                                            ->live()
                                             ->native(false),
 
                                         Select::make('status')
@@ -91,6 +96,15 @@ class ContractForm
                                             ->label('Descrição')
                                             ->rows(3)
                                             ->columnSpanFull(),
+                                    ]),
+
+                                Section::make()
+                                    ->visible(fn (Get $get): bool => $get('tipo_servico') === 'nr1')
+                                    ->compact()
+                                    ->components([
+                                        Placeholder::make('nr1_orientation')
+                                            ->hiddenLabel()
+                                            ->content(fn ($record): HtmlString => self::nr1Orientation($record !== null)),
                                     ]),
                             ]),
 
@@ -144,6 +158,14 @@ class ContractForm
                                             ->label('Data de Início')
                                             ->required()
                                             ->disabled(fn ($record): bool => $record && $record->status !== 'rascunho')
+                                            ->live()
+                                            ->afterStateUpdated(function ($state, Set $set, $record): void {
+                                                if ($record || blank($state)) {
+                                                    return;
+                                                }
+
+                                                $set('data_fim', CarbonImmutable::parse($state)->addYearNoOverflow()->toDateString());
+                                            })
                                             ->native(false)
                                             ->displayFormat('d/m/Y'),
 
@@ -217,4 +239,19 @@ class ContractForm
 
         return number_format((float) $state, 2, ',', '.');
     }
+
+    private static function nr1Orientation(bool $isEditing): HtmlString
+    {
+        $message = $isEditing
+            ? 'Use <strong>Preencher checklist NR-1/ANO</strong>, no topo da página, para atualizar o ciclo vigente. Consulte todos os anos na aba <strong>Checklist NR-1 por ano</strong> abaixo do formulário.'
+            : 'Depois de salvar, o sistema criará a NR-1 do ano inicial da vigência. Você será direcionado para usar <strong>Preencher checklist NR-1/ANO</strong> e consultar o histórico em <strong>Checklist NR-1 por ano</strong>.';
+
+        return new HtmlString(
+            '<div style="display:flex;gap:12px;align-items:flex-start;background:linear-gradient(135deg,#f5f3ff,#ede9fe);border:1.5px solid #8b5cf6;border-left:5px solid #7c3aed;border-radius:12px;padding:14px 16px;color:#2e1065;box-shadow:0 3px 10px rgba(124,58,237,.12)">'
+            .'<div style="display:flex;align-items:center;justify-content:center;flex:0 0 34px;height:34px;border-radius:9px;background:#7c3aed;color:white;font-size:18px;font-weight:900">✓</div>'
+            .'<div><div style="font-size:.95rem;font-weight:800;margin-bottom:4px">Onde preencher a NR-1?</div>'
+            .'<div style="font-size:.84rem;line-height:1.6;color:#4c1d95">'.$message.'</div></div></div>'
+        );
+    }
+
 }

@@ -77,7 +77,7 @@ class RenewContractAction
 
                 Notification::make()
                     ->title("Contrato renovado — Versão {$version->version_number}")
-                    ->body('A versão anterior foi preservada no histórico e as novas parcelas foram geradas.')
+                    ->body("A NR-1/{$version->data_inicio->format('Y')} foi criada. Use “Preencher checklist NR-1/ANO” nas ações do contrato para preenchê-la.")
                     ->success()
                     ->send();
             });

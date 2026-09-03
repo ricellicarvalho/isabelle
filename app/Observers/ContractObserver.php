@@ -6,6 +6,7 @@ use App\Models\Contract;
 use App\Models\ContractVersion;
 use App\Models\Receivable;
 use App\Services\Contracts\ContractRenewalService;
+use App\Services\Nr1\Nr1CycleService;
 use Illuminate\Validation\ValidationException;
 
 class ContractObserver
@@ -62,6 +63,8 @@ class ContractObserver
         ]);
 
         $contract->updateQuietly(['current_version_id' => $version->id]);
+
+        app(Nr1CycleService::class)->openForVersion($contract, $version, $contract->created_by);
 
         if ($contract->status !== 'cancelado') {
             $this->generateReceivables($contract, $version);

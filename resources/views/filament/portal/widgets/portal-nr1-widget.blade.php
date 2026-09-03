@@ -36,8 +36,9 @@
                 </svg>
             </div>
             <div>
-                <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0; line-height:1.25;">Conformidade NR-1</h3>
+                <h3 style="font-size:1rem; font-weight:700; color:#0f172a; margin:0; line-height:1.25;">Conformidade NR-1{{ $referenceYear ? '/'.$referenceYear : '' }}</h3>
                 <p style="font-size:.8125rem; color:#475569; margin:0;">Acompanhe as etapas do seu programa</p>
+                @if($contractNumber)<p style="font-size:.75rem; color:#64748b; margin:.2rem 0 0;">Contrato {{ $contractNumber }}</p>@endif
             </div>
         </div>
 
@@ -181,3 +182,26 @@
     </div>
 
 </div>
+
+@if(count($history) > 1)
+    <div style="margin-top:1rem;background:white;border-radius:1rem;padding:1.25rem 1.5rem;box-shadow:0 1px 4px rgba(0,0,0,.07),0 0 0 1px rgba(0,0,0,.04);">
+        <h3 style="font-size:1rem;font-weight:700;color:#0f172a;margin:0 0 1rem;">Histórico NR-1</h3>
+        <div style="display:flex;flex-direction:column;gap:.5rem;">
+            @foreach($history as $item)
+                <details @if($loop->first) open @endif style="border:1px solid #e2e8f0;border-radius:.75rem;padding:.75rem 1rem;">
+                    <summary style="cursor:pointer;font-weight:700;color:#334155;">
+                        NR-1/{{ $item['year'] }} · {{ $item['progress'] }}% · {{ match($item['status']) { 'finalizada' => 'Finalizada', 'regularizada' => 'Regularizada', 'em_andamento' => 'Em andamento', default => 'Pendente' } }}
+                        @if($item['contract']) · Contrato {{ $item['contract'] }} @endif
+                    </summary>
+                    <div style="margin-top:.75rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.5rem;">
+                        @foreach(['etapa1' => 'Encontro', 'etapa2' => 'Avaliação de riscos', 'etapa3' => 'Relatório DPRS', 'etapa4' => 'Matriz de risco', 'etapa5' => 'Devolutiva'] as $key => $label)
+                            <div style="padding:.65rem;border-radius:.5rem;background:{{ !empty($item['checklist'][$key]) ? '#f0fdf4' : '#f8fafc' }};color:#334155;font-size:.78rem;">
+                                {{ !empty($item['checklist'][$key]) ? '✓' : '○' }} {{ $label }}
+                            </div>
+                        @endforeach
+                    </div>
+                </details>
+            @endforeach
+        </div>
+    </div>
+@endif

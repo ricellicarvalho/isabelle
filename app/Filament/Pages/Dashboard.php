@@ -15,7 +15,15 @@ class Dashboard extends BaseDashboard
 {
     use HasFiltersForm;
 
-    protected static ?string $title = 'Dashboard Financeiro';
+    protected static ?string $title = 'Dashboard';
+
+    public static function getNavigationItems(): array
+    {
+        return array_map(
+            fn ($item) => $item->extraAttributes(['class' => 'nav-dashboard']),
+            parent::getNavigationItems(),
+        );
+    }
 
     public function filtersForm(Schema $schema): Schema
     {

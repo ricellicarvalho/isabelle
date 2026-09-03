@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Contracts\Pages;
 
 use App\Filament\Resources\Contracts\Actions\CorrectContractAction;
+use App\Filament\Resources\Contracts\Actions\EditCurrentNr1Action;
 use App\Filament\Resources\Contracts\Actions\RenewContractAction;
 use App\Filament\Resources\Contracts\ContractResource;
 use App\Filament\Resources\Contracts\Schemas\ContractForm;
@@ -18,6 +19,7 @@ class EditContract extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            EditCurrentNr1Action::make(),
             CorrectContractAction::make(),
             RenewContractAction::make(),
             Action::make('cancelarContrato')

@@ -17,4 +17,9 @@ class CreateContract extends CreateRecord
 
         return $data;
     }
+
+    protected function getRedirectUrl(): string
+    {
+        return ContractResource::getUrl('edit', ['record' => $this->record]);
+    }
 }

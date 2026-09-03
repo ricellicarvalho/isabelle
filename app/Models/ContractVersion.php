@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class ContractVersion extends Model
 {
@@ -74,5 +75,10 @@ class ContractVersion extends Model
     public function events(): HasMany
     {
         return $this->hasMany(Event::class);
+    }
+
+    public function openedNr1Cycle(): HasOne
+    {
+        return $this->hasOne(Nr1Cycle::class, 'opened_by_contract_version_id');
     }
 }

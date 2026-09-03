@@ -42,4 +42,6 @@ docker-compose.yml
 
 /storage/app/certs/*
 
+# Exemplo de retorno WebISS com dados locais
+/exemplo-emitir-webiss-gurupi-log-582.json
 

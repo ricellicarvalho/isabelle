@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Contracts\Tables;
 
 use App\Filament\Resources\Contracts\Actions\RenewContractAction;
+use App\Filament\Resources\Contracts\Actions\EditCurrentNr1Action;
 use App\Models\Contract;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -14,6 +15,10 @@ use Filament\Actions\EditAction;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\Filter;
+use Filament\Forms\Components\DatePicker;
+use Illuminate\Database\Eloquent\Builder;
+use Filament\Support\Enums\Width;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -25,21 +30,24 @@ class ContractsTable
             ->defaultSort('numero', 'asc')
             ->columns([
                 TextColumn::make('numero')
-                    ->label('Nº Contrato')
+                    ->label('Contrato')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->alignCenter(),
 
                 TextColumn::make('currentVersion.version_number')
                     ->label('Versão')
                     ->formatStateUsing(fn ($state): string => "v{$state}")
                     ->badge()
-                    ->color('gray'),
+                    ->color('gray')
+                    ->alignCenter(),
 
                 TextColumn::make('client.razao_social')
                     ->label('Cliente')
                     ->searchable()
                     ->sortable()
-                    ->limit(35),
+                    ->limit(35)
+                    ->tooltip(fn (string $state): string => $state),
 
                 TextColumn::make('tipo_servico')
                     ->label('Serviço')
@@ -57,7 +65,8 @@ class ContractsTable
                         'consultoria' => 'Consultoria',
                         'treinamento' => 'Treinamento',
                         'outro' => 'Outro',
-                    }),
+                    })
+                    ->alignCenter(),
 
                 TextColumn::make('valor_total')
                     ->label('Valor Total')
@@ -93,7 +102,8 @@ class ContractsTable
                         'ativo' => 'Ativo',
                         'finalizado' => 'Finalizado',
                         'cancelado' => 'Cancelado',
-                    }),
+                    })
+                    ->alignCenter(),
 
                 TextColumn::make('created_at')
                     ->label('Criado em')
@@ -126,8 +136,21 @@ class ContractsTable
                     ->relationship('client', 'razao_social')
                     ->searchable()
                     ->preload(),
+
+                Filter::make('periodo_vigencia')
+                    ->label('Período de vigência')
+                    ->form([
+                        DatePicker::make('inicio')->label('Início')->native(false)->displayFormat('d/m/Y'),
+                        DatePicker::make('fim')->label('Fim')->native(false)->displayFormat('d/m/Y')->afterOrEqual('inicio'),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query
+                            ->when($data['inicio'] ?? null, fn (Builder $query, $date): Builder => $query->whereDate('data_fim', '>=', $date))
+                            ->when($data['fim'] ?? null, fn (Builder $query, $date): Builder => $query->whereDate('data_inicio', '<=', $date));
+                    }),
             ])
             ->actions([
+                ActionGroup::make([
                 Action::make('emitirNfse')
                     ->label('Emitir NFSe')
                     ->icon('heroicon-o-document-check')
@@ -209,8 +232,8 @@ class ContractsTable
                                 ->send();
                         }
                     }),
-                ActionGroup::make([
                     EditAction::make(),
+                    EditCurrentNr1Action::make(),
                     RenewContractAction::make(),
 
                     Action::make('cancelar')
@@ -246,7 +269,7 @@ class ContractsTable
                         }),
 
                     DeleteAction::make(),
-                ]),
+                ])->dropdownWidth(Width::Medium),
             ])
             ->bulkActions([
                 BulkActionGroup::make([
@@ -289,7 +312,7 @@ class ContractsTable
                                 ->send();
                         }),
                     DeleteBulkAction::make(),
-                ]),
+                ])->dropdownWidth(Width::Medium),
             ]);
     }
 }

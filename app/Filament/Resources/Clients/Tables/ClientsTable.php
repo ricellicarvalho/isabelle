@@ -19,6 +19,7 @@ class ClientsTable
     {
         return $table
             ->defaultSort('nome_exibicao', 'asc')
+            ->modifyQueryUsing(fn ($query) => $query->with('nr1Cycles'))
             ->columns([
                 TextColumn::make('cnpj_cpf')
                     ->label('CNPJ/CPF')
@@ -53,7 +54,8 @@ class ClientsTable
                             END) {$direction}"
                         );
                     })
-                    ->limit(40),
+                    ->limit(40)
+                    ->tooltip(fn (string $state): string => $state),
 
                 TextColumn::make('razao_social')
                     ->label('Razão Social')
@@ -79,7 +81,8 @@ class ClientsTable
                     })
                     ->searchable(query: function ($query, string $search): void {
                         $query->where('telefones', 'like', "%{$search}%");
-                    }),
+                    })
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('email')
                     ->label('E-mail')
@@ -103,17 +106,18 @@ class ClientsTable
 
                 TextColumn::make('nr1_checklist_progresso')
                     ->label('Checklist NR-1')
-                    ->state(fn (Client $record): string => $record->nr1ChecklistProgresso() . '%')
+                    ->state(fn (Client $record): string => ($record->nr1Cycles->first()?->checklistProgresso() ?? 0) . '%')
                     ->badge()
                     ->color(fn (Client $record): string => match (true) {
-                        $record->nr1ChecklistProgresso() === 100 => 'success',
-                        $record->nr1ChecklistProgresso() > 0     => 'warning',
+                        ($record->nr1Cycles->first()?->checklistProgresso() ?? 0) === 100 => 'success',
+                        ($record->nr1Cycles->first()?->checklistProgresso() ?? 0) > 0     => 'warning',
                         default                                  => 'danger',
                     })
                     ->sortable(false),
 
                 TextColumn::make('nr1_status')
                     ->label('NR-1')
+                    ->state(fn (Client $record): string => $record->nr1Cycles->first()?->status ?? 'pendente')
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
                         'pendente'     => 'danger',

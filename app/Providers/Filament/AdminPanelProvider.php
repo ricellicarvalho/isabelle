@@ -132,6 +132,36 @@ class AdminPanelProvider extends PanelProvider
                 .dark .fi-sidebar-group-btn .fi-icon {
                     color: rgb(209 213 219) !important;
                 }
+                .nav-dashboard .fi-sidebar-item-label {
+                    font-weight: 900 !important;
+                }
+                .nav-dashboard .fi-sidebar-item-icon {
+                    stroke-width: 2.5 !important;
+                }
+                .tippy-box[data-theme~="light"] {
+                    background: linear-gradient(135deg, #1e084a, #4c1d95) !important;
+                    color: #ffffff !important;
+                    border: 1px solid rgba(196, 181, 253, 0.7) !important;
+                    border-radius: 0.625rem !important;
+                    box-shadow: 0 10px 28px rgba(30, 8, 74, 0.3) !important;
+                    font-weight: 650 !important;
+                    letter-spacing: 0.01em;
+                }
+                .tippy-box[data-theme~="light"] .tippy-content {
+                    padding: 0.5rem 0.75rem !important;
+                }
+                .tippy-box[data-theme~="light"][data-placement^="top"] > .tippy-arrow::before {
+                    border-top-color: #312e81 !important;
+                }
+                .tippy-box[data-theme~="light"][data-placement^="bottom"] > .tippy-arrow::before {
+                    border-bottom-color: #312e81 !important;
+                }
+                .tippy-box[data-theme~="light"][data-placement^="left"] > .tippy-arrow::before {
+                    border-left-color: #312e81 !important;
+                }
+                .tippy-box[data-theme~="light"][data-placement^="right"] > .tippy-arrow::before {
+                    border-right-color: #312e81 !important;
+                }
                 .dashboard-stat-receivable .fi-wi-stats-overview-stat-value {
                     color: #16a34a !important;
                     font-weight: 800 !important;

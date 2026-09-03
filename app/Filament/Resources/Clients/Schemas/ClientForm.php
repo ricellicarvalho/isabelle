@@ -268,6 +268,7 @@ class ClientForm
 
                         Tab::make('NR-1')
                             ->icon(Heroicon::ClipboardDocumentCheck)
+                            ->visible(false)
                             ->components([
                                 // --- Status + Progresso (topo) ---
                                 Section::make('Status de Conformidade')
