@@ -42,4 +42,5 @@ docker-compose.yml
 
 /storage/app/certs/*
 
+/exemplo-emitir-webiss-gurupi-log-582.json
 
