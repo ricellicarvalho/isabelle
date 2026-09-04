@@ -8,11 +8,35 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Validation\ValidationException;
 use SolutionForest\FilamentTree\Concern\ModelTree;
 
 class Category extends Model
 {
     use HasFactory, ModelTree, SoftDeletes;
+
+    protected static function booted(): void
+    {
+        static::saving(function (Category $category): void {
+            if (! $category->isDirty('parent_id') || blank($category->parent_id)) {
+                return;
+            }
+
+            $parentId = (int) $category->parent_id;
+            $visited = [];
+
+            while ($parentId > 0) {
+                if ($parentId === (int) $category->getKey() || isset($visited[$parentId])) {
+                    throw ValidationException::withMessages([
+                        'parent_id' => 'Uma categoria não pode ser conta pai dela mesma nem de uma conta ancestral.',
+                    ]);
+                }
+
+                $visited[$parentId] = true;
+                $parentId = (int) (static::withTrashed()->whereKey($parentId)->value('parent_id') ?? 0);
+            }
+        });
+    }
 
     public static function defaultParentKey()
     {
