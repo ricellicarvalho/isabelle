@@ -6,6 +6,7 @@ use App\Filament\Resources\Payables\PayableResource;
 use App\Filament\Resources\Payables\Schemas\PayableForm;
 use App\Models\Payable;
 use App\Services\PayableRecurrenceService;
+use App\Services\BankMovementService;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
 
@@ -46,6 +47,11 @@ class CreatePayable extends CreateRecord
         return $this->createdPayablesCount > 1
             ? "{$this->createdPayablesCount} contas recorrentes criadas com sucesso"
             : 'Conta a pagar criada com sucesso';
+    }
+
+    protected function afterCreate(): void
+    {
+        app(BankMovementService::class)->syncLegacyPaid($this->record);
     }
 
     protected function getRedirectUrl(): string

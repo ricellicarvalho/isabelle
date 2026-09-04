@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 
@@ -12,9 +13,26 @@ class BankAccount extends Model
 {
     use HasFactory, SoftDeletes;
 
+    protected static function booted(): void
+    {
+        static::saving(function (BankAccount $account): void {
+            if (! $account->uses_billing) $account->is_default_billing = false;
+        });
+        static::saved(function (BankAccount $account): void {
+            if ($account->is_default_billing) static::whereKeyNot($account->id)->update(['is_default_billing' => false]);
+        });
+    }
+
     protected $fillable = [
+        'nome',
         'banco',
         'descricao',
+        'tipo',
+        'opening_balance_date',
+        'opening_balance',
+        'credit_limit',
+        'uses_billing',
+        'is_default_billing',
         'agencia',
         'agencia_dv',
         'conta',
@@ -38,6 +56,11 @@ class BankAccount extends Model
     {
         return [
             'ativo' => 'boolean',
+            'uses_billing' => 'boolean',
+            'is_default_billing' => 'boolean',
+            'opening_balance_date' => 'date',
+            'opening_balance' => 'decimal:2',
+            'credit_limit' => 'decimal:2',
             'proximo_nosso_numero' => 'integer',
             'proximo_sequencial_remessa' => 'integer',
         ];
@@ -50,7 +73,25 @@ class BankAccount extends Model
 
     public static function active(): ?self
     {
-        return static::where('ativo', true)->first();
+        return static::where('ativo', true)->where('uses_billing', true)
+            ->orderByDesc('is_default_billing')->first()
+            ?? static::where('ativo', true)->first();
+    }
+
+    public function movements(): HasMany { return $this->hasMany(BankMovement::class); }
+
+    public function getDisplayNameAttribute(): string
+    {
+        return $this->nome ?: trim(($this->descricao ?: $this->banco_nome).' · Ag '.$this->agencia.' · '.$this->conta);
+    }
+
+    public function balanceAt(mixed $date = null): string
+    {
+        $query = $this->movements()->where('status', 'confirmed');
+        if ($date) $query->where('occurred_at', '<=', $date);
+        $credits = (clone $query)->where('direction', 'credit')->sum('amount');
+        $debits = (clone $query)->where('direction', 'debit')->sum('amount');
+        return bcadd((string) $this->opening_balance, bcsub((string) $credits, (string) $debits, 2), 2);
     }
 
     /**
@@ -89,6 +130,7 @@ class BankAccount extends Model
             '104' => 'Caixa Econômica Federal',
             '237' => 'Bradesco',
             '341' => 'Itaú',
+            '756' => 'Sicoob',
             default => 'Banco ' . $this->banco,
         };
     }

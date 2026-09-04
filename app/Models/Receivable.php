@@ -17,6 +17,7 @@ class Receivable extends Model
         'contract_id',
         'contract_version_id',
         'category_id',
+        'bank_account_id',
         'descricao',
         'valor',
         'data_vencimento',
@@ -68,6 +69,9 @@ class Receivable extends Model
     {
         return $this->belongsTo(Category::class);
     }
+
+    public function bankAccount(): BelongsTo { return $this->belongsTo(BankAccount::class); }
+    public function settlements() { return $this->morphMany(FinancialSettlement::class, 'settleable'); }
 
     public function createdBy(): BelongsTo
     {

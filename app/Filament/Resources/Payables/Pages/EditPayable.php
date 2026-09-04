@@ -6,6 +6,7 @@ use App\Filament\Resources\Payables\PayableResource;
 use App\Filament\Resources\Payables\Schemas\PayableForm;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
+use App\Services\BankMovementService;
 
 class EditPayable extends EditRecord
 {
@@ -24,5 +25,10 @@ class EditPayable extends EditRecord
         $data['valor_pago'] = PayableForm::parseMoney($data['valor_pago'] ?? null);
 
         return $data;
+    }
+
+    protected function afterSave(): void
+    {
+        app(BankMovementService::class)->syncLegacyPaid($this->record);
     }
 }

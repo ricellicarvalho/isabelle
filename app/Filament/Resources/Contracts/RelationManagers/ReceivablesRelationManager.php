@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\Contracts\RelationManagers;
 
 use App\Filament\Resources\Contracts\Schemas\ContractForm;
+use App\Models\BankAccount;
+use App\Services\BankMovementService;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\EditAction;
@@ -150,16 +152,22 @@ class ReceivablesRelationManager extends RelationManager
                         ->label('Marcar como Pago')
                         ->icon('heroicon-o-check-circle')
                         ->color('success')
+                        ->form([
+                            Select::make('bank_account_id')->label('Conta bancária')->options(fn () => BankAccount::query()->where('ativo', true)->get()->pluck('display_name', 'id'))->required()->searchable(),
+                            DatePicker::make('data_pagamento')->label('Data do recebimento')->default(today())->required(),
+                        ])
                         ->requiresConfirmation()
-                        ->action(function (Collection $records): void {
+                        ->action(function (Collection $records, array $data): void {
                             $count = 0;
                             foreach ($records as $record) {
                                 if ($record->status === 'pendente' || $record->status === 'vencido') {
                                     $record->update([
                                         'status' => 'pago',
-                                        'data_pagamento' => now(),
+                                        'bank_account_id' => $data['bank_account_id'],
+                                        'data_pagamento' => $data['data_pagamento'],
                                         'valor_pago' => $record->valor,
                                     ]);
+                                    app(BankMovementService::class)->syncLegacyPaid($record->refresh());
                                     $count++;
                                 }
                             }

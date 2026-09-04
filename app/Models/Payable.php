@@ -13,6 +13,7 @@ class Payable extends Model
 
     protected $fillable = [
         'category_id',
+        'bank_account_id',
         'payable_recurrence_id',
         'recurrence_sequence',
         'recurrence_total',
@@ -46,6 +47,9 @@ class Payable extends Model
     {
         return $this->belongsTo(Category::class);
     }
+
+    public function bankAccount(): BelongsTo { return $this->belongsTo(BankAccount::class); }
+    public function settlements() { return $this->morphMany(FinancialSettlement::class, 'settleable'); }
 
     public function recurrence(): BelongsTo
     {

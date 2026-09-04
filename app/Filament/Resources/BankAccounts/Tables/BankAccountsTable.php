@@ -16,6 +16,7 @@ class BankAccountsTable
     {
         return $table
             ->columns([
+                TextColumn::make('nome')->label('Conta financeira')->searchable()->placeholder('—'),
                 TextColumn::make('banco')
                     ->label('Banco')
                     ->formatStateUsing(fn ($record) => "{$record->banco} - {$record->banco_nome}")
@@ -25,11 +26,17 @@ class BankAccountsTable
 
                 TextColumn::make('conta')->label('Conta')->formatStateUsing(fn ($record) => $record->conta . ($record->conta_dv ? "-{$record->conta_dv}" : '')),
 
-                TextColumn::make('carteira')->label('Carteira'),
+                TextColumn::make('opening_balance')->label('Saldo inicial')->money('BRL'),
 
-                TextColumn::make('layout_remessa')->label('Layout')->badge(),
+                TextColumn::make('current_balance')->label('Saldo atual')->state(fn ($record) => $record->balanceAt())->money('BRL'),
 
-                TextColumn::make('proximo_nosso_numero')->label('Próx. NN')->numeric(),
+                IconColumn::make('uses_billing')->label('Boletos')->boolean(),
+
+                TextColumn::make('carteira')->label('Carteira')->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('layout_remessa')->label('Layout')->badge()->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('proximo_nosso_numero')->label('Próx. NN')->numeric()->toggleable(isToggledHiddenByDefault: true),
 
                 IconColumn::make('ativo')->label('Ativo')->boolean(),
             ])

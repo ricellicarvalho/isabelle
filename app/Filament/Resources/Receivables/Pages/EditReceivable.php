@@ -6,6 +6,7 @@ use App\Filament\Resources\Receivables\ReceivableResource;
 use App\Filament\Resources\Receivables\Schemas\ReceivableForm;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
+use App\Services\BankMovementService;
 
 class EditReceivable extends EditRecord
 {
@@ -24,5 +25,10 @@ class EditReceivable extends EditRecord
         $data['valor_pago'] = ReceivableForm::parseMoney($data['valor_pago'] ?? null);
 
         return $data;
+    }
+
+    protected function afterSave(): void
+    {
+        app(BankMovementService::class)->syncLegacyPaid($this->record);
     }
 }

@@ -11,8 +11,10 @@ use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Support\Carbon;
 
 class ReceivableForm
 {
@@ -130,6 +132,14 @@ class ReceivableForm
                                                 'cartao' => 'Cartão',
                                             ])
                                             ->native(false),
+
+                                        Select::make('bank_account_id')
+                                            ->label('Conta financeira')
+                                            ->relationship('bankAccount', 'nome', fn ($query) => $query->where('ativo', true))
+                                            ->getOptionLabelFromRecordUsing(fn ($record): string => $record->display_name)
+                                            ->searchable()->preload()->native(false)
+                                            ->required(fn (Get $get): bool => $get('status') === 'pago' && filled($get('data_pagamento')) && Carbon::parse($get('data_pagamento'))->gte('2026-08-01'))
+                                            ->helperText('Obrigatória para recebimentos realizados desde 01/08/2026.'),
 
                                         Select::make('status')
                                             ->label('Status')

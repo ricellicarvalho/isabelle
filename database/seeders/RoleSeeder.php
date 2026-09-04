@@ -23,10 +23,16 @@ class RoleSeeder extends Seeder
         // super_admin bypasses all gates via Shield config — no explicit permissions needed.
 
         $crmResources      = ['Client', 'Contract', 'Event', 'ClientDocument'];
-        $financeiroRes     = ['BankAccount', 'BankBoleto', 'BankRemessa', 'BankRetorno',
+        $financeiroRes     = ['BankAccount', 'BankMovement', 'BankStatementEntry', 'BankBoleto', 'BankRemessa', 'BankRetorno',
                               'Receivable', 'Payable', 'Nfse', 'NfseConfig', 'NfseServiceCode'];
         $fullActions       = ['ViewAny', 'View', 'Create', 'Update', 'Delete', 'DeleteAny',
                               'Restore', 'RestoreAny', 'ForceDelete', 'ForceDeleteAny', 'Reorder'];
+
+        foreach (['BankMovement', 'BankStatementEntry'] as $resource) {
+            foreach ($fullActions as $action) {
+                Permission::firstOrCreate(['name' => "{$action}:{$resource}", 'guard_name' => 'web']);
+            }
+        }
         $readWrite         = ['ViewAny', 'View', 'Create', 'Update'];
         $financeiroReports = ['View:DreReport', 'View:CashFlowReport',
                               'View:FinanceStatsOverview', 'View:OverdueReceivablesTable'];

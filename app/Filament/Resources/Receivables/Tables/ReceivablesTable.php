@@ -8,8 +8,10 @@ use App\Models\Nfse;
 use App\Models\NfseConfig;
 use App\Models\NfseServiceCode;
 use App\Models\Receivable;
+use App\Models\BankAccount;
 use App\Services\BankBoletoService;
 use App\Services\BoletoBatchService;
+use App\Services\BankMovementService;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
@@ -18,6 +20,7 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
@@ -100,6 +103,8 @@ class ReceivablesTable
                     ->date('d/m/Y')
                     ->placeholder('—')
                     ->toggleable(),
+
+                TextColumn::make('bankAccount.nome')->label('Conta')->placeholder('Não informada')->searchable()->toggleable(),
 
                 TextColumn::make('situacao_cobranca')
                     ->label('Situação')
@@ -378,16 +383,22 @@ class ReceivablesTable
                         ->label('Marcar como Pago')
                         ->icon('heroicon-o-check-circle')
                         ->color('success')
+                        ->form([
+                            Select::make('bank_account_id')->label('Conta bancária')->options(fn () => BankAccount::query()->where('ativo', true)->get()->pluck('display_name', 'id'))->required()->searchable(),
+                            DatePicker::make('data_pagamento')->label('Data do recebimento')->default(today())->required(),
+                        ])
                         ->requiresConfirmation()
-                        ->action(function (Collection $records): void {
+                        ->action(function (Collection $records, array $data): void {
                             $count = 0;
                             foreach ($records as $record) {
                                 if ($record->status === 'pendente' || $record->status === 'vencido') {
                                     $record->update([
                                         'status' => 'pago',
-                                        'data_pagamento' => now(),
+                                        'bank_account_id' => $data['bank_account_id'],
+                                        'data_pagamento' => $data['data_pagamento'],
                                         'valor_pago' => $record->valor,
                                     ]);
+                                    app(BankMovementService::class)->syncLegacyPaid($record->refresh());
                                     $count++;
                                 }
                             }

@@ -188,11 +188,15 @@ class CnabRetornoService
                 // Quita a parcela correspondente em Receivables
                 if ($boleto->receivable_id && ($receivable = Receivable::find($boleto->receivable_id))) {
                     $receivable->update([
+                        'bank_account_id' => $retorno->bank_account_id,
                         'status' => 'pago',
                         'valor_pago' => $valor ?: $receivable->valor,
                         'data_pagamento' => $dataPagamento->toDateString(),
                         'forma_pagamento' => 'boleto',
                     ]);
+                    if ($retorno->bankAccount) {
+                        app(BankMovementService::class)->syncLegacyPaid($receivable->fresh());
+                    }
                 }
 
                 return [

@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Receivables\Pages;
 
 use App\Filament\Resources\Receivables\ReceivableResource;
 use App\Filament\Resources\Receivables\Schemas\ReceivableForm;
+use App\Services\BankMovementService;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateReceivable extends CreateRecord
@@ -17,5 +18,10 @@ class CreateReceivable extends CreateRecord
         $data['valor_pago'] = ReceivableForm::parseMoney($data['valor_pago'] ?? null);
 
         return $data;
+    }
+
+    protected function afterCreate(): void
+    {
+        app(BankMovementService::class)->syncLegacyPaid($this->record);
     }
 }
