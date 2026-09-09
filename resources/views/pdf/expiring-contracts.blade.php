@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Contratos a Vencer</title>
+    <title>Vencimento de Contratos</title>
     <style>
         body {
             font-family: DejaVu Sans, sans-serif;
@@ -111,14 +111,24 @@
     </div>
     @endif
 
-    <h1>Contratos a Vencer</h1>
+    <h1>Vencimento de Contratos</h1>
     <div class="subtitle">Instituto Alves Neves — Gerado em {{ now()->format('d/m/Y \à\s H:i') }}</div>
 
     <div class="filtros">
-        @if ($dataInicio && $dataFim)
-            <strong>Período:</strong> {{ \Illuminate\Support\Carbon::parse($dataInicio)->format('d/m/Y') }} a {{ \Illuminate\Support\Carbon::parse($dataFim)->format('d/m/Y') }}
+        @if (($situacao ?? 'a_vencer') === 'vencidos')
+            <strong>Contratos vencidos</strong>
+        @elseif (($situacao ?? 'a_vencer') === 'a_vencer')
+            <strong>Contratos a vencer</strong>
         @else
-            <strong>Contratos que vencem nos próximos {{ $prazo ?? 30 }} dias</strong>
+            <strong>Contratos vencidos e a vencer</strong>
+        @endif
+        @if ($dataInicio || $dataFim)
+            &nbsp;&nbsp;|&nbsp;&nbsp;<strong>Período:</strong>
+            {{ $dataInicio ? \Illuminate\Support\Carbon::parse($dataInicio)->format('d/m/Y') : 'início' }}
+            a
+            {{ $dataFim ? \Illuminate\Support\Carbon::parse($dataFim)->format('d/m/Y') : 'sem limite' }}
+        @elseif (($situacao ?? 'a_vencer') !== 'vencidos')
+            &nbsp;&nbsp;|&nbsp;&nbsp;<strong>Próximos {{ $prazo ?? 30 }} dias</strong>
         @endif
         @if (filled($cliente))
             &nbsp;&nbsp;|&nbsp;&nbsp;<strong>Cliente:</strong> {{ $cliente }}
@@ -137,7 +147,7 @@
                     <th style="width:13%;">Serviço</th>
                     <th class="right" style="width:14%;">Valor Total</th>
                     <th class="center" style="width:13%;">Encerramento</th>
-                    <th class="center" style="width:12%;">Dias Restantes</th>
+                    <th class="center" style="width:12%;">Situação / Prazo</th>
                 </tr>
             </thead>
             <tbody>
@@ -146,7 +156,7 @@
                     @php
                         $totalValor += $contract['valor_total'];
                         $dias = $contract['dias_restantes'];
-                        $badgeClass = $dias <= 7 ? 'badge-danger' : ($dias <= 15 ? 'badge-warning' : 'badge-info');
+                        $badgeClass = $dias < 0 ? 'badge-danger' : ($dias <= 7 ? 'badge-warning' : 'badge-info');
                         $tipoLabel = match($contract['tipo_servico']) {
                             'nr1'         => 'NR-1',
                             'palestra'    => 'Palestra',
@@ -162,7 +172,7 @@
                         <td class="right">R$ {{ number_format($contract['valor_total'], 2, ',', '.') }}</td>
                         <td class="center">{{ $contract['data_fim'] }}</td>
                         <td class="center">
-                            <span class="badge {{ $badgeClass }}">{{ $dias }} dias</span>
+                            <span class="badge {{ $badgeClass }}">{{ $contract['situacao_prazo'] }}</span>
                         </td>
                     </tr>
                 @endforeach
