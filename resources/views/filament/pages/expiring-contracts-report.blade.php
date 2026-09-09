@@ -13,15 +13,15 @@
         };
 
         $diasBadge = function(int $dias): array {
-            if ($dias <= 7)  return ['bg' => '#fef2f2', 'text' => '#dc2626', 'border' => '#fecaca', 'label' => "{$dias} dias"];
-            if ($dias <= 15) return ['bg' => '#fffbeb', 'text' => '#d97706', 'border' => '#fde68a', 'label' => "{$dias} dias"];
-            return             ['bg' => '#eff6ff', 'text' => '#2563eb', 'border' => '#bfdbfe', 'label' => "{$dias} dias"];
+            if ($dias < 0)   return ['bg' => '#fef2f2', 'text' => '#dc2626', 'border' => '#fecaca'];
+            if ($dias <= 7)  return ['bg' => '#fffbeb', 'text' => '#d97706', 'border' => '#fde68a'];
+            return             ['bg' => '#eff6ff', 'text' => '#2563eb', 'border' => '#bfdbfe'];
         };
     @endphp
 
     <x-filament::section>
         <x-slot name="heading">
-            Contratos a vencer
+            Vencimento de contratos
             <span class="ml-2 text-sm font-normal text-gray-500">
                 {{ count($contracts) }} {{ count($contracts) === 1 ? 'contrato encontrado' : 'contratos encontrados' }}
             </span>
@@ -41,7 +41,7 @@
                             <th class="text-left py-3 px-2 font-semibold text-gray-700 dark:text-gray-300">Serviço</th>
                             <th class="text-right py-3 px-2 font-semibold text-gray-700 dark:text-gray-300">Valor</th>
                             <th class="text-center py-3 px-2 font-semibold text-gray-700 dark:text-gray-300">Encerramento</th>
-                            <th class="text-center py-3 px-2 font-semibold text-gray-700 dark:text-gray-300">Dias Restantes</th>
+                            <th class="text-center py-3 px-2 font-semibold text-gray-700 dark:text-gray-300">Situação / Prazo</th>
                             <th class="py-3 px-2"></th>
                         </tr>
                     </thead>
@@ -56,7 +56,7 @@
                                 <td class="py-3 px-2 text-center tabular-nums">{{ $contract['data_fim'] }}</td>
                                 <td class="py-3 px-2 text-center">
                                     <span style="display:inline-block;padding:2px 10px;border-radius:9999px;font-size:0.75rem;font-weight:600;background:{{ $badge['bg'] }};color:{{ $badge['text'] }};border:1px solid {{ $badge['border'] }};">
-                                        {{ $badge['label'] }}
+                                        {{ $contract['situacao_prazo'] }}
                                     </span>
                                 </td>
                                 <td class="py-3 px-2 text-right">

@@ -2,12 +2,11 @@
 
 use App\Http\Controllers\PrecadastroController;
 use App\Models\BankBoleto;
-use App\Models\Client;
 use App\Models\ClientDocument;
-use App\Models\Contract;
 use App\Models\Nfse;
 use App\Models\Pricing;
 use App\Services\BankBoletoService;
+use App\Services\ExpiringContractsReportService;
 use App\Services\PayablesReportService;
 use App\Services\PaymentsReportService;
 use App\Services\ReceivablesReportService;
@@ -83,51 +82,27 @@ Route::get('/nfse/{nfse}/xml', function (Nfse $nfse) {
 
 // Relatório de contratos a vencer em PDF — abre inline em nova aba, URL assinada
 Route::get('/relatorios/contratos-a-vencer/pdf', function (Request $request) {
-    $prazo      = $request->get('prazo', '30');
-    $cliente    = $request->get('cliente', '');
+    $prazo = $request->get('prazo', '30');
+    $situacao = $request->get('situacao', 'a_vencer');
+    $cliente = $request->get('cliente', '');
     $dataInicio = $request->get('data_inicio');
-    $dataFim    = $request->get('data_fim');
+    $dataFim = $request->get('data_fim');
 
-    $query = Contract::query()
-        ->where('status', 'ativo')
-        ->with('client')
-        ->orderBy('data_fim');
+    $contracts = ExpiringContractsReportService::generate($request->only([
+        'prazo', 'situacao', 'cliente', 'data_inicio', 'data_fim',
+    ]))->all();
 
-    if ($dataInicio && $dataFim) {
-        $query->whereDate('data_fim', '>=', $dataInicio)
-              ->whereDate('data_fim', '<=', $dataFim);
-    } else {
-        $query->whereDate('data_fim', '>=', today())
-              ->whereDate('data_fim', '<=', today()->addDays((int) $prazo));
-    }
-
-    if (filled($cliente)) {
-        $query->whereHas('client', fn ($q) => $q->where('razao_social', 'like', "%{$cliente}%"));
-    }
-
-    $contracts = $query->get()->map(function (Contract $c): array {
-        return [
-            'id'             => $c->id,
-            'numero'         => $c->numero,
-            'cliente'        => $c->client?->razao_social ?? '—',
-            'tipo_servico'   => $c->tipo_servico,
-            'valor_total'    => (float) $c->valor_total,
-            'data_fim'       => $c->data_fim?->format('d/m/Y'),
-            'dias_restantes' => (int) today()->diffInDays($c->data_fim, false),
-        ];
-    })->toArray();
-
-    $timbradoPath   = public_path('images/timbrado.jpg');
+    $timbradoPath = public_path('images/timbrado.jpg');
     $timbradoBase64 = file_exists($timbradoPath)
-        ? 'data:image/jpeg;base64,' . base64_encode(file_get_contents($timbradoPath))
+        ? 'data:image/jpeg;base64,'.base64_encode(file_get_contents($timbradoPath))
         : null;
 
-    $pdf = Pdf::loadView('pdf.expiring-contracts', compact('contracts', 'prazo', 'cliente', 'dataInicio', 'dataFim', 'timbradoBase64'))
+    $pdf = Pdf::loadView('pdf.expiring-contracts', compact('contracts', 'prazo', 'situacao', 'cliente', 'dataInicio', 'dataFim', 'timbradoBase64'))
         ->setPaper('a4', 'portrait');
 
     return response($pdf->output(), 200, [
-        'Content-Type'        => 'application/pdf',
-        'Content-Disposition' => 'inline; filename="contratos-a-vencer-' . now()->format('Y-m-d') . '.pdf"',
+        'Content-Type' => 'application/pdf',
+        'Content-Disposition' => 'inline; filename="contratos-a-vencer-'.now()->format('Y-m-d').'.pdf"',
     ]);
 })->name('reports.expiring-contracts.pdf')->middleware(['signed', 'auth:web']);
 
