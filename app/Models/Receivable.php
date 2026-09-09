@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Receivable extends Model
 {
-    use HasFactory, SoftDeletes;
+    use \App\Models\Concerns\HasFinancialSettlements, HasFactory, SoftDeletes;
 
     protected $fillable = [
         'client_id',
@@ -70,8 +70,15 @@ class Receivable extends Model
         return $this->belongsTo(Category::class);
     }
 
-    public function bankAccount(): BelongsTo { return $this->belongsTo(BankAccount::class); }
-    public function settlements() { return $this->morphMany(FinancialSettlement::class, 'settleable'); }
+    public function bankAccount(): BelongsTo
+    {
+        return $this->belongsTo(BankAccount::class);
+    }
+
+    public function settlements()
+    {
+        return $this->morphMany(FinancialSettlement::class, 'settleable');
+    }
 
     public function createdBy(): BelongsTo
     {

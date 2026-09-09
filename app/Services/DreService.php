@@ -3,8 +3,6 @@
 namespace App\Services;
 
 use App\Models\Category;
-use App\Models\Payable;
-use App\Models\Receivable;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -13,8 +11,8 @@ class DreService
     /**
      * Gera o DRE (Demonstração de Resultados) para o período informado.
      *
-     * Regime: caixa — considera apenas movimentações com status 'pago'
-     * dentro do intervalo de data_pagamento.
+     * Regime de caixa: títulos legados antes do corte e movimentos confirmados
+     * após o corte, classificados por categoria e sem transferências internas.
      *
      * @return array{
      *     periodo: array{inicio: Carbon, fim: Carbon},
@@ -24,43 +22,32 @@ class DreService
      *     totais: array,
      * }
      */
-    public static function generate(Carbon $inicio, Carbon $fim): array
+    public static function generate(Carbon $inicio, Carbon $fim, ?int $accountId = null): array
     {
         $inicio = $inicio->copy()->startOfDay();
         $fim = $fim->copy()->endOfDay();
 
-        $receivablesPagos = Receivable::query()
-            ->where('status', 'pago')
-            ->whereBetween('data_pagamento', [$inicio, $fim])
-            ->get(['category_id', 'valor_pago', 'valor', 'data_vencimento', 'data_pagamento']);
-
-        $payablesPagos = Payable::query()
-            ->where('status', 'pago')
-            ->whereBetween('data_pagamento', [$inicio, $fim])
-            ->get(['category_id', 'valor_pago', 'valor']);
-
-        $somaPorCategoria = function (Collection $items): array {
-            $map = [];
-            foreach ($items as $item) {
-                $valor = (float) ($item->valor_pago ?? $item->valor);
-                $map[$item->category_id] = ($map[$item->category_id] ?? 0) + $valor;
+        FinancialCashService::validatePeriod($inicio, $fim);
+        $receitasMap = $receitasDoMesMap = $receitasAnterioresMap = $pagosMap = [];
+        foreach (FinancialCashService::rows($inicio, $fim, $accountId) as $row) {
+            if (in_array($row['origin'], ['transfer', 'opening_balance'], true)) {
+                continue;
             }
-
-            return $map;
-        };
-
-        $receitasMap = $somaPorCategoria($receivablesPagos);
-        $receitasDoMesMap = $somaPorCategoria($receivablesPagos->filter(
-            fn (Receivable $receivable): bool => ! Carbon::parse($receivable->data_vencimento)
-                ->startOfMonth()
-                ->lt(Carbon::parse($receivable->data_pagamento)->startOfMonth()),
-        ));
-        $receitasAnterioresMap = $somaPorCategoria($receivablesPagos->filter(
-            fn (Receivable $receivable): bool => Carbon::parse($receivable->data_vencimento)
-                ->startOfMonth()
-                ->lt(Carbon::parse($receivable->data_pagamento)->startOfMonth()),
-        ));
-        $pagosMap = $somaPorCategoria($payablesPagos);
+            $categoryId = $row['category_id'];
+            if ($row['categoria_tipo'] === 'receita') {
+                $amount = $row['tipo'] === 'entrada' ? $row['valor'] : bcsub('0', $row['valor'], 2);
+                $receitasMap[$categoryId] = bcadd($receitasMap[$categoryId] ?? '0', $amount, 2);
+                $previous = $row['vencimento'] && $row['vencimento']->copy()->startOfMonth()->lt($row['data']->copy()->startOfMonth());
+                if ($previous) {
+                    $receitasAnterioresMap[$categoryId] = bcadd($receitasAnterioresMap[$categoryId] ?? '0', $amount, 2);
+                } else {
+                    $receitasDoMesMap[$categoryId] = bcadd($receitasDoMesMap[$categoryId] ?? '0', $amount, 2);
+                }
+            } elseif (in_array($row['categoria_tipo'], ['custo', 'despesa'], true)) {
+                $amount = $row['tipo'] === 'saida' ? $row['valor'] : bcsub('0', $row['valor'], 2);
+                $pagosMap[$categoryId] = bcadd($pagosMap[$categoryId] ?? '0', $amount, 2);
+            }
+        }
 
         $categorias = Category::query()->orderBy('order')->get();
 
@@ -76,11 +63,13 @@ class DreService
         $totalCustos = self::sumNodes($custos);
         $totalDespesas = self::sumNodes($despesas);
 
-        $lucroBruto = $totalReceitas - $totalCustos;
-        $lucroLiquido = $lucroBruto - $totalDespesas;
-        $margem = $totalReceitas > 0 ? ($lucroLiquido / $totalReceitas) * 100 : 0;
+        $lucroBruto = bcsub($totalReceitas, $totalCustos, 2);
+        $lucroLiquido = bcsub($lucroBruto, $totalDespesas, 2);
+        $margem = bccomp($totalReceitas, '0', 2) > 0 ? bcmul(bcdiv($lucroLiquido, $totalReceitas, 6), '100', 2) : '0.00';
 
         return [
+            'unclassified' => FinancialCashService::unclassifiedCount($inicio, $fim, $accountId),
+            'bank_account_id' => $accountId,
             'periodo' => ['inicio' => $inicio, 'fim' => $fim],
             'receitas' => $receitas,
             'entradas_mes' => $receitasDoMes,
@@ -110,9 +99,9 @@ class DreService
 
         foreach ($categorias->where('parent_id', $parentId)->where('tipo', $tipo) as $cat) {
             $children = self::buildTree($categorias, $tipo, $valoresMap, $cat->id);
-            $valorProprio = (float) ($valoresMap[$cat->id] ?? 0);
-            $valorFilhos = array_sum(array_column($children, 'total'));
-            $total = $valorProprio + $valorFilhos;
+            $valorProprio = $valoresMap[$cat->id] ?? '0.00';
+            $valorFilhos = self::sumNodes($children);
+            $total = bcadd($valorProprio, $valorFilhos, 2);
 
             if ($total == 0 && empty($children)) {
                 continue;
@@ -131,8 +120,13 @@ class DreService
         return $nodes;
     }
 
-    protected static function sumNodes(array $nodes): float
+    protected static function sumNodes(array $nodes): string
     {
-        return array_sum(array_column($nodes, 'total'));
+        $total = '0.00';
+        foreach ($nodes as $node) {
+            $total = bcadd($total, $node['total'], 2);
+        }
+
+        return $total;
     }
 }

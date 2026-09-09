@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Payable extends Model
 {
-    use HasFactory, SoftDeletes;
+    use \App\Models\Concerns\HasFinancialSettlements, HasFactory, SoftDeletes;
 
     protected $fillable = [
         'category_id',
@@ -48,8 +48,15 @@ class Payable extends Model
         return $this->belongsTo(Category::class);
     }
 
-    public function bankAccount(): BelongsTo { return $this->belongsTo(BankAccount::class); }
-    public function settlements() { return $this->morphMany(FinancialSettlement::class, 'settleable'); }
+    public function bankAccount(): BelongsTo
+    {
+        return $this->belongsTo(BankAccount::class);
+    }
+
+    public function settlements()
+    {
+        return $this->morphMany(FinancialSettlement::class, 'settleable');
+    }
 
     public function recurrence(): BelongsTo
     {

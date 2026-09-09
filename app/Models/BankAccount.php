@@ -16,10 +16,14 @@ class BankAccount extends Model
     protected static function booted(): void
     {
         static::saving(function (BankAccount $account): void {
-            if (! $account->uses_billing) $account->is_default_billing = false;
+            if (! $account->uses_billing) {
+                $account->is_default_billing = false;
+            }
         });
         static::saved(function (BankAccount $account): void {
-            if ($account->is_default_billing) static::whereKeyNot($account->id)->update(['is_default_billing' => false]);
+            if ($account->is_default_billing) {
+                static::whereKeyNot($account->id)->update(['is_default_billing' => false]);
+            }
         });
     }
 
@@ -78,7 +82,10 @@ class BankAccount extends Model
             ?? static::where('ativo', true)->first();
     }
 
-    public function movements(): HasMany { return $this->hasMany(BankMovement::class); }
+    public function movements(): HasMany
+    {
+        return $this->hasMany(BankMovement::class);
+    }
 
     public function getDisplayNameAttribute(): string
     {
@@ -87,10 +94,23 @@ class BankAccount extends Model
 
     public function balanceAt(mixed $date = null): string
     {
-        $query = $this->movements()->where('status', 'confirmed');
-        if ($date) $query->where('occurred_at', '<=', $date);
+        $until = $date ? \Illuminate\Support\Carbon::parse($date) : now();
+        if (is_string($date) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            $until->endOfDay();
+        }
+        if ($until && $this->opening_balance_date && $until->lt($this->opening_balance_date->copy()->endOfDay()->setMicrosecond(0))) {
+            return '0.00';
+        }
+        $query = $this->movements()->where('status', 'confirmed')->where('occurred_at', '>=', \App\Services\BankMovementService::CONTROL_START);
+        if ($this->opening_balance_date) {
+            $query->where('occurred_at', '>', $this->opening_balance_date->copy()->endOfDay());
+        }
+        if ($until) {
+            $query->where('occurred_at', '<=', $until);
+        }
         $credits = (clone $query)->where('direction', 'credit')->sum('amount');
         $debits = (clone $query)->where('direction', 'debit')->sum('amount');
+
         return bcadd((string) $this->opening_balance, bcsub((string) $credits, (string) $debits, 2), 2);
     }
 
@@ -131,7 +151,7 @@ class BankAccount extends Model
             '237' => 'Bradesco',
             '341' => 'Itaú',
             '756' => 'Sicoob',
-            default => 'Banco ' . $this->banco,
+            default => 'Banco '.$this->banco,
         };
     }
 }

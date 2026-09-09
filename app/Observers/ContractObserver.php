@@ -12,6 +12,11 @@ class ContractObserver
 {
     public function updating(Contract $contract): void
     {
+        if ($contract->isDirty('status') && $contract->status === 'cancelado'
+            && $contract->receivables()->whereIn('status', ['pendente', 'vencido'])->whereHas('settlements', fn ($query) => $query->where('status', 'confirmed'))->exists()) {
+            throw ValidationException::withMessages(['contract' => 'O contrato possui parcelas parcialmente recebidas. Resolva as baixas antes de cancelar.']);
+        }
+
         if ($contract->getOriginal('status') === 'rascunho') {
             return;
         }
@@ -100,6 +105,7 @@ class ContractObserver
             $contract->currentVersion?->update(['status' => 'cancelled']);
             $contract->receivables()
                 ->where('status', 'pendente')
+                ->whereDoesntHave('settlements')
                 ->update([
                     'status' => 'cancelado',
                     'deleted_by' => auth()->id(),
@@ -113,7 +119,7 @@ class ContractObserver
     public function deleting(Contract $contract): void
     {
         $hasPaidReceivables = $contract->receivables()
-            ->where('status', 'pago')
+            ->where(fn ($query) => $query->where('status', 'pago')->orWhereHas('settlements'))
             ->exists();
 
         if ($hasPaidReceivables) {

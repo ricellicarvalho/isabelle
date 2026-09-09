@@ -53,6 +53,7 @@ class DreReport extends Page
         return $schema
             ->statePath('data')
             ->components([
+                \Filament\Forms\Components\Select::make('bank_account_id')->label('Conta financeira')->options(fn () => \App\Models\BankAccount::orderBy('nome')->get()->pluck('display_name', 'id'))->placeholder('Todas as contas')->searchable()->live(),
                 DatePicker::make('data_inicio')
                     ->label('Data Início')
                     ->required()
@@ -61,7 +62,7 @@ class DreReport extends Page
                     ->live(),
 
                 DatePicker::make('data_fim')
-                    ->label('Data Fim')
+                    ->label('Data Fim')->afterOrEqual('data_inicio')
                     ->required()
                     ->native(false)
                     ->displayFormat('d/m/Y')
@@ -80,7 +81,7 @@ class DreReport extends Page
         $inicio = Carbon::parse($this->data['data_inicio'] ?? now()->startOfMonth());
         $fim = Carbon::parse($this->data['data_fim'] ?? now()->endOfMonth());
 
-        $this->report = DreService::generate($inicio, $fim);
+        $this->report = DreService::generate($inicio, $fim, filled($this->data['bank_account_id'] ?? null) ? (int) $this->data['bank_account_id'] : null);
     }
 
     protected function getHeaderActions(): array

@@ -9,6 +9,8 @@ use Filament\Resources\Pages\CreateRecord;
 
 class CreateReceivable extends CreateRecord
 {
+    protected ?bool $hasDatabaseTransactions = true;
+
     protected static string $resource = ReceivableResource::class;
 
     protected function mutateFormDataBeforeCreate(array $data): array

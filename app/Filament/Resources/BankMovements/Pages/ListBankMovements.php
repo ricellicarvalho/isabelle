@@ -16,9 +16,10 @@ use Filament\Resources\Pages\ListRecords;
 class ListBankMovements extends ListRecords
 {
     protected static string $resource = BankMovementResource::class;
+
     protected function getHeaderActions(): array
     {
-        return [CreateAction::make()->label('Lançamento avulso'), Action::make('transfer')->label('Transferir entre contas')->schema([
+        return [Action::make('report')->label('Movimentação de Conta')->visible(fn () => \App\Filament\Pages\BankAccountReport::canAccess())->url(fn () => \App\Filament\Pages\BankAccountReport::getUrl()), CreateAction::make()->label('Lançamento avulso'), Action::make('transfer')->label('Transferir entre contas')->schema([
             Select::make('from')->label('Conta de origem')->options(fn () => BankAccount::where('ativo', true)->get()->pluck('display_name', 'id'))->required()->searchable(),
             Select::make('to')->label('Conta de destino')->options(fn () => BankAccount::where('ativo', true)->get()->pluck('display_name', 'id'))->required()->different('from')->searchable(),
             DatePicker::make('date')->label('Data')->default(today())->required(), TextInput::make('amount')->label('Valor')->numeric()->prefix('R$')->required(), TextInput::make('description')->label('Histórico'),

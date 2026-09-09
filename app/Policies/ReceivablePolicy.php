@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
-use Illuminate\Foundation\Auth\User as AuthUser;
 use App\Models\Receivable;
 use Illuminate\Auth\Access\HandlesAuthorization;
+use Illuminate\Foundation\Auth\User as AuthUser;
 
 class ReceivablePolicy
 {
     use HandlesAuthorization;
-    
+
     public function viewAny(AuthUser $authUser): bool
     {
         return $authUser->can('ViewAny:Receivable');
@@ -34,7 +34,7 @@ class ReceivablePolicy
 
     public function delete(AuthUser $authUser, Receivable $receivable): bool
     {
-        return $authUser->can('Delete:Receivable');
+        return ! $receivable->settlements()->exists() && $authUser->can('Delete:Receivable');
     }
 
     public function deleteAny(AuthUser $authUser): bool
@@ -49,7 +49,7 @@ class ReceivablePolicy
 
     public function forceDelete(AuthUser $authUser, Receivable $receivable): bool
     {
-        return $authUser->can('ForceDelete:Receivable');
+        return ! $receivable->settlements()->exists() && $authUser->can('ForceDelete:Receivable');
     }
 
     public function forceDeleteAny(AuthUser $authUser): bool
@@ -71,5 +71,4 @@ class ReceivablePolicy
     {
         return $authUser->can('Reorder:Receivable');
     }
-
 }

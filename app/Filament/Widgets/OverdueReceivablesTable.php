@@ -12,6 +12,8 @@ use Illuminate\Support\Carbon;
 
 class OverdueReceivablesTable extends BaseWidget
 {
+    use \Filament\Widgets\Concerns\InteractsWithPageFilters;
+
     protected static ?string $heading = 'Parcelas Vencidas';
 
     protected int|string|array $columnSpan = 'full';
@@ -29,20 +31,21 @@ class OverdueReceivablesTable extends BaseWidget
                     ->whereIn('status', ['pendente', 'vencido'])
                     ->whereDate('data_vencimento', '<', now())
                     ->orderBy('data_vencimento', 'asc')
+                    ->when(filled($this->pageFilters['bank_account_id'] ?? null), fn ($query) => \App\Services\FinancialCashService::titleAccount($query, (int) $this->pageFilters['bank_account_id']))
             )
             ->paginated(false)
             ->recordTitleAttribute('descricao')
             ->columns([
                 TextColumn::make('client.razao_social')->label('Cliente')->limit(30)->placeholder('—'),
                 TextColumn::make('descricao')->label('Descrição')->limit(35),
-                TextColumn::make('valor')->label('Valor')->money('BRL'),
+                TextColumn::make('saldo_aberto')->label('Saldo aberto')->money('BRL'),
                 TextColumn::make('data_vencimento')->label('Vencimento')->date('d/m/Y'),
                 TextColumn::make('dias_atraso')
                     ->label('Atraso')
                     ->state(function ($record): string {
                         $dias = Carbon::now()->startOfDay()->diffInDays(Carbon::parse($record->data_vencimento)->startOfDay(), false);
 
-                        return abs((int) $dias) . ' dias';
+                        return abs((int) $dias).' dias';
                     })
                     ->badge()
                     ->color('danger'),

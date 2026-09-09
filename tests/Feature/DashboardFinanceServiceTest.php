@@ -46,16 +46,21 @@ class DashboardFinanceServiceTest extends TestCase
         $dre = DreService::generate($inicio, $fim)['totais'];
 
         $this->assertSame($dre['receitas'], $summary['receitas']);
-        $this->assertSame($dre['custos'] + $dre['despesas'], $summary['saidas']);
+        $this->assertSame(bcadd($dre['custos'], $dre['despesas'], 2), $summary['saidas']);
         $this->assertSame($dre['lucro_liquido'], $summary['resultado']);
-        $this->assertSame(1000.0, $summary['receitas']);
-        $this->assertSame(300.0, $summary['saidas']);
-        $this->assertSame(['total' => 700.0, 'count' => 1], $summary['receber_vencidos']);
-        $this->assertSame(['total' => 200.0, 'count' => 1], $summary['receber_hoje']);
-        $this->assertSame(['total' => 400.0, 'count' => 1], $summary['pagar_vencidos']);
-        $this->assertSame(['total' => 100.0, 'count' => 1], $summary['pagar_hoje']);
+        $this->assertSame('1000.00', $summary['receitas']);
+        $this->assertSame('300.00', $summary['saidas']);
+        $this->assertSame(['total' => '700.00', 'count' => 1], $summary['receber_vencidos']);
+        $this->assertSame(['total' => '200.00', 'count' => 1], $summary['receber_hoje']);
+        $this->assertSame(['total' => '400.00', 'count' => 1], $summary['pagar_vencidos']);
+        $this->assertSame(['total' => '100.00', 'count' => 1], $summary['pagar_hoje']);
 
         Carbon::setTestNow();
+    }
+
+    private function account(User $user): \App\Models\BankAccount
+    {
+        return \App\Models\BankAccount::firstOrCreate(['conta' => '123'], ['nome' => 'Conta teste', 'banco' => '237', 'agencia' => '1', 'opening_balance_date' => '2026-07-31', 'opening_balance' => '0.00', 'ativo' => true, 'created_by' => $user->id]);
     }
 
     private function category(User $user, string $code, string $description, string $type): Category
@@ -72,9 +77,10 @@ class DashboardFinanceServiceTest extends TestCase
 
     private function receivable(User $user, Client $client, Category $category, float $value, string $dueDate, ?string $paymentDate, string $status): void
     {
-        Receivable::create([
+        $title = Receivable::create([
             'client_id' => $client->id,
             'category_id' => $category->id,
+            'bank_account_id' => $this->account($user)->id,
             'descricao' => 'Conta a receber',
             'valor' => $value,
             'valor_pago' => $paymentDate ? $value : null,
@@ -83,12 +89,14 @@ class DashboardFinanceServiceTest extends TestCase
             'status' => $status,
             'created_by' => $user->id,
         ]);
+        app(\App\Services\BankMovementService::class)->syncLegacyPaid($title);
     }
 
     private function payable(User $user, Category $category, float $value, string $dueDate, ?string $paymentDate, string $status): void
     {
-        Payable::create([
+        $title = Payable::create([
             'category_id' => $category->id,
+            'bank_account_id' => $this->account($user)->id,
             'descricao' => 'Conta a pagar',
             'valor' => $value,
             'valor_pago' => $paymentDate ? $value : null,
@@ -97,5 +105,6 @@ class DashboardFinanceServiceTest extends TestCase
             'status' => $status,
             'created_by' => $user->id,
         ]);
+        app(\App\Services\BankMovementService::class)->syncLegacyPaid($title);
     }
 }

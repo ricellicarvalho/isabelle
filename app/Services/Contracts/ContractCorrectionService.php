@@ -56,7 +56,7 @@ class ContractCorrectionService
             $currentReceivables = $lockedContract->receivables()
                 ->where('contract_version_id', $previous->id);
 
-            if ($datesChanged && (clone $currentReceivables)->where('status', 'pago')->exists()) {
+            if ($datesChanged && (clone $currentReceivables)->where(fn ($query) => $query->where('status', 'pago')->orWhereHas('settlements'))->exists()) {
                 throw ValidationException::withMessages([
                     'data_inicio' => 'A vigência não pode ser corrigida porque esta versão possui parcela paga.',
                 ]);
@@ -110,6 +110,7 @@ class ContractCorrectionService
 
             $pendingReceivables = (clone $currentReceivables)
                 ->whereIn('status', ['pendente', 'vencido'])
+                ->whereDoesntHave('settlements')
                 ->lockForUpdate()
                 ->get();
 

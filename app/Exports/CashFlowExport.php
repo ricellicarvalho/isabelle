@@ -23,8 +23,10 @@ class CashFlowExport implements FromArray, WithHeadings, WithTitle
                 $linha['data']?->format('d/m/Y'),
                 $linha['descricao'],
                 $linha['categoria'],
-                $linha['tipo'] === 'entrada' ? 'Entrada' : 'Saída',
-                $linha['tipo'] === 'entrada' ? $linha['valor'] : -$linha['valor'],
+                match ($linha['tipo']) {
+                    'entrada' => 'Entrada', 'saida' => 'Saída', default => 'Abertura'
+                },
+                $linha['tipo'] === 'saida' ? bcsub('0', $linha['valor'], 2) : $linha['valor'],
                 $linha['saldo_acumulado'],
             ];
         }
@@ -33,6 +35,7 @@ class CashFlowExport implements FromArray, WithHeadings, WithTitle
         $rows[] = ['', '', '', 'Saldo Inicial', '', $this->report['saldo_inicial']];
         $rows[] = ['', '', '', 'Total Entradas', '', $this->report['totais']['entradas']];
         $rows[] = ['', '', '', 'Total Saídas', '', $this->report['totais']['saidas']];
+        $rows[] = ['', '', '', 'Ajuste de abertura', '', $this->report['ajuste_abertura'] ?? '0.00'];
         $rows[] = ['', '', '', 'Saldo Final', '', $this->report['totais']['saldo_final']];
 
         return $rows;

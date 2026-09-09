@@ -35,8 +35,9 @@ class DreServiceTest extends TestCase
         $this->receivable($user, $client, $servicos, '2026-07-10', '2026-08-20', 500);
         $this->receivable($user, $client, $servicos, '2026-08-25', '2026-09-01', 999);
 
-        Payable::create([
+        $title = Payable::create([
             'category_id' => $aluguel->id,
+            'bank_account_id' => $this->account($user)->id,
             'descricao' => 'Aluguel de julho pago em agosto',
             'valor' => 300,
             'valor_pago' => 300,
@@ -45,22 +46,24 @@ class DreServiceTest extends TestCase
             'status' => 'pago',
             'created_by' => $user->id,
         ]);
+        app(\App\Services\BankMovementService::class)->syncLegacyPaid($title);
 
         $report = DreService::generate(Carbon::parse('2026-08-01'), Carbon::parse('2026-08-31'));
 
-        $this->assertSame(1000.0, $report['totais']['entradas_mes']);
-        $this->assertSame(500.0, $report['totais']['entradas_periodos_anteriores']);
-        $this->assertSame(1500.0, $report['totais']['receitas']);
-        $this->assertSame(300.0, $report['totais']['despesas']);
-        $this->assertSame(1200.0, $report['totais']['lucro_liquido']);
+        $this->assertSame('1000.00', $report['totais']['entradas_mes']);
+        $this->assertSame('500.00', $report['totais']['entradas_periodos_anteriores']);
+        $this->assertSame('1500.00', $report['totais']['receitas']);
+        $this->assertSame('300.00', $report['totais']['despesas']);
+        $this->assertSame('1200.00', $report['totais']['lucro_liquido']);
         $this->assertSame('3.1', $report['despesas'][0]['children'][0]['codigo']);
     }
 
     private function receivable(User $user, Client $client, Category $category, string $vencimento, string $pagamento, float $valor): void
     {
-        Receivable::create([
+        $title = Receivable::create([
             'client_id' => $client->id,
             'category_id' => $category->id,
+            'bank_account_id' => $this->account($user)->id,
             'descricao' => 'Recebimento',
             'valor' => $valor,
             'valor_pago' => $valor,
@@ -69,6 +72,12 @@ class DreServiceTest extends TestCase
             'status' => 'pago',
             'created_by' => $user->id,
         ]);
+        app(\App\Services\BankMovementService::class)->syncLegacyPaid($title);
+    }
+
+    private function account(User $user): \App\Models\BankAccount
+    {
+        return \App\Models\BankAccount::firstOrCreate(['conta' => '123'], ['nome' => 'Conta teste', 'banco' => '237', 'agencia' => '1', 'opening_balance_date' => '2026-07-31', 'opening_balance' => '0.00', 'ativo' => true, 'created_by' => $user->id]);
     }
 
     private function category(User $user, ?int $parentId, string $codigo, string $descricao, string $tipo): Category

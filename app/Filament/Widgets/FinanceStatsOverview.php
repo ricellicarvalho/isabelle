@@ -29,16 +29,16 @@ class FinanceStatsOverview extends BaseWidget
     protected function getStats(): array
     {
         [$inicio, $fim] = $this->period();
-        $summary = app(DashboardFinanceService::class)->summary($inicio, $fim);
+        $summary = app(DashboardFinanceService::class)->summary($inicio, $fim, filled($this->pageFilters['bank_account_id'] ?? null) ? (int) $this->pageFilters['bank_account_id'] : null);
 
         return [
             Stat::make('Receitas realizadas', $this->money($summary['receitas']))
-                ->description('Recebidas pela data de pagamento')
+                ->description($summary['unclassified'] ? $summary['unclassified'].' título(s) pago(s) ainda sem baixa bancária no período' : 'Recebimentos confirmados pela data efetiva')
                 ->descriptionIcon('heroicon-m-arrow-trending-up')
                 ->color('success'),
 
             Stat::make('Custos + despesas realizados', $this->money($summary['saidas']))
-                ->description('Pagos pela data de pagamento')
+                ->description('Pagamentos confirmados pela data efetiva')
                 ->descriptionIcon('heroicon-m-arrow-trending-down')
                 ->color('warning'),
 
@@ -89,7 +89,7 @@ class FinanceStatsOverview extends BaseWidget
         return [$inicio, $fim];
     }
 
-    protected function money(float|int $value): string
+    protected function money(string|float|int $value): string
     {
         return 'R$ '.number_format((float) $value, 2, ',', '.');
     }

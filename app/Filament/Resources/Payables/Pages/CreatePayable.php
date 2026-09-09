@@ -5,13 +5,15 @@ namespace App\Filament\Resources\Payables\Pages;
 use App\Filament\Resources\Payables\PayableResource;
 use App\Filament\Resources\Payables\Schemas\PayableForm;
 use App\Models\Payable;
-use App\Services\PayableRecurrenceService;
 use App\Services\BankMovementService;
+use App\Services\PayableRecurrenceService;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
 
 class CreatePayable extends CreateRecord
 {
+    protected ?bool $hasDatabaseTransactions = true;
+
     protected static string $resource = PayableResource::class;
 
     protected int $createdPayablesCount = 1;

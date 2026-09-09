@@ -1,14 +1,14 @@
 # Planejamento do módulo de Movimentação Bancária
 
 **Sistema:** Instituto Alves Neves  
-**Data:** 4 de setembro de 2026  
+**Data:** 9 de setembro de 2026
 **Objetivo:** incorporar contas financeiras, movimentações, saldos e conciliação bancária sem invalidar o histórico financeiro já existente.
 
-> **Documento de continuidade (handoff):** este arquivo registra tanto o planejamento quanto o estado real da implementação em 04/09/2026. Em outra máquina, ler primeiro as seções 0, 7, 9, 11, 13 e 14 antes de alterar código ou banco.
+> **Documento de continuidade (handoff):** este arquivo registra tanto o planejamento quanto o estado real da implementação, atualizado em 09/09/2026 (ver também as seções 16 e 17). Em outra máquina, ler primeiro as seções 0, 7, 9, 11, 13 e 14 antes de alterar código ou banco.
 
 ## 0. Estado atual da implementação
 
-**Etapa atual:** primeira entrega operacional concluída localmente; próxima etapa é a **Fase 2 — baixa financeira completa, estorno e relatório de movimentação**. A conciliação OFX básica foi antecipada da Fase 3, mas ainda não é a conciliação avançada prevista neste documento.
+**Etapa atual:** Etapas 2 e 3 da seção 14 implementadas e testadas localmente; próxima etapa de desenvolvimento é a **Etapa 4 — conciliação avançada**. A migração da Etapa 2 e os seeders ainda não foram aplicados ao banco operacional nesta continuidade. A conciliação OFX básica foi antecipada da Fase 3, mas ainda não é a conciliação avançada prevista neste documento.
 
 ### Decisões confirmadas pelo usuário
 
@@ -52,11 +52,11 @@
 
 ### Limites da entrega atual
 
-- a baixa por tela ainda utiliza os campos compatíveis do título; não há modal completo para múltiplas baixas/parciais;
+- baixas parciais/múltiplas, ajustes e estorno têm ações explícitas; os relatórios específicos antigos de pagamentos/recebimentos ainda usam resumos dos títulos, mas fluxo de caixa, dashboard e DRE já usam o livro;
 - a conciliação atual é somente 1:1 e por valor exato;
-- ainda não há desfazer conciliação, estorno auditado ou fechamento mensal;
-- ainda não há relatório PDF/XLSX de movimentação de conta;
-- fluxo de caixa, dashboard e DRE ainda não foram migrados integralmente para o livro bancário após o corte;
+- ainda não há desfazer conciliação nem fechamento mensal; o estorno auditado está disponível somente para baixas não conciliadas e usuários autorizados;
+- relatório de movimentação de conta disponível em tela, PDF e XLSX, aguardando homologação com extratos reais;
+- fluxo de caixa, dashboard e DRE leem o livro bancário após o corte; títulos pagos ainda sem baixa não entram nesses totais e precisam ser revisados;
 - saldos não estarão conciliados até o usuário classificar os títulos desde 01/08/2026 e importar os OFX correspondentes.
 
 ## 1. Decisão recomendada
@@ -402,7 +402,7 @@ O arquivo `exemplo-emitir-webiss-gurupi-log-582.json` está ignorado no `.gitign
 
 ## 14. Próximas etapas, em ordem recomendada
 
-### Etapa 2 — baixa financeira completa (próxima)
+### Etapa 2 — baixa financeira completa (implementada localmente em 09/09/2026)
 
 1. Criar ações explícitas **Dar baixa** e **Receber** em vez de depender da edição do status.
 2. Usar `financial_settlements` como fonte definitiva para saldo aberto.
@@ -412,7 +412,7 @@ O arquivo `exemplo-emitir-webiss-gurupi-log-582.json` está ignorado no `.gitign
 6. Bloquear edição direta de campos que provoque divergência após baixa ou conciliação.
 7. Adicionar testes de parcial, múltiplas contas, estorno, concorrência e CNAB idempotente.
 
-### Etapa 3 — relatório e integração financeira
+### Etapa 3 — relatório e integração financeira (implementada localmente em 09/09/2026)
 
 1. Implementar o relatório “Movimentação de Conta” descrito na seção 8, inicialmente em tela e PDF; depois XLSX.
 2. Exibir saldo anterior, saldo acumulado, totais, saldo final e saldo disponível.
@@ -420,7 +420,7 @@ O arquivo `exemplo-emitir-webiss-gurupi-log-582.json` está ignorado no `.gitign
 4. Fazer fluxo de caixa e dashboard lerem títulos antes do corte e movimentos confirmados a partir dele, sem dupla contagem.
 5. Garantir por testes que transferências não afetem DRE.
 
-### Etapa 4 — conciliação avançada
+### Etapa 4 — conciliação avançada (implementada localmente em 09/09/2026)
 
 1. Sugestões por valor, janela de data, documento e favorecido.
 2. Conciliação 1:N, N:1 e parcial por alocações.
@@ -450,4 +450,140 @@ php artisan migrate:status
 php artisan route:list --path=bank
 ```
 
-Depois, conferir no banco as duas contas e os saldos iniciais, executar os testes com banco isolado e iniciar pela Etapa 2 da seção 14. Não executar migrations de produção antes de confirmar backup, credenciais e `DB_DATABASE`.
+Depois, conferir no banco as duas contas e os saldos iniciais, executar os testes com banco isolado e continuar pela Etapa 4 da seção 14. As Etapas 2 e 3 e sua preparação para implantação estão detalhadas nas seções 16 e 17. Não executar migrations de produção antes de confirmar backup, credenciais e `DB_DATABASE`.
+
+
+## 16. Continuidade implementada em 09/09/2026 — Etapa 2
+
+### Entrega
+
+- Ações **Dar baixa / Receber**, **Estornar baixa** e **Histórico de baixas** nas tabelas de títulos, edição e parcelas do contrato.
+- Modal com conta, data, principal, juros, multa, desconto, tarifa, forma, referência e observação. Cada confirmação possui chave idempotente; uma repetição com valores divergentes ou após estorno é rejeitada.
+- Baixas em lote quitam somente o saldo principal restante, em transação que engloba o lote. Nenhuma conta histórica é selecionada automaticamente.
+- Cálculo decimal com BCMath, título bloqueado com `lockForUpdate()` antes de consultar o saldo; gravação de baixa, movimento e resumo na mesma transação.
+- `principal_amount` representa a dívida liquidada; `amount` representa o dinheiro movimentado. Fórmula: principal + juros + multa − desconto; tarifa é acrescida na conta a pagar e deduzida na conta a receber. Principal deve ser positivo e não superar o saldo aberto; líquido deve ser positivo. Não há fluxo de crédito/adiantamento ou perdão integral sem movimento nesta entrega.
+- `saldo_aberto` é calculado pelas baixas confirmadas. `situacao_financeira` mostra **Parcial** sem alterar os enums antigos: enquanto houver saldo, o status compatível continua `pendente`/`vencido`; ao zerar fica `pago`. `valor_pago` resume o líquido e a data/conta resumidas vêm da baixa mais recente por data efetiva, não pela ordem de cadastro.
+- Estorno mantém ambos os registros com status `reversed`, grava autor/data/justificativa e recalcula o resumo do título. Não recria baixa estornada ao salvar o título ou repetir o CNAB.
+- Campos financeiros e exclusão são bloqueados em títulos com histórico de baixa. Movimentos vinculados a baixa/transferência e movimentos conciliados não aceitam edição/exclusão direta. Observações do título continuam editáveis.
+- Cancelamento de contrato com parcela parcialmente recebida é bloqueado. Correções de vigência e exclusão respeitam o histórico de baixas das parcelas.
+- CNAB gera baixa `cnab` com chave por boleto, usa data de crédito, separa mora/juros, desconto/abatimento e tarifa reportados pelo parser e não duplica recebimento em reimportação. Valores que excedam o principal aberto são rejeitados para revisão, sem inferir adiantamento. A leitura de arquivos reais continua pendente de homologação; outros créditos, IOF e custas específicos do banco ainda não têm classificação automática.
+- Conciliação básica trava os registros e rejeita movimentos estornados ou já conciliados, protegendo também a disputa entre conciliar e estornar. Desfazer conciliação continua na Etapa 4; por enquanto uma baixa conciliada não pode ser estornada pela interface.
+
+### Migração, permissões e implantação
+
+Nova migração: `database/migrations/2026_09_09_000001_extend_financial_settlements.php`. Acrescenta principal/ajustes, chave idempotente e auditoria do estorno. Para baixas existentes, copia `amount` para o principal, sem atribuir contas nem criar movimentos retroativos. Divergências antigas entre título e baixa continuam exigindo revisão humana.
+
+Novas permissões: `Settle:Payable`, `Settle:Receivable`, `Reverse:Payable`, `Reverse:Receivable`. O `RoleSeeder` concede baixa a administrador/financeiro. **Não concede estorno automaticamente**; a definição dos responsáveis continua pendente conforme seção 12. Concessões de estorno já realizadas a esses perfis são preservadas quando o seeder roda novamente.
+
+**O banco operacional não foi migrado nem teve permissões ou saldos alterados nesta continuidade.** Após backup e conferência de credenciais/banco, aplicar a nova migration e executar `RoleSeeder` antes de disponibilizar as telas alteradas. Atribuir as permissões de estorno aos responsáveis aprovados. O módulo como um todo ainda depende das Etapas 3–5 para atender todos os critérios de produção.
+
+### Verificação
+
+- Suíte completa em SQLite em memória: **43 aprovados, 1 ignorado e 1 falha antiga**, 184 assertions. A falha permanece `ExampleTest` (espera 200, recebe redirecionamento 302); o ignorado é a concorrência real, executada separadamente em MySQL.
+- Suíte bancária e concorrência real no MySQL `isabelle_test`: **16 aprovados, 79 assertions**.
+- Cobertura bancária inclui parciais em contas diferentes, ajustes, ordem de datas, requisição repetida, título desatualizado, estorno auditado, proteção de conciliação/edição/exclusão, corte, conta inativa, precisão decimal, CNAB idempotente, permissões e ações Filament via Livewire.
+- Teste de concorrência usa dois processos reais contra MySQL: duas baixas de R$ 60,00 para um título de R$ 100,00 resultam em uma baixa confirmada e uma rejeitada, deixando R$ 40,00 em aberto.
+- O teste de contrato pago foi adaptado para preparar o recebimento pelo serviço de baixa; foi acrescentada regressão para cancelamento com recebimento parcial.
+- Formatação PHP verificada com `vendor/bin/pint --dirty` e whitespace com `git diff --check`.
+
+Comandos utilizados (sempre banco explicitamente isolado e configuração cacheada separada):
+
+```bash
+docker exec isabelle_app sh -lc 'cd /var/www && DB_CONNECTION=sqlite DB_DATABASE=:memory: DB_URL= APP_CONFIG_CACHE=/tmp/isabelle-test-config.php php artisan test'
+docker exec isabelle_app sh -lc 'cd /var/www && DB_CONNECTION=mysql DB_DATABASE=isabelle_test DB_URL= APP_CONFIG_CACHE=/tmp/isabelle-test-config.php php artisan test tests/Feature/BankMovementModuleTest.php tests/Feature/FinancialSettlementConcurrencyTest.php'
+```
+
+O segundo comando prepara o schema de `isabelle_test` pelo `RefreshDatabase` da suíte bancária antes do teste concorrente; não apontar esses testes para um banco operacional. O teste concorrente exige explicitamente o nome `isabelle_test` e extensão `pcntl`.
+
+
+## 17. Relatório e integração financeira — Etapa 3 (09/09/2026)
+
+### Onde operar
+
+- **Relatórios → Movimentação de Conta** (`/bank-account-report`): selecionar conta obrigatória e período, depois **Gerar relatório**. Exportações **Abrir PDF** e **Exportar Excel** usam os filtros do relatório gerado.
+- Atalhos para o relatório no cabeçalho da edição de contas bancárias e na listagem de movimentações.
+- Filtros de conta nas listagens de contas a pagar/receber, no fluxo de caixa, no dashboard e também na DRE.
+- Cadastro de contas mostra saldo atual e saldo com limite; saldo atual desconsidera movimentos futuros.
+
+### Regras implementadas
+
+- Extrato inclui somente movimentos confirmados da conta, em ordem de data/hora e ID. Conta inativa continua disponível para consulta.
+- Saldo anterior inclui saldo inicial mais os movimentos confirmados anteriores ao período; cada linha mostra o saldo real acumulado da conta. Totais mostram débitos, créditos, movimento líquido, saldo final e saldo com limite.
+- Categoria, conciliação e busca por favorecido/documento selecionam linhas **sem recalcular o saldo da conta como se os lançamentos ocultos não existissem**. Totais da seleção são mostrados separadamente, com explicação na tela/PDF/XLSX.
+- O período do extrato deve começar desde 01/08/2026 e depois da data do saldo inicial da conta. Não foi implementada reconstrução de julho.
+- Tela e PDF compartilham a mesma apresentação de dados; XLSX conserva os mesmos valores e filtros. Campos textuais são explicitamente texto na planilha; valores monetários são células numéricas com duas casas decimais. Cálculos financeiros permanecem decimais via BCMath.
+- Nova permissão `View:BankAccountReport`, incluída para administrador/financeiro no `RoleSeeder`. PDF exige sessão, URL assinada e essa permissão; a exportação Excel também verifica permissão no servidor.
+- `FinancialCashService` centraliza a leitura: títulos pagos com data anterior a 01/08/2026 e movimentos confirmados desde o corte, sem somar novamente `valor_pago` dos títulos atuais. Isso inclui baixas parciais em suas datas/contas efetivas, avulsos e exclusão dos estornos.
+- Títulos pagos após o corte ainda sem baixa bancária são contados como pendências e ficam fora dos valores realizados; nenhuma baixa ou associação histórica foi criada automaticamente. Avisos aparecem no fluxo de caixa, DRE, dashboard e extrato (neste último, para títulos já associados à conta consultada).
+- DRE e dashboard classificam o líquido dos movimentos por categoria, excluindo transferências internas e saldo inicial. Juros/descontos/tarifas incorporados à baixa continuam na categoria do movimento; não há distribuição automática desses componentes em categorias próprias nesta etapa.
+- Fluxo de caixa consolidado exclui as duas pontas das transferências; por conta, mostra a entrada/saída correspondente. Saldo inicial em regime de caixa desde o corte é calculado pelas contas, não digitado. Em períodos que atravessam o corte, uma linha explícita ajusta o saldo para a abertura bancária de 01/08/2026, fora dos totais de entradas/saídas. Aberturas de novas contas durante o período também são separadas do resultado.
+- Regime de competência mantém os valores nominais dos títulos por vencimento. Indicadores de valores em aberto no dashboard e na tabela de vencidos mostram somente o principal restante.
+- Filtro dos títulos e valores em aberto aceita a conta do título ou uma de suas baixas confirmadas. Um título parcial em várias contas pode aparecer em mais de um filtro; esses subtotais em aberto não devem ser somados entre contas. Valores realizados usam sempre a conta efetiva de cada movimento.
+
+### Arquivos principais
+
+- `app/Services/BankAccountReportService.php` e `app/Services/FinancialCashService.php`;
+- `app/Filament/Pages/BankAccountReport.php`;
+- `app/Http/Controllers/BankAccountReportController.php` e rota `reports.bank-account.pdf`;
+- `app/Exports/BankAccountReportExport.php`;
+- `resources/views/reports/bank-account-content.blade.php`, `resources/views/pdf/bank-account-report.blade.php` e `resources/views/filament/pages/bank-account-report.blade.php`;
+- integração em `CashFlowService`, `DreService`, `DashboardFinanceService` e widgets/filtros correspondentes;
+- `tests/Feature/BankAccountReportTest.php`, com fixtures dos testes anteriores de DRE/dashboard atualizadas para registrar as baixas após o corte.
+
+### Validação e estado de implantação
+
+- Suíte completa em SQLite em memória: **53 aprovados, 1 ignorado e 1 falha antiga**, **253 assertions**. A falha continua sendo o `ExampleTest` (200 esperado, 302 retornado). A concorrência real exige MySQL e já foi validada na Etapa 2.
+- Validação da Etapa 3 no MySQL `isabelle_test`: **12 aprovados, 84 assertions** (relatório, DRE e dashboard).
+- Dez novos testes cobrem saldos/totais exatos, desempate por ID, filtros, conta inativa, conciliação, corte e abertura, parciais por conta, transferências fora da DRE/consolidado, estorno, validação de período, autorização do PDF, renderização Livewire e leitura de XLSX real.
+- PDF renderizado com dados fictícios e inspecionado visualmente em A4 horizontal; prévia local em `storage/app/bank-report-preview.pdf` (ignorada pelo Git). Não contém movimentações operacionais.
+- `git diff --check` sem erros; arquivos PHP novos/alterados formatados com Pint. O arquivo de rotas preserva a formatação anterior fora da rota acrescentada.
+- **Nenhuma migration, seeder, saldo ou classificação foi alterado no banco operacional.** A Etapa 3 não acrescenta migration; depende da migration da Etapa 2 e da execução de `RoleSeeder` após backup/conferência do banco. Depois da implantação, limpar caches e conferir o acesso ao relatório.
+- Próxima etapa: **Etapa 5 — implantação e homologação**. A implementação e a simulação isolada com os OFX reais estão descritas na seção 18. A importação assistida na aplicação deve ocorrer em homologação depois das migrations, permissões e contas bancárias terem sido conferidas.
+
+## 18. Conciliação avançada e preparação da homologação — Etapa 4 (09/09/2026)
+
+### Onde operar
+
+- **Financeiro → Contas Bancárias → Editar → Importar OFX**: importa o extrato para a conta selecionada. A conta deve estar cadastrada com banco e número iguais aos do arquivo.
+- **Financeiro → Conciliação Bancária**: mostra valor do banco, valor já alocado, diferença e situação. A ação **Alocar** apresenta sugestões e também permite buscar outro lançamento por histórico, documento ou favorecido.
+- **Financeiro → Conciliação Bancária → Banco × Sistema** (`/bank-reconciliation-summary`): compara o saldo diário reconstruído do OFX com o saldo confirmado no sistema.
+
+### Regras implementadas
+
+- Sugestões são ordenadas por valor restante, proximidade de data, documento e histórico/favorecido. A janela automática é de dez dias; a busca manual alcança lançamentos compatíveis fora dela.
+- Uma linha bancária pode ser distribuída entre vários lançamentos e um lançamento pode receber várias linhas. Alocações parciais ficam gravadas, e **Concluir** exige diferença exatamente zero.
+- Locks no banco e cálculo decimal impedem que alocações simultâneas ultrapassem o valor da linha ou do lançamento.
+- **Desfazer conciliação** preserva as alocações revertidas, autor, data e justificativa, reabre a linha e permite nova alocação. A permissão `UndoReconciliation:BankStatementEntry` não é concedida automaticamente pelo seeder.
+- Linhas sem alocação podem ser arquivadas com justificativa e depois reabertas. O histórico registra alocação, conclusão, desfazimento, arquivamento e reabertura.
+- O comparativo diário usa o saldo informado pelo banco em cada linha importada e o saldo do razão confirmado na conta. Dias sem saldo bancário disponível são identificados sem inventar valor.
+- O importador limita arquivos a 10 MB, bloqueia reimportação pelo hash, valida banco e conta, rejeita FITID repetido e datas anteriores ao corte/saldo inicial e aceita OFX SGML, decimal com ponto ou vírgula e texto UTF-8/Windows-1252/ISO-8859-1.
+- O período efetivo é derivado das movimentações. Isso evita confiar em cabeçalhos inconsistentes, como o encontrado no arquivo do Bradesco. A data inválida do saldo final usa como referência a última movimentação válida.
+- Não haverá integração Open Finance. O escopo aprovado permanece importação manual de OFX e conciliação dentro da aplicação.
+
+### OFX reais disponíveis e momento da importação
+
+- `docs/Bradesco_03092026_144009.OFX`: 15 movimentações reconhecidas.
+- `docs/extrato-conta-corrente-ofx-money_202609_20260903143848.ofx`: 20 movimentações reconhecidas.
+- Ambos foram usados somente por teste automatizado com `RefreshDatabase` em SQLite e no MySQL isolado `isabelle_test`. O teste valida leitura, codificação, saldo final, FITID único e bloqueio da reimportação. Nenhum dado desses arquivos foi persistido no banco operacional; os arquivos foram incluídos no `.gitignore` para não serem versionados.
+- A importação pela interface deve ser feita na **Etapa 5, em homologação**, depois de aplicar as migrations `2026_09_09_000001` e `2026_09_09_000002`, executar `RoleSeeder`, conferir banco/número/saldo inicial das duas contas e classificar as baixas desde 01/08/2026. Importar cada arquivo na respectiva conta e então conciliar as linhas e validar **Banco × Sistema** dia a dia.
+- Em produção, repetir a importação somente depois da homologação aprovada, backup confirmado, publicação do código, migrations/seeders e validação das permissões. O bloqueio por hash evita uma segunda importação acidental na mesma conta.
+
+### Arquivos principais
+
+- `database/migrations/2026_09_09_000002_advance_bank_reconciliation.php`;
+- `app/Services/BankReconciliationService.php` e `app/Services/OfxImportService.php`;
+- `app/Filament/Resources/BankStatementEntries/BankStatementEntryResource.php`;
+- `app/Filament/Pages/BankReconciliationSummary.php` e views de comparativo/histórico;
+- `app/Models/BankStatementEntryEvent.php` e relações de alocação/auditoria;
+- `tests/Feature/AdvancedBankReconciliationTest.php`, `tests/Feature/RealOfxCompatibilityTest.php` e o cenário de concorrência em `FinancialSettlementConcurrencyTest.php`.
+
+### Estado de implantação
+
+**O banco operacional não recebeu migration, seeder, importação OFX, conciliação ou alteração de saldo nesta etapa.** A Etapa 5 ainda exige homologação assistida e conferência dos saldos antes da publicação em produção.
+
+### Verificação
+
+- Suíte completa em SQLite em memória: **62 aprovados, 2 ignorados e 1 falha antiga**, 310 assertions. A falha continua em `ExampleTest`, que espera HTTP 200 na raiz protegida e recebe o redirecionamento 302. Os dois testes ignorados exigem concorrência real no MySQL.
+- Validação integrada das Etapas 2–4 no MySQL `isabelle_test`: **36 aprovados, 211 assertions**. Inclui os dois arquivos OFX reais e duas disputas com processos simultâneos: baixa financeira e alocação de conciliação.
+- Os dois OFX também passaram isoladamente no MySQL com 12 assertions. A importação repetida do mesmo conteúdo na mesma conta foi rejeitada como previsto.
+- Os 60 arquivos PHP modificados passaram pelo Pint e `git diff --check` não apresentou erro de whitespace.

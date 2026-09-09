@@ -23,7 +23,7 @@ class ExpenseCompositionChart extends ChartWidget
     {
         $inicio = Carbon::parse($this->pageFilters['data_inicio'] ?? now()->startOfMonth())->startOfDay();
         $fim = Carbon::parse($this->pageFilters['data_fim'] ?? now()->endOfMonth())->endOfDay();
-        $dre = DreService::generate($inicio, $fim);
+        $dre = DreService::generate($inicio, $fim, filled($this->pageFilters['bank_account_id'] ?? null) ? (int) $this->pageFilters['bank_account_id'] : null);
         $items = [];
 
         $this->collectOwnValues([...$dre['custos'], ...$dre['despesas']], $items);

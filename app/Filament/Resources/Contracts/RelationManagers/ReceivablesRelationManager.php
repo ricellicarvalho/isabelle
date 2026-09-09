@@ -38,7 +38,7 @@ class ReceivablesRelationManager extends RelationManager
                     ->numeric()
                     ->disabled(),
 
-                TextInput::make('valor')
+                TextInput::make('valor')->disabled(fn ($record) => $record?->settlements()->exists() ?? false)
                     ->label('Valor')
                     ->required()
                     ->prefix('R$')
@@ -47,7 +47,7 @@ class ReceivablesRelationManager extends RelationManager
                     ->dehydrateStateUsing(fn ($state) => self::parseMoney($state))
                     ->afterStateHydrated(fn (TextInput $component, $state) => $component->state(self::formatMoney($state))),
 
-                TextInput::make('valor_pago')
+                TextInput::make('valor_pago')->disabled(fn ($record) => $record?->settlements()->exists() ?? false)
                     ->label('Valor Pago')
                     ->prefix('R$')
                     ->placeholder('0,00')
@@ -61,12 +61,12 @@ class ReceivablesRelationManager extends RelationManager
                     ->native(false)
                     ->displayFormat('d/m/Y'),
 
-                DatePicker::make('data_pagamento')
+                DatePicker::make('data_pagamento')->disabled(fn ($record) => $record?->settlements()->exists() ?? false)
                     ->label('Pagamento')
                     ->native(false)
                     ->displayFormat('d/m/Y'),
 
-                Select::make('status')
+                Select::make('status')->disableOptionWhen(fn (string $value, $record) => $value === 'pago' && $record?->status !== 'pago')->helperText('Para novos pagamentos, salve o título e use Dar baixa ou Receber.')->disabled(fn ($record) => $record?->settlements()->exists() ?? false)
                     ->label('Status')
                     ->options([
                         'pendente' => 'Pendente',
@@ -93,6 +93,8 @@ class ReceivablesRelationManager extends RelationManager
                     ->label('Descrição')
                     ->limit(40),
 
+                TextColumn::make('saldo_aberto')->label('Saldo aberto')->money('BRL'),
+                TextColumn::make('situacao_financeira')->label('Baixa')->badge(),
                 TextColumn::make('valor')
                     ->label('Valor')
                     ->money('BRL')
@@ -114,7 +116,7 @@ class ReceivablesRelationManager extends RelationManager
                             return null;
                         }
 
-                        return abs($dias) . ' dias';
+                        return abs($dias).' dias';
                     })
                     ->badge()
                     ->color('danger')
@@ -143,34 +145,36 @@ class ReceivablesRelationManager extends RelationManager
             ])
             ->headerActions([])
             ->actions([
+                \App\Filament\Actions\FinancialSettlementActions::settle(),
+                \App\Filament\Actions\FinancialSettlementActions::reverse(),
+                \App\Filament\Actions\FinancialSettlementActions::history(),
                 EditAction::make(),
             ])
             ->bulkActions([
                 BulkActionGroup::make([
                     // RN05 - Quitação em Lote
-                    BulkAction::make('marcarPago')
-                        ->label('Marcar como Pago')
+                    BulkAction::make('marcarPago')->visible(fn () => auth()->user()->can('Settle:Receivable'))
+                        ->label('Baixar saldo em lote')
                         ->icon('heroicon-o-check-circle')
                         ->color('success')
                         ->form([
-                            Select::make('bank_account_id')->label('Conta bancária')->options(fn () => BankAccount::query()->where('ativo', true)->get()->pluck('display_name', 'id'))->required()->searchable(),
-                            DatePicker::make('data_pagamento')->label('Data do recebimento')->default(today())->required(),
+                            Select::make('bank_account_id')->disabled(fn ($record) => $record?->settlements()->exists() ?? false)->label('Conta bancária')->options(fn () => BankAccount::query()->where('ativo', true)->get()->pluck('display_name', 'id'))->required()->searchable(),
+                            DatePicker::make('data_pagamento')->disabled(fn ($record) => $record?->settlements()->exists() ?? false)->label('Data do recebimento')->default(today())->minDate(BankMovementService::CONTROL_START)->required(),
                         ])
                         ->requiresConfirmation()
                         ->action(function (Collection $records, array $data): void {
-                            $count = 0;
-                            foreach ($records as $record) {
-                                if ($record->status === 'pendente' || $record->status === 'vencido') {
-                                    $record->update([
-                                        'status' => 'pago',
-                                        'bank_account_id' => $data['bank_account_id'],
-                                        'data_pagamento' => $data['data_pagamento'],
-                                        'valor_pago' => $record->valor,
-                                    ]);
-                                    app(BankMovementService::class)->syncLegacyPaid($record->refresh());
-                                    $count++;
+                            $count = \Illuminate\Support\Facades\DB::transaction(function () use ($records, $data) {
+                                $count = 0;
+                                foreach ($records->sortBy('id') as $record) {
+                                    if ($record->status === 'pendente' || $record->status === 'vencido') {
+                                        \Illuminate\Support\Facades\Gate::authorize('Settle:'.class_basename($record));
+                                        app(BankMovementService::class)->settle($record, BankAccount::findOrFail($data['bank_account_id']), $data['data_pagamento'], $record->saldo_aberto);
+                                        $count++;
+                                    }
                                 }
-                            }
+
+                                return $count;
+                            });
 
                             Notification::make()
                                 ->title("{$count} parcela(s) marcada(s) como pagas")
@@ -192,7 +196,9 @@ class ReceivablesRelationManager extends RelationManager
 
     private static function formatMoney(mixed $state): ?string
     {
-        if (blank($state)) return null;
+        if (blank($state)) {
+            return null;
+        }
 
         return number_format((float) $state, 2, ',', '.');
     }

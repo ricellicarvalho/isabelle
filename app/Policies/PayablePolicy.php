@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
-use Illuminate\Foundation\Auth\User as AuthUser;
 use App\Models\Payable;
 use Illuminate\Auth\Access\HandlesAuthorization;
+use Illuminate\Foundation\Auth\User as AuthUser;
 
 class PayablePolicy
 {
     use HandlesAuthorization;
-    
+
     public function viewAny(AuthUser $authUser): bool
     {
         return $authUser->can('ViewAny:Payable');
@@ -34,7 +34,7 @@ class PayablePolicy
 
     public function delete(AuthUser $authUser, Payable $payable): bool
     {
-        return $authUser->can('Delete:Payable');
+        return ! $payable->settlements()->exists() && $authUser->can('Delete:Payable');
     }
 
     public function deleteAny(AuthUser $authUser): bool
@@ -49,7 +49,7 @@ class PayablePolicy
 
     public function forceDelete(AuthUser $authUser, Payable $payable): bool
     {
-        return $authUser->can('ForceDelete:Payable');
+        return ! $payable->settlements()->exists() && $authUser->can('ForceDelete:Payable');
     }
 
     public function forceDeleteAny(AuthUser $authUser): bool
@@ -71,5 +71,4 @@ class PayablePolicy
     {
         return $authUser->can('Reorder:Payable');
     }
-
 }

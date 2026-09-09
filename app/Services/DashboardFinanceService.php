@@ -9,24 +9,25 @@ use Illuminate\Support\Carbon;
 
 class DashboardFinanceService
 {
-    public function summary(Carbon $inicio, Carbon $fim): array
+    public function summary(Carbon $inicio, Carbon $fim, ?int $accountId = null): array
     {
-        $totais = DreService::generate($inicio, $fim)['totais'];
+        $totais = DreService::generate($inicio, $fim, $accountId)['totais'];
 
         return [
+            'unclassified' => FinancialCashService::unclassifiedCount($inicio, $fim, $accountId),
             'receitas' => $totais['receitas'],
-            'saidas' => $totais['custos'] + $totais['despesas'],
+            'saidas' => bcadd($totais['custos'], $totais['despesas'], 2),
             'resultado' => $totais['lucro_liquido'],
             'margem_percentual' => $totais['margem_percentual'],
-            'receber_vencidos' => $this->outstanding(Receivable::query(), beforeToday: true),
-            'receber_hoje' => $this->outstanding(Receivable::query(), todayOnly: true),
-            'pagar_vencidos' => $this->outstanding(Payable::query(), beforeToday: true),
-            'pagar_hoje' => $this->outstanding(Payable::query(), todayOnly: true),
+            'receber_vencidos' => $this->outstanding(FinancialCashService::titleAccount(Receivable::query(), $accountId), beforeToday: true),
+            'receber_hoje' => $this->outstanding(FinancialCashService::titleAccount(Receivable::query(), $accountId), todayOnly: true),
+            'pagar_vencidos' => $this->outstanding(FinancialCashService::titleAccount(Payable::query(), $accountId), beforeToday: true),
+            'pagar_hoje' => $this->outstanding(FinancialCashService::titleAccount(Payable::query(), $accountId), todayOnly: true),
         ];
     }
 
     /**
-     * @return array{total: float, count: int}
+     * @return array{total: string, count: int}
      */
     protected function outstanding(Builder $query, bool $beforeToday = false, bool $todayOnly = false): array
     {
@@ -38,9 +39,17 @@ class DashboardFinanceService
             $query->whereDate('data_vencimento', today());
         }
 
-        return [
-            'total' => (float) (clone $query)->sum('valor'),
-            'count' => (clone $query)->count(),
-        ];
+        $total = '0.00';
+        $count = 0;
+        foreach ($query->get() as $title) {
+            $open = $title->saldo_aberto;
+            if (bccomp($open, '0', 2) <= 0) {
+                continue;
+            }
+            $total = bcadd($total, $open, 2);
+            $count++;
+        }
+
+        return ['total' => $total, 'count' => $count];
     }
 }

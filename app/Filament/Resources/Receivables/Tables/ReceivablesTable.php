@@ -4,14 +4,14 @@ namespace App\Filament\Resources\Receivables\Tables;
 
 use App\Filament\Resources\Receivables\Pages\ListReceivables;
 use App\Jobs\EmitirNFSeJob;
+use App\Models\BankAccount;
 use App\Models\Nfse;
 use App\Models\NfseConfig;
 use App\Models\NfseServiceCode;
 use App\Models\Receivable;
-use App\Models\BankAccount;
 use App\Services\BankBoletoService;
-use App\Services\BoletoBatchService;
 use App\Services\BankMovementService;
+use App\Services\BoletoBatchService;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
@@ -71,6 +71,8 @@ class ReceivablesTable
                     ->alignCenter()
                     ->toggleable(isToggledHiddenByDefault: true),
 
+                TextColumn::make('saldo_aberto')->label('Saldo aberto')->money('BRL'),
+                TextColumn::make('situacao_financeira')->label('Baixa')->badge(),
                 TextColumn::make('valor')
                     ->label('Valor')
                     ->money('BRL')
@@ -159,6 +161,8 @@ class ReceivablesTable
                     }),
             ])
             ->filters([
+                SelectFilter::make('bank_account_id')->label('Conta prevista / baixas')->options(fn () => BankAccount::orderBy('nome')->get()->pluck('display_name', 'id'))->searchable()
+                    ->query(fn (Builder $query, array $data) => \App\Services\FinancialCashService::titleAccount($query, filled($data['value'] ?? null) ? (int) $data['value'] : null)),
                 SelectFilter::make('status')
                     ->label('Status')
                     ->options([
@@ -372,6 +376,9 @@ class ReceivablesTable
                                     ->send();
                             }
                         }),
+                    \App\Filament\Actions\FinancialSettlementActions::settle(),
+                    \App\Filament\Actions\FinancialSettlementActions::reverse(),
+                    \App\Filament\Actions\FinancialSettlementActions::history(),
                     EditAction::make(),
                     DeleteAction::make(),
                 ]),
@@ -379,29 +386,28 @@ class ReceivablesTable
             ->bulkActions([
                 BulkActionGroup::make([
                     // RN05 - Quitação em Lote
-                    BulkAction::make('marcarPago')
-                        ->label('Marcar como Pago')
+                    BulkAction::make('marcarPago')->visible(fn () => auth()->user()->can('Settle:Receivable'))
+                        ->label('Baixar saldo em lote')
                         ->icon('heroicon-o-check-circle')
                         ->color('success')
                         ->form([
                             Select::make('bank_account_id')->label('Conta bancária')->options(fn () => BankAccount::query()->where('ativo', true)->get()->pluck('display_name', 'id'))->required()->searchable(),
-                            DatePicker::make('data_pagamento')->label('Data do recebimento')->default(today())->required(),
+                            DatePicker::make('data_pagamento')->label('Data do recebimento')->default(today())->minDate(BankMovementService::CONTROL_START)->required(),
                         ])
                         ->requiresConfirmation()
                         ->action(function (Collection $records, array $data): void {
-                            $count = 0;
-                            foreach ($records as $record) {
-                                if ($record->status === 'pendente' || $record->status === 'vencido') {
-                                    $record->update([
-                                        'status' => 'pago',
-                                        'bank_account_id' => $data['bank_account_id'],
-                                        'data_pagamento' => $data['data_pagamento'],
-                                        'valor_pago' => $record->valor,
-                                    ]);
-                                    app(BankMovementService::class)->syncLegacyPaid($record->refresh());
-                                    $count++;
+                            $count = \Illuminate\Support\Facades\DB::transaction(function () use ($records, $data) {
+                                $count = 0;
+                                foreach ($records->sortBy('id') as $record) {
+                                    if ($record->status === 'pendente' || $record->status === 'vencido') {
+                                        \Illuminate\Support\Facades\Gate::authorize('Settle:'.class_basename($record));
+                                        app(BankMovementService::class)->settle($record, BankAccount::findOrFail($data['bank_account_id']), $data['data_pagamento'], $record->saldo_aberto);
+                                        $count++;
+                                    }
                                 }
-                            }
+
+                                return $count;
+                            });
 
                             Notification::make()
                                 ->title("{$count} parcela(s) marcada(s) como pagas")

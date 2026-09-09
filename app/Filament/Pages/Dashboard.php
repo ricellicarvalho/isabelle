@@ -21,11 +21,12 @@ class Dashboard extends BaseDashboard
     {
         return $schema
             ->components([
-                Section::make('Período de competência por pagamento')
-                    ->description('Receitas e despesas realizadas são consideradas pela data de pagamento.')
-                    ->columns(2)
+                Section::make('Período financeiro')
+                    ->description('Receitas e despesas pela data efetiva; transferências entre contas não compõem o resultado.')
+                    ->columns(3)
                     ->columnSpanFull()
                     ->schema([
+                        \Filament\Forms\Components\Select::make('bank_account_id')->label('Conta financeira')->options(fn () => \App\Models\BankAccount::orderBy('nome')->get()->pluck('display_name', 'id'))->placeholder('Todas as contas')->searchable(),
                         DatePicker::make('data_inicio')
                             ->label('Data inicial')
                             ->default(now()->startOfMonth())

@@ -39,6 +39,7 @@
     </style>
 </head>
 <body>
+    @if ($report['unclassified'] ?? 0)<p>{{ $report['unclassified'] }} título(s) pago(s) ainda sem baixa bancária e fora dos totais.</p>@endif
     @php
         $totais = $report['totais'];
         $basePercentual = (float) $totais['receitas'];

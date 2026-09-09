@@ -22,13 +22,15 @@ class BankAccountsTable
                     ->formatStateUsing(fn ($record) => "{$record->banco} - {$record->banco_nome}")
                     ->searchable(),
 
-                TextColumn::make('agencia')->label('Agência')->formatStateUsing(fn ($record) => $record->agencia . ($record->agencia_dv ? "-{$record->agencia_dv}" : '')),
+                TextColumn::make('agencia')->label('Agência')->formatStateUsing(fn ($record) => $record->agencia.($record->agencia_dv ? "-{$record->agencia_dv}" : '')),
 
-                TextColumn::make('conta')->label('Conta')->formatStateUsing(fn ($record) => $record->conta . ($record->conta_dv ? "-{$record->conta_dv}" : '')),
+                TextColumn::make('conta')->label('Conta')->formatStateUsing(fn ($record) => $record->conta.($record->conta_dv ? "-{$record->conta_dv}" : '')),
 
                 TextColumn::make('opening_balance')->label('Saldo inicial')->money('BRL'),
 
                 TextColumn::make('current_balance')->label('Saldo atual')->state(fn ($record) => $record->balanceAt())->money('BRL'),
+
+                TextColumn::make('available_balance')->label('Saldo com limite')->state(fn ($record) => bcadd($record->balanceAt(), $record->credit_limit, 2))->money('BRL'),
 
                 IconColumn::make('uses_billing')->label('Boletos')->boolean(),
 

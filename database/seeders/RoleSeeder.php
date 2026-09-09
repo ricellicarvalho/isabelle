@@ -15,33 +15,42 @@ class RoleSeeder extends Seeder
 
         Role::firstOrCreate(['name' => 'super_admin',        'guard_name' => 'web']);
         $administrador = Role::firstOrCreate(['name' => 'administrador',      'guard_name' => 'web']);
-        $financeiro    = Role::firstOrCreate(['name' => 'financeiro',         'guard_name' => 'web']);
-        $colaborador   = Role::firstOrCreate(['name' => 'colaborador',        'guard_name' => 'web']);
-        $seguranca     = Role::firstOrCreate(['name' => 'seguranca_trabalho', 'guard_name' => 'web']);
+        $financeiro = Role::firstOrCreate(['name' => 'financeiro',         'guard_name' => 'web']);
+        $colaborador = Role::firstOrCreate(['name' => 'colaborador',        'guard_name' => 'web']);
+        $seguranca = Role::firstOrCreate(['name' => 'seguranca_trabalho', 'guard_name' => 'web']);
         Role::firstOrCreate(['name' => 'cliente',            'guard_name' => 'web']);
 
         // super_admin bypasses all gates via Shield config — no explicit permissions needed.
 
-        $crmResources      = ['Client', 'Contract', 'Event', 'ClientDocument'];
-        $financeiroRes     = ['BankAccount', 'BankMovement', 'BankStatementEntry', 'BankBoleto', 'BankRemessa', 'BankRetorno',
-                              'Receivable', 'Payable', 'Nfse', 'NfseConfig', 'NfseServiceCode'];
-        $fullActions       = ['ViewAny', 'View', 'Create', 'Update', 'Delete', 'DeleteAny',
-                              'Restore', 'RestoreAny', 'ForceDelete', 'ForceDeleteAny', 'Reorder'];
+        $crmResources = ['Client', 'Contract', 'Event', 'ClientDocument'];
+        $financeiroRes = ['BankAccount', 'BankMovement', 'BankStatementEntry', 'BankBoleto', 'BankRemessa', 'BankRetorno',
+            'Receivable', 'Payable', 'Nfse', 'NfseConfig', 'NfseServiceCode'];
+        $fullActions = ['ViewAny', 'View', 'Create', 'Update', 'Delete', 'DeleteAny',
+            'Restore', 'RestoreAny', 'ForceDelete', 'ForceDeleteAny', 'Reorder'];
 
         foreach (['BankMovement', 'BankStatementEntry'] as $resource) {
             foreach ($fullActions as $action) {
                 Permission::firstOrCreate(['name' => "{$action}:{$resource}", 'guard_name' => 'web']);
             }
         }
-        $readWrite         = ['ViewAny', 'View', 'Create', 'Update'];
-        $financeiroReports = ['View:DreReport', 'View:CashFlowReport',
-                              'View:FinanceStatsOverview', 'View:OverdueReceivablesTable'];
-        $userActions       = ['ViewAny', 'View', 'Create', 'Update', 'Delete', 'DeleteAny'];
+        foreach (['Payable', 'Receivable'] as $resource) {
+            foreach (['Settle', 'Reverse'] as $action) {
+                Permission::firstOrCreate(['name' => "{$action}:{$resource}", 'guard_name' => 'web']);
+            }
+        }
+        Permission::firstOrCreate(['name' => 'View:BankAccountReport', 'guard_name' => 'web']);
+        foreach (['Reconcile', 'Archive', 'UndoReconciliation'] as $action) {
+            Permission::firstOrCreate(['name' => "{$action}:BankStatementEntry", 'guard_name' => 'web']);
+        }
+        $readWrite = ['ViewAny', 'View', 'Create', 'Update'];
+        $financeiroReports = ['View:BankAccountReport', 'View:DreReport', 'View:CashFlowReport',
+            'View:FinanceStatsOverview', 'View:OverdueReceivablesTable'];
+        $userActions = ['ViewAny', 'View', 'Create', 'Update', 'Delete', 'DeleteAny'];
 
         $exists = fn (string $p): bool => Permission::where('name', $p)->exists();
 
         // ── Administrador: CRM + Financeiro + Relatórios + Gestão de Usuários ──────
-        $adminPerms = [];
+        $adminPerms = array_merge(['Settle:Payable', 'Settle:Receivable', 'Reconcile:BankStatementEntry', 'Archive:BankStatementEntry'], $administrador->permissions()->whereIn('name', ['Reverse:Payable', 'Reverse:Receivable', 'UndoReconciliation:BankStatementEntry'])->pluck('name')->all());
         foreach (array_merge($crmResources, $financeiroRes, ['Pricing', 'Category', 'Supplier']) as $res) {
             foreach ($fullActions as $action) {
                 $adminPerms[] = "{$action}:{$res}";
@@ -58,7 +67,7 @@ class RoleSeeder extends Seeder
         $administrador->syncPermissions(array_filter($adminPerms, $exists));
 
         // ── Financeiro: CRM + Financeiro + Relatórios + Pricing + Category ─────────
-        $finPerms = [];
+        $finPerms = array_merge(['Settle:Payable', 'Settle:Receivable', 'Reconcile:BankStatementEntry', 'Archive:BankStatementEntry'], $financeiro->permissions()->whereIn('name', ['Reverse:Payable', 'Reverse:Receivable', 'UndoReconciliation:BankStatementEntry'])->pluck('name')->all());
         foreach (array_merge($crmResources, $financeiroRes, ['Pricing', 'Category']) as $res) {
             foreach ($fullActions as $action) {
                 $finPerms[] = "{$action}:{$res}";

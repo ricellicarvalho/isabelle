@@ -30,7 +30,7 @@ class ReceivableForm
                                 Section::make('Vínculos')
                                     ->columns(2)
                                     ->components([
-                                        Select::make('client_id')
+                                        Select::make('client_id')->disabled(fn ($record) => $record?->settlements()->exists() ?? false)
                                             ->label('Cliente')
                                             ->relationship('client', 'razao_social')
                                             ->searchable()
@@ -47,14 +47,14 @@ class ReceivableForm
                                             ->native(false)
                                             ->getOptionLabelUsing(fn ($value) => Contract::find($value)?->numero),
 
-                                        SelectTree::make('category_id')
+                                        SelectTree::make('category_id')->disabled(fn ($record) => $record?->settlements()->exists() ?? false)
                                             ->label('Categoria (Plano de Contas)')
                                             ->relationship('category', 'descricao', 'parent_id')
                                             ->searchable()
                                             ->required()
                                             ->columnSpanFull(),
 
-                                        TextInput::make('descricao')
+                                        TextInput::make('descricao')->disabled(fn ($record) => $record?->settlements()->exists() ?? false)
                                             ->label('Descrição')
                                             ->required()
                                             ->maxLength(255)
@@ -68,7 +68,7 @@ class ReceivableForm
                                 Section::make('Valores')
                                     ->columns(2)
                                     ->components([
-                                        TextInput::make('valor')
+                                        TextInput::make('valor')->disabled(fn ($record) => $record?->settlements()->exists() ?? false)
                                             ->label('Valor')
                                             ->required()
                                             ->prefix('R$')
@@ -89,7 +89,7 @@ class ReceivableForm
                                             ->default(1)
                                             ->minValue(1),
 
-                                        TextInput::make('valor_pago')
+                                        TextInput::make('valor_pago')->disabled(fn ($record) => $record?->settlements()->exists() ?? false)
                                             ->label('Valor Pago')
                                             ->prefix('R$')
                                             ->placeholder('0,00')
@@ -117,12 +117,12 @@ class ReceivableForm
                                             ->native(false)
                                             ->displayFormat('d/m/Y'),
 
-                                        DatePicker::make('data_pagamento')
+                                        DatePicker::make('data_pagamento')->disabled(fn ($record) => $record?->settlements()->exists() ?? false)
                                             ->label('Data de Pagamento')
                                             ->native(false)
                                             ->displayFormat('d/m/Y'),
 
-                                        Select::make('forma_pagamento')
+                                        Select::make('forma_pagamento')->disabled(fn ($record) => $record?->settlements()->exists() ?? false)
                                             ->label('Forma de Pagamento')
                                             ->options([
                                                 'boleto' => 'Boleto',
@@ -133,7 +133,7 @@ class ReceivableForm
                                             ])
                                             ->native(false),
 
-                                        Select::make('bank_account_id')
+                                        Select::make('bank_account_id')->disabled(fn ($record) => $record?->settlements()->exists() ?? false)
                                             ->label('Conta financeira')
                                             ->relationship('bankAccount', 'nome', fn ($query) => $query->where('ativo', true))
                                             ->getOptionLabelFromRecordUsing(fn ($record): string => $record->display_name)
@@ -141,7 +141,7 @@ class ReceivableForm
                                             ->required(fn (Get $get): bool => $get('status') === 'pago' && filled($get('data_pagamento')) && Carbon::parse($get('data_pagamento'))->gte('2026-08-01'))
                                             ->helperText('Obrigatória para recebimentos realizados desde 01/08/2026.'),
 
-                                        Select::make('status')
+                                        Select::make('status')->disableOptionWhen(fn (string $value, $record) => $value === 'pago' && $record?->status !== 'pago')->helperText('Para novos pagamentos, salve o título e use Dar baixa ou Receber.')->disabled(fn ($record) => $record?->settlements()->exists() ?? false)
                                             ->label('Status')
                                             ->options([
                                                 'pendente' => 'Pendente',
@@ -171,8 +171,12 @@ class ReceivableForm
 
     public static function parseMoney(mixed $state): ?float
     {
-        if (blank($state)) return null;
-        if (is_numeric($state)) return (float) $state;
+        if (blank($state)) {
+            return null;
+        }
+        if (is_numeric($state)) {
+            return (float) $state;
+        }
 
         $str = (string) $state;
 
@@ -182,6 +186,7 @@ class ReceivableForm
         $lastComma = strrpos($str, ',');
         if ($lastComma !== false && strlen(substr($str, $lastComma + 1)) > 2) {
             $digits = preg_replace('/\D/', '', $str);
+
             return $digits !== '' ? (float) $digits / 100 : 0.0;
         }
 
@@ -190,7 +195,9 @@ class ReceivableForm
 
     private static function formatMoney(mixed $state): ?string
     {
-        if (blank($state)) return null;
+        if (blank($state)) {
+            return null;
+        }
 
         return number_format((float) $state, 2, ',', '.');
     }

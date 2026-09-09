@@ -172,11 +172,8 @@ class ContractRenewalTest extends TestCase
     {
         [$user, $client, $category] = $this->dependencies();
         $contract = $this->contract($user, $client, $category)->fresh();
-        $contract->receivables()->first()->update([
-            'status' => 'pago',
-            'data_pagamento' => now(),
-            'valor_pago' => 600,
-        ]);
+        $account = \App\Models\BankAccount::create(['nome' => 'Conta teste', 'banco' => '237', 'agencia' => '1', 'conta' => '123', 'ativo' => true, 'created_by' => $user->id]);
+        app(\App\Services\BankMovementService::class)->settle($contract->receivables()->first(), $account, '2026-08-10', '600.00');
 
         $this->expectException(ValidationException::class);
 
@@ -186,6 +183,22 @@ class ContractRenewalTest extends TestCase
             'observacoes' => null,
             'change_reason' => 'Correção de teste.',
         ], $user->id);
+    }
+
+    public function test_partial_installment_blocks_contract_cancellation(): void
+    {
+        [$user, $client, $category] = $this->dependencies();
+        $contract = $this->contract($user, $client, $category)->fresh();
+        $account = \App\Models\BankAccount::create(['nome' => 'Conta teste', 'banco' => '237', 'agencia' => '1', 'conta' => '123', 'ativo' => true, 'created_by' => $user->id]);
+        $title = $contract->receivables()->first();
+        app(\App\Services\BankMovementService::class)->settle($title, $account, '2026-08-10', '100.00');
+        try {
+            $contract->update(['status' => 'cancelado']);
+            $this->fail('Cancelamento não pode ignorar baixa parcial.');
+        } catch (ValidationException $e) {
+            $this->assertSame('ativo', $contract->fresh()->status);
+            $this->assertSame('500.00', $title->fresh()->saldo_aberto);
+        }
     }
 
     private function dependencies(): array

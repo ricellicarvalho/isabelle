@@ -4,6 +4,9 @@
     </form>
 
     @if ($report)
+        @if ($report['unclassified'] ?? 0)
+            <p>{{ $report['unclassified'] }} título(s) pago(s) ainda sem baixa bancária e fora dos totais. Revise os títulos desde 01/08/2026.</p>
+        @endif
         @php $totais = $report['totais']; @endphp
 
         <x-filament::section>
@@ -31,6 +34,9 @@
                 </div>
             </div>
 
+            @if (bccomp($report['ajuste_abertura'] ?? '0', '0', 2) !== 0)
+                <p>Ajustes para os saldos de abertura das contas: R$ {{ number_format($report['ajuste_abertura'], 2, ',', '.') }}. Esse valor não compõe entradas ou saídas.</p>
+            @endif
             @if (count($report['linhas']) === 0)
                 <p class="text-center text-gray-500 py-8">Nenhuma movimentação no período.</p>
             @else
@@ -52,14 +58,16 @@
                                 <td class="py-2">{{ $linha['descricao'] }}</td>
                                 <td class="py-2 text-gray-500">{{ $linha['categoria'] }}</td>
                                 <td class="py-2 text-center">
-                                    @if ($linha['tipo'] === 'entrada')
+                                    @if ($linha['tipo'] === 'abertura')
+                                        <span>Abertura</span>
+                                    @elseif ($linha['tipo'] === 'entrada')
                                         <span class="text-success-600">↑ Entrada</span>
                                     @else
                                         <span class="text-danger-600">↓ Saída</span>
                                     @endif
                                 </td>
                                 <td class="py-2 text-right tabular-nums {{ $linha['tipo'] === 'entrada' ? 'text-success-600' : 'text-danger-600' }}">
-                                    {{ $linha['tipo'] === 'entrada' ? '+' : '-' }} R$ {{ number_format($linha['valor'], 2, ',', '.') }}
+                                    {{ $linha['tipo'] === 'entrada' ? '+' : ($linha['tipo'] === 'saida' ? '-' : '') }} R$ {{ number_format($linha['valor'], 2, ',', '.') }}
                                 </td>
                                 <td class="py-2 text-right tabular-nums font-medium">R$ {{ number_format($linha['saldo_acumulado'], 2, ',', '.') }}</td>
                             </tr>

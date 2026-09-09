@@ -6,9 +6,9 @@ use App\Models\BankAccount;
 use App\Models\BankBoleto;
 use App\Models\BankRetorno;
 use App\Models\Receivable;
+use Carbon\CarbonInterface;
 use Eduardokum\LaravelBoleto\Cnab\Retorno\Detalhe;
 use Eduardokum\LaravelBoleto\Cnab\Retorno\Factory as RetornoFactory;
-use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -27,9 +27,9 @@ class CnabRetornoService
     /**
      * Processa um arquivo de retorno e retorna o registro BankRetorno criado.
      *
-     * @param string $absolutePath Caminho absoluto do arquivo .ret
-     * @param string $originalName Nome original do arquivo (para exibição)
-     * @param BankAccount|null $bankAccount Conta bancária associada (opcional)
+     * @param  string  $absolutePath  Caminho absoluto do arquivo .ret
+     * @param  string  $originalName  Nome original do arquivo (para exibição)
+     * @param  BankAccount|null  $bankAccount  Conta bancária associada (opcional)
      */
     public function processar(string $absolutePath, string $originalName, ?BankAccount $bankAccount = null): BankRetorno
     {
@@ -46,7 +46,7 @@ class CnabRetornoService
             'alterados' => 0,
             'erros' => 0,
             'nao_encontrados' => 0,
-            'valor_total' => 0.0,
+            'valor_total' => '0.00',
         ];
 
         $log = [];
@@ -92,7 +92,7 @@ class CnabRetornoService
                 };
 
                 if ($entry['status'] === 'liquidado') {
-                    $totais['valor_total'] += (float) ($entry['valor'] ?? 0);
+                    $totais['valor_total'] = bcadd($totais['valor_total'], (string) ($entry['valor'] ?? '0'), 2);
                 }
             }
 
@@ -142,7 +142,8 @@ class CnabRetornoService
         $boleto = BankBoleto::query()
             ->where(function ($query) use ($candidatos, $nossoNumeroRaw) {
                 foreach ($candidatos as $candidato) {
-                    $query->orWhereRaw('TRIM(LEADING "0" FROM nosso_numero) = ?', [$candidato]);
+                    $expression = DB::connection()->getDriverName() === 'sqlite' ? "LTRIM(nosso_numero, '0')" : "TRIM(LEADING '0' FROM nosso_numero)";
+                    $query->orWhereRaw($expression.' = ?', [$candidato]);
                 }
                 $query->orWhere('nosso_numero', $nossoNumeroRaw);
             })
@@ -160,7 +161,7 @@ class CnabRetornoService
             ];
         }
 
-        $valor = (float) ($detalhe->get('valorRecebido') ?: $detalhe->get('valor') ?: 0);
+        $valor = (string) ($detalhe->get('valorRecebido') ?: $detalhe->get('valor') ?: '0');
 
         // A biblioteca eduardokum/laravel-boleto devolve objetos \Carbon\Carbon
         // (classe base), por isso checamos via CarbonInterface — um teste contra
@@ -178,26 +179,28 @@ class CnabRetornoService
 
         switch ($tipo) {
             case Detalhe::OCORRENCIA_LIQUIDADA:
-                $boleto->update([
-                    'status' => 'pago',
-                    'valor_pago' => $valor ?: $boleto->valor,
-                    'data_pagamento' => $dataPagamento->toDateString(),
-                    'bank_retorno_id' => $retorno->id,
-                ]);
-
-                // Quita a parcela correspondente em Receivables
-                if ($boleto->receivable_id && ($receivable = Receivable::find($boleto->receivable_id))) {
-                    $receivable->update([
-                        'bank_account_id' => $retorno->bank_account_id,
-                        'status' => 'pago',
-                        'valor_pago' => $valor ?: $receivable->valor,
-                        'data_pagamento' => $dataPagamento->toDateString(),
-                        'forma_pagamento' => 'boleto',
-                    ]);
-                    if ($retorno->bankAccount) {
-                        app(BankMovementService::class)->syncLegacyPaid($receivable->fresh());
+                DB::transaction(function () use ($boleto, $retorno, $valor, $dataPagamento, $detalhe) {
+                    if ($boleto->receivable_id && ($receivable = Receivable::find($boleto->receivable_id))) {
+                        if ($dataPagamento->gte(BankMovementService::CONTROL_START)) {
+                            if (! $retorno->bankAccount) {
+                                throw \Illuminate\Validation\ValidationException::withMessages(['bank_account_id' => 'Informe a conta do retorno CNAB.']);
+                            }
+                            $interest = BankMovementService::money($detalhe->get('valorMora') ?: $detalhe->get('valorJuros') ?: '0');
+                            $discount = bcadd(BankMovementService::money($detalhe->get('valorDesconto') ?: '0'), BankMovementService::money($detalhe->get('valorAbatimento') ?: '0'), 2);
+                            $fee = BankMovementService::money($detalhe->get('valorTarifa') ?: '0');
+                            $received = bccomp($valor, '0', 2) > 0 ? $valor : $boleto->valor;
+                            $principal = bcadd(bcsub($received, $interest, 2), $discount, 2);
+                            app(BankMovementService::class)->settle($receivable, $retorno->bankAccount,
+                                $dataPagamento->toDateString(), $principal, 'boleto',
+                                ['interest' => $interest, 'discount' => $discount, 'fee' => $fee, 'origin' => 'cnab', 'idempotency_key' => 'cnab:boleto:'.$boleto->id]);
+                        } else {
+                            $receivable->update(['status' => 'pago', 'valor_pago' => bccomp($valor, '0', 2) > 0 ? $valor : $receivable->valor,
+                                'data_pagamento' => $dataPagamento->toDateString(), 'forma_pagamento' => 'boleto']);
+                        }
                     }
-                }
+                    $boleto->update(['status' => 'pago', 'valor_pago' => bccomp($valor, '0', 2) > 0 ? $valor : $boleto->valor,
+                        'data_pagamento' => $dataPagamento->toDateString(), 'bank_retorno_id' => $retorno->id]);
+                });
 
                 return [
                     'nosso_numero' => $nossoNumero,
@@ -256,7 +259,7 @@ class CnabRetornoService
             return '';
         }
 
-        $filename = 'retornos/' . date('Ymd_His') . '_' . $originalName;
+        $filename = 'retornos/'.date('Ymd_His').'_'.$originalName;
         Storage::disk('local')->put($filename, $contents);
 
         return $filename;

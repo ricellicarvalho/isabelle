@@ -1,4 +1,5 @@
 <x-filament-panels::page>
+    @if ($report['unclassified'] ?? 0)<p>{{ $report['unclassified'] }} título(s) pago(s) ainda sem baixa bancária e fora dos totais.</p>@endif
     <form wire:submit.prevent="generateReport">
         {{ $this->form }}
     </form>

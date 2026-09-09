@@ -33,7 +33,7 @@ class PayableForm
                                 Section::make('Dados da Conta')
                                     ->columns(2)
                                     ->components([
-                                        Select::make('supplier_id')
+                                        Select::make('supplier_id')->disabled(fn ($record) => $record?->settlements()->exists() ?? false)
                                             ->label('Fornecedor')
                                             ->relationship('supplier', 'nome')
                                             ->searchable()
@@ -62,13 +62,13 @@ class PayableForm
                                                 return \App\Models\Supplier::create($data)->id;
                                             }),
 
-                                        SelectTree::make('category_id')
+                                        SelectTree::make('category_id')->disabled(fn ($record) => $record?->settlements()->exists() ?? false)
                                             ->label('Categoria (Plano de Contas)')
                                             ->relationship('category', 'descricao', 'parent_id')
                                             ->searchable()
                                             ->required(),
 
-                                        TextInput::make('descricao')
+                                        TextInput::make('descricao')->disabled(fn ($record) => $record?->settlements()->exists() ?? false)
                                             ->label('Descrição')
                                             ->required()
                                             ->maxLength(255)
@@ -82,7 +82,7 @@ class PayableForm
                                 Section::make('Valores')
                                     ->columns(2)
                                     ->components([
-                                        TextInput::make('valor')
+                                        TextInput::make('valor')->disabled(fn ($record) => $record?->settlements()->exists() ?? false)
                                             ->label('Valor')
                                             ->required()
                                             ->prefix('R$')
@@ -96,7 +96,7 @@ class PayableForm
                                                 }
                                             }),
 
-                                        TextInput::make('valor_pago')
+                                        TextInput::make('valor_pago')->disabled(fn ($record) => $record?->settlements()->exists() ?? false)
                                             ->label('Valor Pago')
                                             ->prefix('R$')
                                             ->placeholder('0,00')
@@ -133,13 +133,13 @@ class PayableForm
                                             ->displayFormat('d/m/Y')
                                             ->live(),
 
-                                        DatePicker::make('data_pagamento')
+                                        DatePicker::make('data_pagamento')->disabled(fn ($record) => $record?->settlements()->exists() ?? false)
                                             ->label('Data de Pagamento')
                                             ->native(false)
                                             ->displayFormat('d/m/Y')
                                             ->visible(fn (Get $get): bool => ! (bool) $get('recorrente')),
 
-                                        Select::make('forma_pagamento')
+                                        Select::make('forma_pagamento')->disabled(fn ($record) => $record?->settlements()->exists() ?? false)
                                             ->label('Forma de Pagamento')
                                             ->options([
                                                 'boleto' => 'Boleto',
@@ -150,7 +150,7 @@ class PayableForm
                                             ])
                                             ->native(false),
 
-                                        Select::make('bank_account_id')
+                                        Select::make('bank_account_id')->disabled(fn ($record) => $record?->settlements()->exists() ?? false)
                                             ->label('Conta financeira')
                                             ->relationship('bankAccount', 'nome', fn ($query) => $query->where('ativo', true))
                                             ->getOptionLabelFromRecordUsing(fn ($record): string => $record->display_name)
@@ -158,7 +158,7 @@ class PayableForm
                                             ->required(fn (Get $get): bool => $get('status') === 'pago' && filled($get('data_pagamento')) && Carbon::parse($get('data_pagamento'))->gte('2026-08-01'))
                                             ->helperText('Obrigatória para pagamentos realizados desde 01/08/2026.'),
 
-                                        Select::make('status')
+                                        Select::make('status')->disableOptionWhen(fn (string $value, $record) => $value === 'pago' && $record?->status !== 'pago')->helperText('Para novos pagamentos, salve o título e use Dar baixa ou Receber.')->disabled(fn ($record) => $record?->settlements()->exists() ?? false)
                                             ->label('Status')
                                             ->options([
                                                 'pendente' => 'Pendente',
