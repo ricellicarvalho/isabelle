@@ -266,6 +266,28 @@ class BankMovementModuleTest extends TestCase
         $this->assertDatabaseCount('bank_movements', 1);
     }
 
+    public function test_historical_settlements_can_be_registered_in_a_group_preserving_each_date(): void
+    {
+        [$first, $account] = $this->unpaidTitle();
+        $second = $first->replicate()->fill(['descricao' => 'Segundo título']);
+        $second->save();
+        foreach ([[$first, '2026-08-10'], [$second, '2026-08-12']] as [$title, $date]) {
+            $title->newQuery()->whereKey($title->id)->update([
+                'status' => 'pago', 'valor_pago' => $title->valor,
+                'data_pagamento' => $date, 'forma_pagamento' => 'pix',
+            ]);
+        }
+        $service = app(BankMovementService::class);
+        $firstSettlement = $service->registerLegacyPaid($first->fresh(), $account);
+        $service->registerLegacyPaid($second->fresh(), $account);
+
+        $this->assertSame('2026-08-10', $firstSettlement->settled_at->toDateString());
+        $this->assertSame('2026-08-12', $second->settlements()->first()->settled_at->toDateString());
+        $this->assertSame($firstSettlement->id, $service->registerLegacyPaid($first->fresh(), $account)->id);
+        $this->assertDatabaseCount('financial_settlements', 2);
+        $this->assertDatabaseCount('bank_movements', 2);
+    }
+
     public function test_reversal_permissions_require_explicit_grant_and_survive_reseeding(): void
     {
         $this->seed(\Database\Seeders\RoleSeeder::class);

@@ -6,11 +6,15 @@ use App\Models\BankAccount;
 use App\Models\Receivable;
 use App\Services\BankMovementService;
 use Filament\Actions\Action;
+use Filament\Actions\BulkAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
@@ -55,6 +59,37 @@ class FinancialSettlementActions
         return $record->status === 'pago'
             && $record->data_pagamento?->gte(BankMovementService::CONTROL_START)
             && ! $record->settlements()->exists();
+    }
+
+    public static function historicalBulk(string $model): BulkAction
+    {
+        return BulkAction::make('registrarBaixasHistoricas')
+            ->label('Registrar baixas históricas')
+            ->icon('heroicon-o-clock')
+            ->color('warning')
+            ->visible(fn () => auth()->user()->can('Settle:'.$model))
+            ->schema([
+                Select::make('bank_account_id')
+                    ->label('Conta financeira de todos os títulos selecionados')
+                    ->options(fn () => BankAccount::where('ativo', true)->get()->pluck('display_name', 'id'))
+                    ->required()
+                    ->searchable(),
+            ])
+            ->modalDescription('Use somente títulos pagos pela mesma conta. As datas, valores e formas de pagamento já registradas serão preservadas.')
+            ->requiresConfirmation()
+            ->deselectRecordsAfterCompletion()
+            ->action(function (Collection $records, array $data) use ($model): void {
+                Gate::authorize('Settle:'.$model);
+                $account = BankAccount::findOrFail($data['bank_account_id']);
+                $count = DB::transaction(function () use ($records, $account): int {
+                    foreach ($records->sortBy('id') as $record) {
+                        app(BankMovementService::class)->registerLegacyPaid($record, $account);
+                    }
+
+                    return $records->count();
+                });
+                Notification::make()->success()->title("{$count} baixa(s) histórica(s) registrada(s)")->send();
+            });
     }
 
     private static function refreshRecord($record, $livewire): void

@@ -61,10 +61,34 @@ class BankMovementService
                 return null;
             }
 
-            return $this->settle($title, $title->bankAccount, $title->data_pagamento->toDateString(),
-                $title->valor_pago ?: $title->valor, $title->forma_pagamento,
-                ['origin' => 'legacy_migration', 'idempotency_key' => 'legacy:'.$title->getMorphClass().':'.$title->id]);
+            return $this->registerLegacyPaid($title, $title->bankAccount);
         });
+    }
+
+    public function registerLegacyPaid(Model $title, BankAccount $account): FinancialSettlement
+    {
+        if (! $title instanceof Payable && ! $title instanceof Receivable) {
+            throw ValidationException::withMessages(['records' => 'Selecione somente contas a pagar ou a receber.']);
+        }
+
+        return DB::transaction(function () use ($title, $account): FinancialSettlement {
+            $title = $title->newQuery()->lockForUpdate()->findOrFail($title->id);
+            if ($existing = $title->settlements()->first()) {
+                return $existing;
+            }
+            if ($title->status !== 'pago' || ! $title->data_pagamento || $title->data_pagamento->lt(self::CONTROL_START)) {
+                throw ValidationException::withMessages(['records' => 'A seleção contém título que não é uma baixa histórica válida desde 01/08/2026.']);
+            }
+
+            return $this->settle(
+                $title,
+                $account,
+                $title->data_pagamento->toDateString(),
+                $title->valor_pago ?: $title->valor,
+                $title->forma_pagamento,
+                ['origin' => 'legacy_migration', 'idempotency_key' => 'legacy:'.$title->getMorphClass().':'.$title->id],
+            );
+        }, 3);
     }
 
     public function settle(Model $title, BankAccount $account, string $date, string $amount, ?string $method = null, array $adjustments = []): FinancialSettlement

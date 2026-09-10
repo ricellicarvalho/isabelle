@@ -180,6 +180,13 @@ class PayablesTable
                     ->label('Contas recorrentes')
                     ->query(fn (Builder $query): Builder => $query->whereNotNull('payable_recurrence_id'))
                     ->toggle(),
+                Filter::make('sem_baixa_historica')
+                    ->label('Pagos sem baixa bancária')
+                    ->query(fn (Builder $query): Builder => $query
+                        ->where('status', 'pago')
+                        ->whereDate('data_pagamento', '>=', BankMovementService::CONTROL_START)
+                        ->whereDoesntHave('settlements'))
+                    ->toggle(),
             ])
             ->actions([
                 \App\Filament\Actions\FinancialSettlementActions::settle(),
@@ -190,6 +197,7 @@ class PayablesTable
             ])
             ->bulkActions([
                 BulkActionGroup::make([
+                    \App\Filament\Actions\FinancialSettlementActions::historicalBulk('Payable'),
                     // RN05 - Quitação em Lote
                     BulkAction::make('marcarPago')->visible(fn () => auth()->user()->can('Settle:Payable'))
                         ->label('Baixar saldo em lote')

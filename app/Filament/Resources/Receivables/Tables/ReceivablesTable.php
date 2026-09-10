@@ -252,6 +252,13 @@ class ReceivablesTable
                     ->label('Com boleto gerado')
                     ->query(fn (Builder $query): Builder => $query->whereHas('bankBoletos'))
                     ->toggle(),
+                Filter::make('sem_baixa_historica')
+                    ->label('Pagos sem baixa bancária')
+                    ->query(fn (Builder $query): Builder => $query
+                        ->where('status', 'pago')
+                        ->whereDate('data_pagamento', '>=', BankMovementService::CONTROL_START)
+                        ->whereDoesntHave('settlements'))
+                    ->toggle(),
             ])
             ->actions([
                 ActionGroup::make([
@@ -385,6 +392,7 @@ class ReceivablesTable
             ])
             ->bulkActions([
                 BulkActionGroup::make([
+                    \App\Filament\Actions\FinancialSettlementActions::historicalBulk('Receivable'),
                     // RN05 - Quitação em Lote
                     BulkAction::make('marcarPago')->visible(fn () => auth()->user()->can('Settle:Receivable'))
                         ->label('Baixar saldo em lote')
