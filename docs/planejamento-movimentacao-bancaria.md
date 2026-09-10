@@ -587,3 +587,11 @@ O segundo comando prepara o schema de `isabelle_test` pelo `RefreshDatabase` da 
 - Validação integrada das Etapas 2–4 no MySQL `isabelle_test`: **36 aprovados, 211 assertions**. Inclui os dois arquivos OFX reais e duas disputas com processos simultâneos: baixa financeira e alocação de conciliação.
 - Os dois OFX também passaram isoladamente no MySQL com 12 assertions. A importação repetida do mesmo conteúdo na mesma conta foi rejeitada como previsto.
 - Os 60 arquivos PHP modificados passaram pelo Pint e `git diff --check` não apresentou erro de whitespace.
+
+## 19. Início da Etapa 5 no ambiente local — 10/09/2026
+
+- Os menus **Relatórios → Movimentação de Conta** e **Financeiro → Conciliação Bancária** estavam ocultos porque as migrations `2026_09_09_000001` e `2026_09_09_000002` ainda estavam pendentes e as novas permissões não existiam no banco local.
+- Antes da alteração foi criado o backup `storage/app/backups/isabelle_db_pre_etapa5_20260910.sql`, com SHA-256 `a5ebbf31da85570903e1c7b47244bb0a007200fbc7175b645428ef2e4fba44f0`. O diretório de backups passou a ser ignorado pelo Git.
+- As duas migrations foram aplicadas, o `RoleSeeder` foi executado e todos os caches da aplicação/Filament foram limpos. Os perfis `administrador` e `financeiro` possuem `View:BankAccountReport`, `ViewAny:BankStatementEntry`, `Reconcile:BankStatementEntry` e `Archive:BankStatementEntry`.
+- As duas contas cadastradas correspondem ao banco e ao número informados nos respectivos OFX. Ainda existem **4 contas a pagar** e **16 contas a receber**, marcadas como pagas desde 01/08/2026, sem baixa financeira vinculada. Existem zero movimentos, zero baixas e zero linhas OFX no banco local.
+- Os OFX não foram importados nesta execução. Antes da importação, o usuário deve identificar em qual das duas contas ocorreu cada um dos 20 pagamentos/recebimentos históricos; só então as baixas devem ser registradas e os arquivos importados para que as sugestões de conciliação encontrem os movimentos corretos.
