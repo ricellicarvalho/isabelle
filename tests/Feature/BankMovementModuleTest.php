@@ -50,6 +50,16 @@ class BankMovementModuleTest extends TestCase
         $this->assertSame(1, BankMovement::distinct()->count('transfer_group'));
     }
 
+    public function test_bank_movement_money_mask_is_parsed_and_same_account_transfer_is_rejected(): void
+    {
+        $this->assertSame('1234.56', \App\Filament\Resources\BankMovements\Schemas\BankMovementForm::parseMoney('1.234,56'));
+        $this->assertSame('40.00', \App\Filament\Resources\BankMovements\Schemas\BankMovementForm::parseMoney('40.00'));
+
+        [, , $account] = $this->baseData('100.00');
+        $this->expectException(ValidationException::class);
+        app(BankMovementService::class)->transfer($account, $account, '2026-08-10', '40.00');
+    }
+
     public function test_ofx_import_is_idempotent(): void
     {
         [, , $account] = $this->baseData();
