@@ -19,14 +19,18 @@ class FinancialSettlementActions
     public static function settle(): Action
     {
         return Action::make('darBaixa')
-            ->label(fn ($record) => $record instanceof Receivable ? 'Receber' : 'Dar baixa')
+            ->label(fn ($record) => self::isLegacyPaidWithoutSettlement($record)
+                ? 'Registrar baixa histórica'
+                : ($record instanceof Receivable ? 'Receber' : 'Dar baixa'))
             ->icon('heroicon-o-check-circle')
-            ->visible(fn ($record) => auth()->user()->can('Settle:'.class_basename($record)) && ! in_array($record->status, ['pago', 'cancelado']))
+            ->visible(fn ($record) => auth()->user()->can('Settle:'.class_basename($record))
+                && $record->status !== 'cancelado'
+                && ($record->status !== 'pago' || self::isLegacyPaidWithoutSettlement($record)))
             ->schema([
                 Hidden::make('idempotency_key')->default(fn () => (string) Str::uuid()),
                 Select::make('bank_account_id')->label('Conta financeira')->options(fn () => BankAccount::where('ativo', true)->get()->pluck('display_name', 'id'))->required()->searchable(),
-                DatePicker::make('date')->label('Data efetiva')->default(today())->minDate(BankMovementService::CONTROL_START)->required(),
-                TextInput::make('amount')->label('Principal a baixar')->default(fn ($record) => $record->saldo_aberto)->numeric()->minValue('0.01')->step('0.01')->required(),
+                DatePicker::make('date')->label('Data efetiva')->default(fn ($record) => self::isLegacyPaidWithoutSettlement($record) ? $record->data_pagamento : today())->minDate(BankMovementService::CONTROL_START)->required(),
+                TextInput::make('amount')->label('Principal a baixar')->default(fn ($record) => self::isLegacyPaidWithoutSettlement($record) ? ($record->valor_pago ?: $record->valor) : $record->saldo_aberto)->numeric()->minValue('0.01')->step('0.01')->required(),
                 TextInput::make('interest')->label('Juros')->numeric()->minValue(0)->step('0.01')->default('0.00')->required(),
                 TextInput::make('penalty')->label('Multa')->numeric()->minValue(0)->step('0.01')->default('0.00')->required(),
                 TextInput::make('discount')->label('Desconto')->numeric()->minValue(0)->step('0.01')->default('0.00')->required(),
@@ -37,9 +41,20 @@ class FinancialSettlementActions
             ])
             ->action(function ($record, array $data, $livewire) {
                 Gate::authorize('Settle:'.class_basename($record));
+                if (self::isLegacyPaidWithoutSettlement($record)) {
+                    $data['origin'] = 'legacy_migration';
+                    $data['idempotency_key'] = 'legacy:'.$record->getMorphClass().':'.$record->id;
+                }
                 app(BankMovementService::class)->settle($record, BankAccount::findOrFail($data['bank_account_id']), $data['date'], $data['amount'], $data['method'], $data);
                 self::refreshRecord($record, $livewire);
             });
+    }
+
+    private static function isLegacyPaidWithoutSettlement($record): bool
+    {
+        return $record->status === 'pago'
+            && $record->data_pagamento?->gte(BankMovementService::CONTROL_START)
+            && ! $record->settlements()->exists();
     }
 
     private static function refreshRecord($record, $livewire): void

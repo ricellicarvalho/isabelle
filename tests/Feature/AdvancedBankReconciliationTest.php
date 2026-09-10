@@ -167,6 +167,21 @@ class AdvancedBankReconciliationTest extends TestCase
         $this->assertTrue($role->fresh()->hasPermissionTo('UndoReconciliation:BankStatementEntry'));
     }
 
+    public function test_super_admin_can_access_financial_pages_and_actions_through_gate(): void
+    {
+        $superAdmin = \Spatie\Permission\Models\Role::firstOrCreate([
+            'name' => 'super_admin',
+            'guard_name' => 'web',
+        ]);
+        $this->user->syncRoles([$superAdmin]);
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $this->assertTrue($this->user->can('View:BankAccountReport'));
+        $this->assertTrue($this->user->can('ViewAny:BankStatementEntry'));
+        $this->assertTrue($this->user->can('Settle:Payable'));
+        $this->assertTrue($this->user->can('Settle:Receivable'));
+    }
+
     private function entry(string $amount, string $date, ?string $document = null, ?string $memo = null): BankStatementEntry
     {
         $import = BankStatementImport::firstOrCreate(['bank_account_id' => $this->account->id, 'file_hash' => str_repeat('a', 63).BankStatementImport::count()], ['filename' => 'test.ofx', 'created_by' => $this->user->id]);

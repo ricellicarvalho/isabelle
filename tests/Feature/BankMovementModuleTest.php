@@ -234,6 +234,38 @@ class BankMovementModuleTest extends TestCase
         $this->assertStringContainsString('Correção pela interface', view('filament.financial-settlements.history', ['settlements' => $title->settlements()->get()])->render());
     }
 
+    public function test_paid_legacy_title_exposes_historical_settlement_action(): void
+    {
+        [$title, $account] = $this->unpaidTitle();
+        $title->newQuery()->whereKey($title->id)->update([
+            'status' => 'pago',
+            'valor_pago' => $title->valor,
+            'data_pagamento' => '2026-08-10',
+            'forma_pagamento' => 'pix',
+        ]);
+        $title->refresh();
+        $user = User::find($title->created_by);
+        $user->syncRoles([\Spatie\Permission\Models\Role::firstOrCreate([
+            'name' => 'super_admin',
+            'guard_name' => 'web',
+        ])]);
+        $this->actingAs($user);
+        \Filament\Facades\Filament::setCurrentPanel(\Filament\Facades\Filament::getPanel('admin'));
+
+        \Livewire\Livewire::test(\App\Filament\Resources\Payables\Pages\ListPayables::class)
+            ->assertSuccessful()
+            ->assertActionVisible(\Filament\Actions\Testing\TestAction::make('darBaixa')->table($title))
+            ->callAction(\Filament\Actions\Testing\TestAction::make('darBaixa')->table($title), data: [
+                'bank_account_id' => $account->id, 'date' => '2026-08-10', 'amount' => $title->valor,
+                'interest' => '0.00', 'penalty' => '0.00', 'discount' => '0.00', 'fee' => '0.00',
+                'method' => 'pix', 'idempotency_key' => 'ignored-for-legacy',
+            ])
+            ->assertHasNoActionErrors();
+
+        $this->assertSame('legacy_migration', $title->settlements()->first()->origin);
+        $this->assertDatabaseCount('bank_movements', 1);
+    }
+
     public function test_reversal_permissions_require_explicit_grant_and_survive_reseeding(): void
     {
         $this->seed(\Database\Seeders\RoleSeeder::class);
