@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Payables\Tables;
 use App\Filament\Resources\Payables\Pages\ListPayables;
 use App\Models\BankAccount;
 use App\Services\BankMovementService;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -68,10 +69,10 @@ class PayablesTable
                 TextColumn::make('category.descricao')
                     ->label('Categoria')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('saldo_aberto')->label('Saldo aberto')->money('BRL'),
-                TextColumn::make('situacao_financeira')->label('Baixa')->badge(),
                 TextColumn::make('valor')
                     ->label('Valor')
                     ->money('BRL')
@@ -189,11 +190,13 @@ class PayablesTable
                     ->toggle(),
             ])
             ->actions([
-                \App\Filament\Actions\FinancialSettlementActions::settle(),
-                \App\Filament\Actions\FinancialSettlementActions::reverse(),
-                \App\Filament\Actions\FinancialSettlementActions::history(),
-                EditAction::make(),
-                DeleteAction::make(),
+                ActionGroup::make([
+                    \App\Filament\Actions\FinancialSettlementActions::settle(),
+                    \App\Filament\Actions\FinancialSettlementActions::reverse(),
+                    \App\Filament\Actions\FinancialSettlementActions::history(),
+                    EditAction::make(),
+                    DeleteAction::make(),
+                ]),
             ])
             ->bulkActions([
                 BulkActionGroup::make([

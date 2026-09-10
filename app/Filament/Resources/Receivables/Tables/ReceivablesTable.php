@@ -59,7 +59,7 @@ class ReceivablesTable
                     ->label('Contrato')
                     ->placeholder('—')
                     ->searchable()
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('descricao')
                     ->label('Descrição')
@@ -72,7 +72,6 @@ class ReceivablesTable
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('saldo_aberto')->label('Saldo aberto')->money('BRL'),
-                TextColumn::make('situacao_financeira')->label('Baixa')->badge(),
                 TextColumn::make('valor')
                     ->label('Valor')
                     ->money('BRL')
@@ -107,41 +106,6 @@ class ReceivablesTable
                     ->toggleable(),
 
                 TextColumn::make('bankAccount.nome')->label('Conta')->placeholder('Não informada')->searchable()->toggleable(),
-
-                TextColumn::make('situacao_cobranca')
-                    ->label('Situação')
-                    ->state(function (Receivable $record): string {
-                        if ($record->status === 'pago') {
-                            return 'pago';
-                        }
-
-                        if ($record->status === 'cancelado') {
-                            return 'cancelado';
-                        }
-
-                        $vencimento = $record->data_vencimento->startOfDay();
-
-                        return match (true) {
-                            $vencimento->isBefore(today()) => 'em_atraso',
-                            $vencimento->isToday() => 'vence_hoje',
-                            default => 'a_receber',
-                        };
-                    })
-                    ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'em_atraso' => 'danger',
-                        'vence_hoje' => 'warning',
-                        'a_receber' => 'info',
-                        'pago' => 'success',
-                        'cancelado' => 'gray',
-                    })
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'em_atraso' => 'Em atraso',
-                        'vence_hoje' => 'Vence hoje',
-                        'a_receber' => 'A receber',
-                        'pago' => 'Pago',
-                        'cancelado' => 'Cancelado',
-                    }),
 
                 // Indicador de boleto(s) gerado(s) — eager loaded via counts()
                 TextColumn::make('bank_boletos_count')
