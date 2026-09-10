@@ -11,7 +11,6 @@ use App\Models\BankRemessa;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use UnitEnum;
 
@@ -27,7 +26,7 @@ class BankRemessaResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = 'Financeiro';
 
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 8;
 
     protected static ?string $recordTitleAttribute = 'sequencial_arquivo';
 

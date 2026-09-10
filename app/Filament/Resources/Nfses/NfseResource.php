@@ -23,7 +23,7 @@ class NfseResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = 'Financeiro';
 
-    protected static ?int $navigationSort = 6;
+    protected static ?int $navigationSort = 11;
 
     protected static ?string $recordTitleAttribute = 'numero';
 

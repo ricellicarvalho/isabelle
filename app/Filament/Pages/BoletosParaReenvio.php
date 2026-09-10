@@ -19,7 +19,7 @@ class BoletosParaReenvio extends Page
 
     protected static string|UnitEnum|null $navigationGroup = 'Financeiro';
 
-    protected static ?int $navigationSort = 6;
+    protected static ?int $navigationSort = 9;
 
     protected static ?string $title = 'Boletos para Reenvio';
 
@@ -59,7 +59,7 @@ class BoletosParaReenvio extends Page
             $result = app(BoletoReenvioService::class)->renderPdfCliente($clientId);
 
             return response()->streamDownload(
-                fn () => print($result['pdf']),
+                fn () => print ($result['pdf']),
                 $result['filename'],
                 ['Content-Type' => 'application/pdf'],
             );
@@ -81,7 +81,7 @@ class BoletosParaReenvio extends Page
             $result = app(BoletoReenvioService::class)->renderPdfTodos();
 
             return response()->streamDownload(
-                fn () => print($result['pdf']),
+                fn () => print ($result['pdf']),
                 $result['filename'],
                 ['Content-Type' => 'application/pdf'],
             );

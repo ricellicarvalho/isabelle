@@ -21,7 +21,7 @@ class BankReconciliationSummary extends Page
 
     protected static string|UnitEnum|null $navigationGroup = 'Financeiro';
 
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 6;
 
     protected static ?string $title = 'Banco × Sistema';
 

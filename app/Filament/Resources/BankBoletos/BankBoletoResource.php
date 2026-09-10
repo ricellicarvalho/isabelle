@@ -11,7 +11,6 @@ use App\Models\BankBoleto;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use UnitEnum;
 
@@ -27,7 +26,7 @@ class BankBoletoResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = 'Financeiro';
 
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 7;
 
     protected static ?string $recordTitleAttribute = 'nosso_numero';
 
