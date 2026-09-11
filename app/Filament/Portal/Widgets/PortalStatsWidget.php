@@ -28,16 +28,17 @@ class PortalStatsWidget extends BaseWidget
 
         $documentos = $client->clientDocuments()->where('visivel_portal', true)->count();
 
-        $progresso = $client->nr1ChecklistProgresso();
+        $cycle = $client->nr1Cycles()->latest('reference_year')->latest('id')->first();
+        $progresso = $cycle?->checklistProgresso() ?? 0;
 
-        $nr1Label = match ($client->nr1_status) {
+        $nr1Label = match ($cycle?->status) {
             'finalizada'   => 'Finalizada',
             'regularizada' => 'Regularizada',
             'em_andamento' => 'Em Andamento',
             default        => 'Pendente',
         };
 
-        $nr1Color = match ($client->nr1_status) {
+        $nr1Color = match ($cycle?->status) {
             'finalizada', 'regularizada' => 'success',
             'em_andamento'               => 'warning',
             default                      => 'danger',
@@ -72,7 +73,7 @@ class PortalStatsWidget extends BaseWidget
                 ->descriptionIcon('heroicon-m-folder-open')
                 ->color('info'),
 
-            Stat::make('NR-1', $nr1Label)
+            Stat::make($cycle ? "NR-1/{$cycle->reference_year}" : 'NR-1', $cycle ? $nr1Label : 'Nenhuma vinculada')
                 ->description($progresso . '% das etapas concluídas')
                 ->descriptionIcon('heroicon-m-shield-check')
                 ->color($nr1Color),

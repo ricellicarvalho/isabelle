@@ -150,6 +150,16 @@ class Client extends Model
         return $this->hasMany(Contract::class);
     }
 
+    public function nr1Cycles(): HasMany
+    {
+        return $this->hasMany(Nr1Cycle::class)->orderByDesc('reference_year');
+    }
+
+    public function latestNr1Cycle(): ?Nr1Cycle
+    {
+        return $this->nr1Cycles()->latest('reference_year')->latest('id')->first();
+    }
+
     public function receivables(): HasMany
     {
         return $this->hasMany(Receivable::class);

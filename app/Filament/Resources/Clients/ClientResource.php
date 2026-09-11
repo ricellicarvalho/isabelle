@@ -6,6 +6,7 @@ use App\Filament\Resources\Clients\Pages\CreateClient;
 use App\Filament\Resources\Clients\Pages\EditClient;
 use App\Filament\Resources\Clients\Pages\ListClients;
 use App\Filament\Resources\Clients\RelationManagers\ColaboradoresRelationManager;
+use App\Filament\Resources\Clients\RelationManagers\Nr1CyclesRelationManager;
 use App\Filament\Resources\Clients\Schemas\ClientForm;
 use App\Filament\Resources\Clients\Tables\ClientsTable;
 use App\Models\Client;
@@ -51,6 +52,7 @@ class ClientResource extends Resource
     {
         return [
             ColaboradoresRelationManager::class,
+            Nr1CyclesRelationManager::class,
         ];
     }
 

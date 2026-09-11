@@ -80,6 +80,11 @@ class Contract extends Model
         return $this->hasMany(ContractVersion::class)->orderByDesc('version_number');
     }
 
+    public function nr1Cycles(): HasMany
+    {
+        return $this->hasMany(Nr1Cycle::class)->orderByDesc('reference_year');
+    }
+
     public function currentVersion(): BelongsTo
     {
         return $this->belongsTo(ContractVersion::class, 'current_version_id');

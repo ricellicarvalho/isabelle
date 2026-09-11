@@ -18,6 +18,9 @@ class PortalNr1Widget extends Widget
     public string $nr1Status = 'pendente';
     public string $nr1Label = 'Pendente';
     public string $clientName = '';
+    public ?int $referenceYear = null;
+    public ?string $contractNumber = null;
+    public array $history = [];
 
     public function mount(): void
     {
@@ -28,9 +31,20 @@ class PortalNr1Widget extends Widget
         }
 
         $this->clientId  = $client->id;
-        $this->checklist = $client->nr1_checklist ?? [];
-        $this->progresso = $client->nr1ChecklistProgresso();
-        $this->nr1Status = $client->nr1_status ?? 'pendente';
+        $cycles = $client->nr1Cycles()->with('contract')->get();
+        $current = $cycles->first();
+        $this->checklist = $current?->checklist ?? [];
+        $this->progresso = $current?->checklistProgresso() ?? 0;
+        $this->nr1Status = $current?->status ?? 'pendente';
+        $this->referenceYear = $current?->reference_year;
+        $this->contractNumber = $current?->contract?->numero;
+        $this->history = $cycles->map(fn ($cycle): array => [
+            'year' => $cycle->reference_year,
+            'status' => $cycle->status,
+            'progress' => $cycle->checklistProgresso(),
+            'contract' => $cycle->contract?->numero,
+            'checklist' => $cycle->checklist ?? [],
+        ])->all();
         $this->clientName = $client->nome_fantasia ?: $client->razao_social;
 
         $this->nr1Label = match ($this->nr1Status) {

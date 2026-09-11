@@ -4,9 +4,11 @@ namespace App\Providers;
 
 use App\Models\Client;
 use App\Models\Contract;
+use App\Models\Nr1Cycle;
 use App\Models\Receivable;
 use App\Observers\ClientObserver;
 use App\Observers\ContractObserver;
+use App\Observers\Nr1CycleObserver;
 use App\Observers\ReceivableObserver;
 use Filament\Support\Enums\TextSize;
 use Filament\Support\Facades\FilamentColor;
@@ -30,6 +32,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Client::observe(ClientObserver::class);
         Contract::observe(ContractObserver::class);
+        Nr1Cycle::observe(Nr1CycleObserver::class);
         Receivable::observe(ReceivableObserver::class);
 
         TextColumn::configureUsing(function (TextColumn $column) {

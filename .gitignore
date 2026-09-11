@@ -43,6 +43,7 @@ docker-compose.yml
 /storage/app/certs/*
 /storage/app/backups/*
 
+# Exemplo de retorno WebISS com dados locais
 /exemplo-emitir-webiss-gurupi-log-582.json
 
 /docs/Bradesco_03092026_144009.OFX

@@ -6,6 +6,7 @@ use App\Models\Contract;
 use App\Models\ContractVersion;
 use App\Models\ContractVersionChange;
 use App\Observers\ContractObserver;
+use App\Services\Nr1\Nr1CycleService;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -102,6 +103,8 @@ class ContractRenewalService
                     'status' => 'ativo',
                 ]);
             });
+
+            app(Nr1CycleService::class)->openForVersion($lockedContract, $version, $userId);
 
             app(ContractObserver::class)->generateReceivables($lockedContract->fresh(), $version);
 
