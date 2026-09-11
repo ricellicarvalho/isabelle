@@ -53,6 +53,11 @@ class BankStatementEntryResource extends Resource
             TextColumn::make('status')->label('Situação')->badge()->formatStateUsing(fn ($state, BankStatementEntry $record) => match (true) {
                 $state === 'reconciled' => 'Conciliado', $state === 'archived' => 'Arquivado',
                 $record->activeAllocations()->exists() => 'Parcial', default => 'Pendente',
+            })->color(fn ($state, BankStatementEntry $record): string => match (true) {
+                $state === 'reconciled' => 'success',
+                $state === 'archived' => 'gray',
+                $record->activeAllocations()->exists() => 'warning',
+                default => 'danger',
             }),
         ])->filters([
             SelectFilter::make('bank_account_id')->label('Conta')->relationship('bankAccount', 'nome'),
@@ -67,7 +72,10 @@ class BankStatementEntryResource extends Resource
                         Select::make('movement_id')->label('Movimentação do sistema')
                             ->options(fn (BankStatementEntry $record) => self::movementOptions($record))
                             ->getSearchResultsUsing(fn (BankStatementEntry $record, string $search) => self::searchMovementOptions($record, $search))
-                            ->required()->searchable()->searchPrompt('Busque por histórico, documento ou favorecido')
+                            ->required()->searchable()->preload()
+                            ->searchPrompt('Busque por histórico, documento ou favorecido')
+                            ->noOptionsMessage('Nenhuma movimentação compatível. Se esta operação ainda não existe no sistema, use “Criar lançamento”.')
+                            ->noSearchResultsMessage('Nenhuma movimentação compatível foi encontrada. Se necessário, use “Criar lançamento”.')
                             ->disableOptionsWhenSelectedInSiblingRepeaterItems(),
                         TextInput::make('amount')->label('Valor alocado')->numeric()->minValue('0.01')->step('0.01')->required(),
                     ]),
@@ -124,9 +132,9 @@ class BankStatementEntryResource extends Resource
         return ['index' => ListBankStatementEntries::route('/')];
     }
 
-    private static function movementOptions(BankStatementEntry $entry): array
+    public static function movementOptions(BankStatementEntry $entry): array
     {
-        return app(BankReconciliationService::class)->suggestions($entry)->mapWithKeys(function (array $suggestion): array {
+        $suggestions = app(BankReconciliationService::class)->suggestions($entry)->mapWithKeys(function (array $suggestion): array {
             /** @var BankMovement $movement */
             $movement = $suggestion['movement'];
             $label = $movement->occurred_at->format('d/m/Y').' · R$ '.number_format((float) $suggestion['remaining'], 2, ',', '.')
@@ -134,9 +142,16 @@ class BankStatementEntryResource extends Resource
 
             return [$movement->id => $label];
         })->all();
+
+        return $suggestions + self::compatibleMovementOptions($entry);
     }
 
     private static function searchMovementOptions(BankStatementEntry $entry, string $search): array
+    {
+        return self::compatibleMovementOptions($entry, $search);
+    }
+
+    private static function compatibleMovementOptions(BankStatementEntry $entry, ?string $search = null): array
     {
         $direction = bccomp($entry->amount, '0', 2) >= 0 ? 'credit' : 'debit';
 
@@ -144,13 +159,14 @@ class BankStatementEntryResource extends Resource
             ->where('bank_account_id', $entry->bank_account_id)
             ->where('direction', $direction)
             ->where('status', 'confirmed')
-            ->where(function ($query) use ($search): void {
+            ->when(filled($search), fn ($query) => $query->where(function ($query) use ($search): void {
                 $query->where('description', 'like', "%{$search}%")
                     ->orWhere('reference', 'like', "%{$search}%")
                     ->orWhere('counterparty', 'like', "%{$search}%");
-            })
-            ->latest('occurred_at')->limit(50)->get()
+            }))
+            ->latest('occurred_at')->limit(200)->get()
             ->filter(fn (BankMovement $movement): bool => bccomp(app(BankReconciliationService::class)->movementRemaining($movement), '0', 2) > 0)
+            ->take(50)
             ->mapWithKeys(fn (BankMovement $movement): array => [
                 $movement->id => $movement->occurred_at->format('d/m/Y').' · R$ '
                     .number_format((float) app(BankReconciliationService::class)->movementRemaining($movement), 2, ',', '.')
