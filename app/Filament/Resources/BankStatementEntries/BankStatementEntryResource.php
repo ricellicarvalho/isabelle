@@ -69,7 +69,7 @@ class BankStatementEntryResource extends Resource
             Action::make('allocate')->label('Alocar')->visible(fn (BankStatementEntry $record) => $record->status === 'pending' && auth()->user()->can('Reconcile:BankStatementEntry'))
                 ->modalDescription(fn (BankStatementEntry $record) => 'Diferença pendente: R$ '.number_format((float) app(BankReconciliationService::class)->entryRemaining($record), 2, ',', '.'))
                 ->schema([
-                    Repeater::make('allocations')->label('Movimentações do sistema')->minItems(1)->defaultItems(1)->columns(2)->schema([
+                    Repeater::make('allocations')->label('Movimentações do sistema')->addActionLabel('Adicionar outra movimentação')->minItems(1)->defaultItems(1)->columns(2)->schema([
                         Select::make('movement_id')->label('Movimentação do sistema')
                             ->options(fn (BankStatementEntry $record) => self::movementOptions($record))
                             ->getSearchResultsUsing(fn (BankStatementEntry $record, string $search) => self::searchMovementOptions($record, $search))
