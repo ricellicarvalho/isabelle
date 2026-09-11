@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\BankStatementEntries;
 
+use App\Filament\Resources\BankMovements\Schemas\BankMovementForm;
 use App\Filament\Resources\BankStatementEntries\Pages\ListBankStatementEntries;
 use App\Models\BankMovement;
 use App\Models\BankStatementEntry;
@@ -77,7 +78,7 @@ class BankStatementEntryResource extends Resource
                             ->noOptionsMessage('Nenhuma movimentação compatível. Se esta operação ainda não existe no sistema, use “Criar lançamento”.')
                             ->noSearchResultsMessage('Nenhuma movimentação compatível foi encontrada. Se necessário, use “Criar lançamento”.')
                             ->disableOptionsWhenSelectedInSiblingRepeaterItems(),
-                        TextInput::make('amount')->label('Valor alocado')->numeric()->minValue('0.01')->step('0.01')->required(),
+                        BankMovementForm::moneyInput('amount', 'Valor alocado'),
                     ]),
                 ])->action(function (BankStatementEntry $record, array $data): void {
                     Gate::authorize('Reconcile:BankStatementEntry');

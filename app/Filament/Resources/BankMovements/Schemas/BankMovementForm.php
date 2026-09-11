@@ -28,19 +28,19 @@ class BankMovementForm
         ])->columnSpanFull()]);
     }
 
-    public static function moneyInput(string $name): TextInput
+    public static function moneyInput(string $name, string $label = 'Valor'): TextInput
     {
         return TextInput::make($name)
-            ->label('Valor')
+            ->label($label)
             ->prefix('R$')
             ->placeholder('0,00')
             ->required()
             ->extraAlpineAttributes(['x-on:input' => self::MONEY_MASK])
             ->afterStateHydrated(fn (TextInput $component, $state) => $component->state(self::formatMoney($state)))
             ->dehydrateStateUsing(fn ($state): string => self::parseMoney($state))
-            ->rule(fn () => function (string $attribute, mixed $value, \Closure $fail): void {
+            ->rule(fn () => function (string $attribute, mixed $value, \Closure $fail) use ($label): void {
                 if (bccomp(self::parseMoney($value), '0.00', 2) <= 0) {
-                    $fail('O campo Valor deve ser maior que zero.');
+                    $fail("O campo {$label} deve ser maior que zero.");
                 }
             });
     }

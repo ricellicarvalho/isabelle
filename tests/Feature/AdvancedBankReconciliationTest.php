@@ -141,6 +141,7 @@ class AdvancedBankReconciliationTest extends TestCase
         $entry = $this->entry('10.00', '2026-08-05');
         $movement = $this->movement('10.00', 'credit', '2026-08-05');
         $this->assertArrayHasKey($movement->id, \App\Filament\Resources\BankStatementEntries\BankStatementEntryResource::movementOptions($entry));
+        $this->assertSame('10.00', \App\Filament\Resources\BankMovements\Schemas\BankMovementForm::parseMoney('10,00'));
         \Livewire\Livewire::test(\App\Filament\Resources\BankStatementEntries\Pages\ListBankStatementEntries::class)
             ->assertSuccessful()
             ->mountAction(\Filament\Actions\Testing\TestAction::make('allocate')->table($entry))
