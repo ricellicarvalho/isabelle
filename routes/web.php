@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\PrecadastroController;
+use App\Http\Controllers\PublicSurveyController;
 use App\Models\BankBoleto;
 use App\Models\ClientDocument;
 use App\Models\Nfse;
@@ -20,6 +21,13 @@ use Illuminate\Support\Str;
 
 Route::get('/', function () {
     return view('welcome');
+});
+
+Route::prefix('avaliacoes')->name('public.surveys.')->group(function (): void {
+    Route::get('/', [PublicSurveyController::class, 'index'])->name('index');
+    Route::get('/{survey}', [PublicSurveyController::class, 'show'])->name('show');
+    Route::post('/{survey}', [PublicSurveyController::class, 'store'])->middleware('throttle:10,1')->name('store');
+    Route::get('/{survey}/concluida', [PublicSurveyController::class, 'thanks'])->name('thanks');
 });
 
 Route::get('/precadastro/{token}', [PrecadastroController::class, 'show'])->name('precadastro');

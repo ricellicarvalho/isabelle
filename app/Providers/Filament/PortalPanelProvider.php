@@ -8,6 +8,7 @@ use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Navigation\NavigationGroup;
+use Filament\Navigation\NavigationItem;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -48,6 +49,13 @@ class PortalPanelProvider extends PanelProvider
                     ->icon('heroicon-o-banknotes')
                     ->collapsible(false),
             ])
+            ->navigationItems([
+                NavigationItem::make('Avaliações')
+                    ->icon('heroicon-o-chat-bubble-bottom-center-text')
+                    ->url(fn (): string => route('public.surveys.index'))
+                    ->openUrlInNewTab()
+                    ->sort(1),
+            ])
             ->renderHook(
                 PanelsRenderHook::HEAD_END,
                 fn (): HtmlString => new HtmlString(<<<'HTML'
@@ -78,6 +86,20 @@ class PortalPanelProvider extends PanelProvider
                     font-weight: 900 !important;
                 }
                 .dark .fi-sidebar-item a[href$="/solucoes"] .fi-icon {
+                    color: rgb(209 213 219) !important;
+                }
+
+                .fi-sidebar-item:has(a[href$="/avaliacoes"]) {
+                    margin-top: 1rem !important;
+                }
+                .fi-sidebar-item a[href$="/avaliacoes"] .fi-icon {
+                    color: rgb(55 65 81) !important;
+                    stroke-width: 2.5 !important;
+                }
+                .fi-sidebar-item a[href$="/avaliacoes"] .fi-sidebar-item-label {
+                    font-weight: 900 !important;
+                }
+                .dark .fi-sidebar-item a[href$="/avaliacoes"] .fi-icon {
                     color: rgb(209 213 219) !important;
                 }
 

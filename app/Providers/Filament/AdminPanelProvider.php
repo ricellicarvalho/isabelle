@@ -104,6 +104,9 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make('Relatórios')
                     ->icon('heroicon-o-chart-bar')
                     ->collapsed(),
+                NavigationGroup::make('Pesquisas')
+                    ->icon('heroicon-o-chat-bubble-bottom-center-text')
+                    ->collapsed(),
                 NavigationGroup::make('Configurações')
                     ->icon('heroicon-o-cog-6-tooth')
                     ->collapsed(),
@@ -184,6 +187,17 @@ class AdminPanelProvider extends PanelProvider
                         margin-left: 0 !important;
                         margin-right: 0 !important;
                     }
+                }
+                .survey-form-grid {
+                    width: 100% !important;
+                    align-items: stretch !important;
+                }
+                .survey-form-grid > * {
+                    min-width: 0 !important;
+                    height: 100% !important;
+                }
+                .survey-form-grid .fi-section {
+                    height: 100% !important;
                 }
                 </style>
                 <script>localStorage.removeItem('collapsedGroups');</script>
