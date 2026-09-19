@@ -11,7 +11,7 @@ class SatisfactionQuestion extends Model
 {
     use SoftDeletes;
 
-    protected $fillable = ['description', 'is_visible', 'is_required', 'display_order'];
+    protected $fillable = ['description', 'answer_type', 'is_visible', 'is_required', 'display_order'];
 
     protected function casts(): array
     {

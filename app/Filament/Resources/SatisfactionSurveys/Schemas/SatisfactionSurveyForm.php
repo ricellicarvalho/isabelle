@@ -32,7 +32,7 @@ class SatisfactionSurveyForm
                     Section::make('Publicação')->columns(2)->columnSpan(1)->extraAttributes(['style' => 'height: 100%'])->components([
                         DateTimePicker::make('starts_at')->label('Disponível a partir de')->required()->seconds(false)->displayFormat('d/m/Y H:i')->default(now()),
                         DateTimePicker::make('ends_at')->label('Disponível até')->required()->seconds(false)->displayFormat('d/m/Y H:i')->after('starts_at'),
-                        Toggle::make('allow_multiple_submissions')->label('Permitir mais de uma resposta por navegador')->default(true)->columnSpanFull(),
+                        Toggle::make('allow_multiple_submissions')->label('Permitir mais de uma resposta por navegador')->default(false)->columnSpanFull(),
                         Textarea::make('thank_you_message')->label('Mensagem de agradecimento')->rows(2)->columnSpanFull(),
                     ]),
                 ]),

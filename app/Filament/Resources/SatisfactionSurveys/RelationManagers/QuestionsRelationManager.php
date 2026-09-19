@@ -2,11 +2,13 @@
 
 namespace App\Filament\Resources\SatisfactionSurveys\RelationManagers;
 
+use App\Enums\SurveyResponseType;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
@@ -27,6 +29,11 @@ class QuestionsRelationManager extends RelationManager
     {
         return $schema->components([
             Textarea::make('description')->label('Pergunta')->required()->rows(3)->columnSpanFull(),
+            Select::make('answer_type')->label('Tipo de resposta da pergunta')
+                ->options(fn (): array => $this->getOwnerRecord()->response_type === SurveyResponseType::Numeric
+                    ? ['scale' => 'Nota de 0 a 10', 'text' => 'Resposta textual']
+                    : ['scale' => 'Péssimo a Excelente'])
+                ->default('scale')->required(),
             Toggle::make('is_visible')->label('Pergunta visível na avaliação')->default(true),
             Toggle::make('is_required')->label('Resposta obrigatória')->default(true),
         ]);
@@ -40,6 +47,7 @@ class QuestionsRelationManager extends RelationManager
             ->columns([
                 TextColumn::make('display_order')->label('Ordem')->sortable(),
                 TextColumn::make('description')->label('Pergunta')->alignment(Alignment::Center)->wrap()->searchable(),
+                TextColumn::make('answer_type')->label('Tipo')->formatStateUsing(fn ($state) => $state === 'text' ? 'Textual' : 'Nota'),
                 IconColumn::make('is_visible')->label('Visível')->alignment(Alignment::Center)->boolean(),
                 IconColumn::make('is_required')->label('Obrigatória')->alignment(Alignment::Center)->boolean(),
                 TextColumn::make('answers_count')->counts('answers')->label('Respostas')->alignment(Alignment::Center),

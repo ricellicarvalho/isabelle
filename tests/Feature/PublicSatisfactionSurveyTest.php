@@ -58,6 +58,32 @@ class PublicSatisfactionSurveyTest extends TestCase
         $this->assertDatabaseCount('satisfaction_submissions', 0);
     }
 
+    public function test_numeric_survey_accepts_required_text_question_without_affecting_average(): void
+    {
+        $survey = $this->survey();
+        $rating = $survey->questions()->create(['description' => 'Nota geral', 'display_order' => 1]);
+        $comment = $survey->questions()->create(['description' => 'Por quê?', 'answer_type' => 'text', 'display_order' => 2]);
+
+        $this->get(route('public.surveys.show', $survey))->assertSee('textarea');
+        $this->post(route('public.surveys.store', $survey), [
+            'answers' => [$rating->id => 9],
+        ])->assertSessionHasErrors("answers.{$comment->id}");
+
+        $this->post(route('public.surveys.store', $survey), [
+            'answers' => [$rating->id => 9, $comment->id => 'Muito bom atendimento'],
+        ])->assertRedirect(route('public.surveys.thanks', $survey));
+
+        $this->assertDatabaseHas('satisfaction_answers', [
+            'question_id' => $comment->id,
+            'numeric_value' => null,
+            'text_value' => 'Muito bom atendimento',
+        ]);
+        $summary = \App\Services\SurveyResultsService::summarize($survey);
+        $this->assertSame(9.0, $summary['average']);
+        $this->assertSame(['Muito bom atendimento'], $summary['questions'][1]['text_answers']);
+        $this->assertSame(100.0, $summary['completion']);
+    }
+
     public function test_hidden_questions_cannot_be_injected_into_submission(): void
     {
         $survey = $this->survey();

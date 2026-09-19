@@ -41,11 +41,9 @@ class PublicSurveyController extends Controller
         $questions = $survey->questions()->where('is_visible', true)->get();
         $rules = [];
         foreach ($questions as $question) {
-            $rules["answers.{$question->id}"] = [
-                $question->is_required ? 'required' : 'nullable',
-                'integer',
-                Rule::in(range($survey->response_type->min(), $survey->response_type->max())),
-            ];
+            $rules["answers.{$question->id}"] = $question->answer_type === 'text' && $survey->response_type->value === 'numeric_0_10'
+                ? [$question->is_required ? 'required' : 'nullable', 'string', 'max:5000']
+                : [$question->is_required ? 'required' : 'nullable', 'integer', Rule::in(range($survey->response_type->min(), $survey->response_type->max()))];
         }
         $validated = $request->validate($rules, [], ['answers.*' => 'resposta']);
 
@@ -67,13 +65,14 @@ class PublicSurveyController extends Controller
 
             foreach ($questions as $question) {
                 $value = data_get($validated, "answers.{$question->id}");
-                if ($value === null) {
+                if ($value === null || $value === '') {
                     continue;
                 }
 
                 $submission->answers()->create([
                     'question_id' => $question->id,
-                    'numeric_value' => $value,
+                    'numeric_value' => $question->answer_type === 'text' ? null : $value,
+                    'text_value' => $question->answer_type === 'text' ? trim($value) : null,
                     'question_snapshot' => $question->description,
                     'response_type_snapshot' => $survey->response_type->value,
                 ]);

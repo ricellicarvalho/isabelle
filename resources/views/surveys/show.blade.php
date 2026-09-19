@@ -26,7 +26,9 @@
         <fieldset class="question">
             <legend><strong>{{ $question->description }}</strong>@if($question->is_required) <span class="required-mark" title="Pergunta obrigatória">*</span> @endif</legend>
             <div class="options">
-            @if($survey->response_type === \App\Enums\SurveyResponseType::Numeric)
+            @if($question->answer_type === 'text' && $survey->response_type === \App\Enums\SurveyResponseType::Numeric)
+                <textarea name="answers[{{ $question->id }}]" rows="4" maxlength="5000" aria-label="{{ $question->description }}" @if($question->is_required) required @endif style="width:100%;padding:.85rem;border:1px solid #cbd5e1;border-radius:.65rem;font:inherit;resize:vertical">{{ old("answers.{$question->id}") }}</textarea>
+            @elseif($survey->response_type === \App\Enums\SurveyResponseType::Numeric)
                 <div class="numeric-scale" role="radiogroup" aria-label="Escala de 0 a 10">
                 @foreach(range(0, 10) as $value)
                 <label class="numeric-option"><input type="radio" name="answers[{{ $question->id }}]" value="{{ $value }}" @checked(old("answers.{$question->id}") !== null && (int)old("answers.{$question->id}") === $value)><span>{{ $value }}</span></label>

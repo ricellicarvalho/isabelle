@@ -10,8 +10,9 @@ class SurveyResultsService
 {
     public static function summarize(SatisfactionSurvey $survey): array
     {
-        $survey->load(['questions' => fn ($query) => $query->withCount('answers')->withAvg('answers', 'numeric_value')->with('answers:id,question_id,numeric_value')]);
-        $answers = $survey->submissions()->join('satisfaction_answers', 'satisfaction_submissions.id', '=', 'satisfaction_answers.submission_id');
+        $survey->load(['questions' => fn ($query) => $query->withCount('answers')->withAvg('answers', 'numeric_value')->with('answers:id,question_id,numeric_value,text_value')]);
+        $allAnswers = $survey->submissions()->join('satisfaction_answers', 'satisfaction_submissions.id', '=', 'satisfaction_answers.submission_id');
+        $answers = (clone $allAnswers)->whereNotNull('numeric_value');
         $count = (clone $answers)->count();
         $average = $count ? round((float) (clone $answers)->avg('numeric_value'), 2) : null;
         $distributionRows = (clone $answers)->selectRaw('numeric_value, count(*) as total')->groupBy('numeric_value')->pluck('total', 'numeric_value');
@@ -32,13 +33,15 @@ class SurveyResultsService
                 'total' => $items->count(),
             ])->values()->all();
         $expectedAnswers = $survey->questions->where('is_visible', true)->count() * $submissions->count();
-        $completion = $expectedAnswers ? round($count * 100 / $expectedAnswers, 1) : 0;
+        $completion = $expectedAnswers ? round((clone $allAnswers)->count() * 100 / $expectedAnswers, 1) : 0;
 
         $questions = $survey->questions->map(function ($question) use ($range): array {
             $composition = $question->answers->countBy('numeric_value');
 
             return [
                 'description' => $question->description,
+                'answer_type' => $question->answer_type,
+                'text_answers' => $question->answer_type === 'text' ? $question->answers->pluck('text_value')->filter()->values()->all() : [],
                 'average' => $question->answers_avg_numeric_value !== null ? round((float) $question->answers_avg_numeric_value, 2) : null,
                 'answers' => $question->answers_count,
                 'composition' => collect($range)->mapWithKeys(fn (int $value) => [$value => (int) ($composition[$value] ?? 0)])->all(),
