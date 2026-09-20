@@ -62,6 +62,11 @@ class Client extends Model
         ];
     }
 
+    protected function razaoSocial(): Attribute
+    {
+        return Attribute::make(set: fn (?string $value): ?string => $value === null ? null : trim($value));
+    }
+
     protected function portalLastGeneratedPassword(): Attribute
     {
         return Attribute::make(

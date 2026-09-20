@@ -6,7 +6,6 @@ use App\Filament\Resources\ClientDocuments\Pages\ListClientDocuments;
 use App\Filament\Resources\ClientDocuments\Pages\ManageClientDocuments;
 use App\Filament\Resources\ClientDocuments\Tables\ClientDocumentsTable;
 use App\Models\Client;
-use App\Models\ClientDocument;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Resources\Resource;
@@ -32,31 +31,30 @@ class ClientDocumentResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'razao_social';
 
-    // Delega as permissões para a policy de ClientDocument,
-    // evitando conflito com as permissões do ClientResource.
+    // O recurso lista Client, mas suas ações usam permissões de ClientDocument.
     public static function canViewAny(): bool
     {
-        return auth()->user()?->can('viewAny', ClientDocument::class) ?? false;
+        return auth()->user()?->can('ViewAny:ClientDocument') ?? false;
     }
 
     public static function canCreate(): bool
     {
-        return auth()->user()?->can('create', ClientDocument::class) ?? false;
+        return auth()->user()?->can('Create:ClientDocument') ?? false;
     }
 
     public static function canEdit(Model $record): bool
     {
-        return auth()->user()?->can('update', ClientDocument::class) ?? false;
+        return auth()->user()?->can('Update:ClientDocument') ?? false;
     }
 
     public static function canDelete(Model $record): bool
     {
-        return auth()->user()?->can('delete', ClientDocument::class) ?? false;
+        return auth()->user()?->can('Delete:ClientDocument') ?? false;
     }
 
     public static function canDeleteAny(): bool
     {
-        return auth()->user()?->can('deleteAny', ClientDocument::class) ?? false;
+        return auth()->user()?->can('DeleteAny:ClientDocument') ?? false;
     }
 
     public static function getEloquentQuery(): Builder

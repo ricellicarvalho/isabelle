@@ -4,6 +4,7 @@ namespace App\Filament\Resources\ClientDocuments\Tables;
 
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class ClientDocumentsTable
 {
@@ -15,7 +16,7 @@ class ClientDocumentsTable
                 TextColumn::make('razao_social')
                     ->label('Cliente')
                     ->searchable()
-                    ->sortable()
+                    ->sortable(query: fn (Builder $query, string $direction): Builder => $query->orderByRaw('TRIM(clients.razao_social) '.$direction))
                     ->url(fn (\App\Models\Client $record): string => route('filament.admin.resources.client-documents.manage', ['record' => $record->getKey()])),
 
                 TextColumn::make('total_arquivos')
