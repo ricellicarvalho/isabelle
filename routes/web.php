@@ -116,7 +116,7 @@ Route::get('/relatorios/contratos-a-vencer/pdf', function (Request $request) {
 
 // Relatório de Recebimentos em PDF — abre inline em nova aba, URL assinada
 Route::get('/relatorios/contas-a-receber/pdf', function (Request $request) {
-    $filters = $request->only(['client_id', 'contract_id', 'data_inicio', 'data_fim', 'forma_pagamento']);
+    $filters = $request->only(['client_id', 'contract_id', 'data_inicio', 'data_fim', 'situacao', 'forma_pagamento']);
     $report = ReceivablesReportService::generate($filters);
 
     $logoPath = public_path('images/logo.png');
@@ -154,7 +154,7 @@ Route::get('/relatorios/contas-a-pagar/pdf', function (Request $request) {
 
 // Relatório de Pagamentos em PDF — abre inline em nova aba, URL assinada
 Route::get('/relatorios/pagamentos/pdf', function (Request $request) {
-    $filters = $request->only(['supplier_id', 'category_id', 'data_inicio', 'data_fim', 'forma_pagamento']);
+    $filters = $request->only(['supplier_id', 'category_id', 'data_inicio', 'data_fim', 'situacao', 'forma_pagamento']);
     $report = PaymentsReportService::generate($filters);
 
     $logoPath = public_path('images/logo.png');

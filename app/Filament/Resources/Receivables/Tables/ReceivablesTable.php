@@ -50,7 +50,8 @@ class ReceivablesTable
                     ->label('Cliente')
                     ->searchable()
                     ->sortable()
-                    ->limit(30),
+                    ->limit(30)
+                    ->toggleable(),
 
                 TextColumn::make('contract.numero')
                     ->label('Contrato')
@@ -58,25 +59,17 @@ class ReceivablesTable
                     ->searchable()
                     ->toggleable(),
 
-                TextColumn::make('descricao')
-                    ->label('Descrição')
-                    ->searchable()
-                    ->limit(35),
-
-                TextColumn::make('numero_parcela')
-                    ->label('Parcela')
-                    ->alignCenter()
-                    ->toggleable(isToggledHiddenByDefault: true),
-
                 TextColumn::make('valor')
                     ->label('Valor')
                     ->money('BRL')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
 
                 TextColumn::make('data_vencimento')
                     ->label('Vencimento')
                     ->date('d/m/Y')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
 
                 TextColumn::make('dias_atraso')
                     ->label('Atraso')
@@ -93,13 +86,25 @@ class ReceivablesTable
                     })
                     ->badge()
                     ->color('danger')
-                    ->placeholder('—'),
+                    ->placeholder('—')
+                    ->toggleable(),
+
+                TextColumn::make('descricao')
+                    ->label('Descrição')
+                    ->searchable()
+                    ->limit(35)
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('numero_parcela')
+                    ->label('Parcela')
+                    ->alignCenter()
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('data_pagamento')
                     ->label('Pagamento')
                     ->date('d/m/Y')
                     ->placeholder('—')
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('situacao_cobranca')
                     ->label('Situação')
@@ -134,7 +139,8 @@ class ReceivablesTable
                         'a_receber' => 'A receber',
                         'pago' => 'Pago',
                         'cancelado' => 'Cancelado',
-                    }),
+                    })
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 // Indicador de boleto(s) gerado(s) — eager loaded via counts()
                 TextColumn::make('bank_boletos_count')
@@ -151,7 +157,8 @@ class ReceivablesTable
                         $state === 0 => 'Sem boleto',
                         $state === 1 => '1 boleto',
                         default => "{$state} boletos",
-                    }),
+                    })
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 SelectFilter::make('status')

@@ -42,6 +42,7 @@ class PaymentsReport extends Page
             'category_id' => null,
             'data_inicio' => now()->startOfMonth()->format('Y-m-d'),
             'data_fim' => now()->endOfMonth()->format('Y-m-d'),
+            'situacao' => 'pago',
             'forma_pagamento' => null,
         ]);
 
@@ -72,7 +73,7 @@ class PaymentsReport extends Page
                     ->columnSpan(3),
 
                 DatePicker::make('data_inicio')
-                    ->label('Pagamento de')
+                    ->label('Período de')
                     ->required()
                     ->native(false)
                     ->displayFormat('d/m/Y')
@@ -80,11 +81,22 @@ class PaymentsReport extends Page
                     ->columnSpan(2),
 
                 DatePicker::make('data_fim')
-                    ->label('Pagamento até')
+                    ->label('Período até')
                     ->required()
                     ->native(false)
                     ->displayFormat('d/m/Y')
                     ->afterOrEqual('data_inicio')
+                    ->live()
+                    ->columnSpan(2),
+
+                Select::make('situacao')
+                    ->label('Situação')
+                    ->options([
+                        'pago' => 'Pagos',
+                        'nao_pago' => 'Não pagos',
+                    ])
+                    ->required()
+                    ->native(false)
                     ->live()
                     ->columnSpan(2),
 

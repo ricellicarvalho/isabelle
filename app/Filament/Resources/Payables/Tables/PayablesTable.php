@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Payables\Tables;
 
 use App\Filament\Resources\Payables\Pages\ListPayables;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -45,12 +46,14 @@ class PayablesTable
                     ->searchable()
                     ->sortable()
                     ->placeholder('—')
-                    ->limit(30),
+                    ->limit(30)
+                    ->toggleable(),
 
                 TextColumn::make('descricao')
                     ->label('Descrição')
                     ->searchable()
-                    ->limit(35),
+                    ->limit(35)
+                    ->toggleable(),
 
                 TextColumn::make('recurrence_sequence')
                     ->label('Recorrência')
@@ -62,20 +65,17 @@ class PayablesTable
                     ->placeholder('—')
                     ->toggleable(),
 
-                TextColumn::make('category.descricao')
-                    ->label('Categoria')
-                    ->searchable()
-                    ->sortable(),
-
                 TextColumn::make('valor')
                     ->label('Valor')
                     ->money('BRL')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
 
                 TextColumn::make('data_vencimento')
                     ->label('Vencimento')
                     ->date('d/m/Y')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
 
                 TextColumn::make('dias_atraso')
                     ->label('Atraso')
@@ -92,13 +92,20 @@ class PayablesTable
                     })
                     ->badge()
                     ->color('danger')
-                    ->placeholder('—'),
+                    ->placeholder('—')
+                    ->toggleable(),
+
+                TextColumn::make('category.descricao')
+                    ->label('Categoria')
+                    ->searchable()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('data_pagamento')
                     ->label('Pagamento')
                     ->date('d/m/Y')
                     ->placeholder('—')
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('status')
                     ->label('Status')
@@ -114,7 +121,8 @@ class PayablesTable
                         'pago' => 'Pago',
                         'cancelado' => 'Cancelado',
                         'vencido' => 'Vencido',
-                    }),
+                    })
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 SelectFilter::make('status')
@@ -173,8 +181,10 @@ class PayablesTable
                     ->toggle(),
             ])
             ->actions([
-                EditAction::make(),
-                DeleteAction::make(),
+                ActionGroup::make([
+                    EditAction::make(),
+                    DeleteAction::make(),
+                ]),
             ])
             ->bulkActions([
                 BulkActionGroup::make([

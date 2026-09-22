@@ -42,6 +42,7 @@
 
     @php
         $filters = $report['filters'];
+        $isPaid = ($filters['situacao'] ?? 'pago') === 'pago';
         $formaPagamentoLabel = match ($filters['forma_pagamento']) {
             'boleto' => 'Boleto',
             'pix' => 'PIX',
@@ -63,15 +64,16 @@
     <div class="filters">
         <strong>Fornecedor:</strong> {{ $filters['fornecedor'] ?? 'Todos' }} &nbsp;|&nbsp;
         <strong>Categoria:</strong> {{ $filters['categoria'] ?? 'Todas' }} &nbsp;|&nbsp;
+        <strong>Situação:</strong> {{ $isPaid ? 'Pagos' : 'Não pagos' }} &nbsp;|&nbsp;
         <strong>Forma:</strong> {{ $formaPagamentoLabel }}<br>
-        <strong>Pagamento:</strong>
+        <strong>{{ $isPaid ? 'Pagamento' : 'Vencimento' }}:</strong>
         {{ $filters['data_inicio'] ? \Illuminate\Support\Carbon::parse($filters['data_inicio'])->format('d/m/Y') : 'Início' }}
         a
         {{ $filters['data_fim'] ? \Illuminate\Support\Carbon::parse($filters['data_fim'])->format('d/m/Y') : 'Fim' }}
         &nbsp;|&nbsp; <strong>Registros:</strong> {{ $report['count'] }}
     </div>
 
-    <div class="summary">Valor total pago: R$ {{ number_format($report['total'], 2, ',', '.') }}</div>
+    <div class="summary">{{ $isPaid ? 'Valor total pago' : 'Valor total a pagar' }}: R$ {{ number_format($report['total'], 2, ',', '.') }}</div>
 
     @if (empty($report['items']))
         <div class="empty">Nenhum pagamento encontrado para os filtros selecionados.</div>
@@ -80,27 +82,28 @@
             <thead>
                 <tr>
                     <th class="left" style="width:22%;">Fornecedor</th>
-                    <th class="left" style="width:18%;">Categoria</th>
-                    <th class="left" style="width:30%;">Descrição</th>
-                    <th class="center" style="width:10%;">Pagamento</th>
                     <th class="center" style="width:10%;">Forma</th>
-                    <th class="right" style="width:10%;">Valor Pago</th>
+                    <th class="center" style="width:10%;">{{ $isPaid ? 'Pagamento' : 'Vencimento' }}</th>
+                    <th class="right" style="width:10%;">{{ $isPaid ? 'Valor Pago' : 'Valor a Pagar' }}</th>
+                    <th class="left" style="width:30%;">Descrição</th>
+                    <th class="left" style="width:18%;">Categoria</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach ($report['items'] as $item)
                     <tr>
                         <td>{{ $item['fornecedor'] }}</td>
-                        <td>{{ $item['categoria'] }}</td>
-                        <td>{{ $item['descricao'] }}</td>
-                        <td class="center">{{ $item['pagamento'] }}</td>
                         <td class="center">{{ $itemFormaPagamentoLabel($item['forma_pagamento']) }}</td>
+                        <td class="center">{{ $item['data'] }}</td>
                         <td class="right">R$ {{ number_format($item['valor'], 2, ',', '.') }}</td>
+                        <td>{{ $item['descricao'] }}</td>
+                        <td>{{ $item['categoria'] }}</td>
                     </tr>
                 @endforeach
                 <tr class="total">
-                    <td colspan="5">Total geral</td>
+                    <td colspan="3">Total geral</td>
                     <td class="right">R$ {{ number_format($report['total'], 2, ',', '.') }}</td>
+                    <td colspan="2"></td>
                 </tr>
             </tbody>
         </table>

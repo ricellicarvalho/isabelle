@@ -14,6 +14,8 @@
         };
     @endphp
 
+    @php($isPaid = ($report['filters']['situacao'] ?? 'pago') === 'pago')
+
     <x-filament::section>
         <x-slot name="heading">
             Recebimentos
@@ -23,7 +25,7 @@
         </x-slot>
 
         <div class="mb-5 rounded-lg bg-primary-50 p-4 dark:bg-primary-950/30">
-            <div class="text-sm text-gray-500 dark:text-gray-400">Valor total recebido</div>
+            <div class="text-sm text-gray-500 dark:text-gray-400">{{ $isPaid ? 'Valor total recebido' : 'Valor total a receber' }}</div>
             <div class="mt-1 text-2xl font-bold text-primary-700 dark:text-primary-300">
                 R$ {{ number_format($report['total'] ?? 0, 2, ',', '.') }}
             </div>
@@ -41,9 +43,9 @@
                             <th class="px-2 py-3 text-left font-semibold">Cliente</th>
                             <th class="px-2 py-3 text-left font-semibold">Contrato</th>
                             <th class="px-2 py-3 text-left font-semibold">Descrição</th>
-                            <th class="px-2 py-3 text-center font-semibold">Pagamento</th>
+                            <th class="px-2 py-3 text-center font-semibold">{{ $isPaid ? 'Recebimento' : 'Vencimento' }}</th>
                             <th class="px-2 py-3 text-center font-semibold">Forma</th>
-                            <th class="px-2 py-3 text-right font-semibold">Valor Recebido</th>
+                            <th class="px-2 py-3 text-right font-semibold">{{ $isPaid ? 'Valor Recebido' : 'Valor a Receber' }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -52,7 +54,7 @@
                                 <td class="px-2 py-3">{{ $item['cliente'] }}</td>
                                 <td class="px-2 py-3 font-mono">{{ $item['contrato'] }}</td>
                                 <td class="px-2 py-3">{{ $item['descricao'] }}</td>
-                                <td class="px-2 py-3 text-center tabular-nums">{{ $item['pagamento'] }}</td>
+                                <td class="px-2 py-3 text-center tabular-nums">{{ $item['data'] }}</td>
                                 <td class="px-2 py-3 text-center">{{ $formaPagamentoLabel($item['forma_pagamento']) }}</td>
                                 <td class="px-2 py-3 text-right tabular-nums">R$ {{ number_format($item['valor'], 2, ',', '.') }}</td>
                             </tr>

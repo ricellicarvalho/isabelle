@@ -34,7 +34,10 @@ class ReceivableResource extends Resource
 
     public static function getNavigationBadge(): ?string
     {
-        return (string) static::getModel()::where('status', 'pendente')->count();
+        return (string) static::getModel()::query()
+            ->whereIn('status', ['pendente', 'vencido'])
+            ->whereDate('data_vencimento', '<', today())
+            ->count();
     }
 
     public static function getNavigationBadgeColor(): ?string
@@ -44,7 +47,7 @@ class ReceivableResource extends Resource
 
     public static function getNavigationBadgeTooltip(): ?string
     {
-        return 'Parcelas pendentes';
+        return 'Contas a receber vencidas';
     }
 
     public static function form(Schema $schema): Schema

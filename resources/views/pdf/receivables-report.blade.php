@@ -42,6 +42,7 @@
 
     @php
         $filters = $report['filters'];
+        $isPaid = ($filters['situacao'] ?? 'pago') === 'pago';
         $formaPagamentoLabel = match ($filters['forma_pagamento']) {
             'boleto' => 'Boleto',
             'pix' => 'PIX',
@@ -63,15 +64,16 @@
     <div class="filters">
         <strong>Cliente:</strong> {{ $filters['cliente'] ?? 'Todos' }} &nbsp;|&nbsp;
         <strong>Contrato:</strong> {{ $filters['contrato'] ?? 'Todos' }} &nbsp;|&nbsp;
+        <strong>Situação:</strong> {{ $isPaid ? 'Recebidos' : 'Não recebidos' }} &nbsp;|&nbsp;
         <strong>Forma:</strong> {{ $formaPagamentoLabel }}<br>
-        <strong>Pagamento:</strong>
+        <strong>{{ $isPaid ? 'Recebimento' : 'Vencimento' }}:</strong>
         {{ $filters['data_inicio'] ? \Illuminate\Support\Carbon::parse($filters['data_inicio'])->format('d/m/Y') : 'Início' }}
         a
         {{ $filters['data_fim'] ? \Illuminate\Support\Carbon::parse($filters['data_fim'])->format('d/m/Y') : 'Fim' }}
         &nbsp;|&nbsp; <strong>Registros:</strong> {{ $report['count'] }}
     </div>
 
-    <div class="summary">Valor total recebido: R$ {{ number_format($report['total'], 2, ',', '.') }}</div>
+    <div class="summary">{{ $isPaid ? 'Valor total recebido' : 'Valor total a receber' }}: R$ {{ number_format($report['total'], 2, ',', '.') }}</div>
 
     @if (empty($report['items']))
         <div class="empty">Nenhum recebimento encontrado para os filtros selecionados.</div>
@@ -82,9 +84,9 @@
                     <th class="left" style="width:22%;">Cliente</th>
                     <th class="left" style="width:15%;">Contrato</th>
                     <th class="left" style="width:31%;">Descrição</th>
-                    <th class="center" style="width:11%;">Pagamento</th>
+                    <th class="center" style="width:11%;">{{ $isPaid ? 'Recebimento' : 'Vencimento' }}</th>
                     <th class="center" style="width:10%;">Forma</th>
-                    <th class="right" style="width:11%;">Valor Recebido</th>
+                    <th class="right" style="width:11%;">{{ $isPaid ? 'Valor Recebido' : 'Valor a Receber' }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -93,7 +95,7 @@
                         <td>{{ $item['cliente'] }}</td>
                         <td>{{ $item['contrato'] }}</td>
                         <td>{{ $item['descricao'] }}</td>
-                        <td class="center">{{ $item['pagamento'] }}</td>
+                        <td class="center">{{ $item['data'] }}</td>
                         <td class="center">{{ $itemFormaPagamentoLabel($item['forma_pagamento']) }}</td>
                         <td class="right">R$ {{ number_format($item['valor'], 2, ',', '.') }}</td>
                     </tr>
