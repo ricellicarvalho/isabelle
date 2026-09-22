@@ -4,9 +4,15 @@ namespace App\Filament\Resources\SatisfactionSurveys\Tables;
 
 use App\Filament\Resources\SatisfactionSurveys\SatisfactionSurveyResource;
 use App\Models\SatisfactionSurvey;
+use App\Services\SatisfactionSurveyDuplicator;
+use Carbon\Carbon;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Support\Enums\Alignment;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -35,11 +41,48 @@ class SatisfactionSurveysTable
                 )),
             TextColumn::make('submissions_count')->counts('submissions')->label('Respostas')->alignment(Alignment::Center)->sortable(),
         ])->actions([
-            Action::make('results')->label('Dashboard')->icon('heroicon-o-chart-bar')->url(fn (SatisfactionSurvey $record) => SatisfactionSurveyResource::getUrl('results', ['record' => $record])),
-            Action::make('open')->label('Abrir link')->icon('heroicon-o-arrow-top-right-on-square')->url(fn (SatisfactionSurvey $record) => $record->publicUrl())->openUrlInNewTab(),
-            Action::make('copy')->label('Copiar link')->icon('heroicon-o-clipboard')
-                ->alpineClickHandler(fn (SatisfactionSurvey $record): string => '(() => { const text = '.Js::from($record->publicUrl()).'; const fallback = () => { const input = document.createElement(\'textarea\'); input.value = text; input.style.position = \'fixed\'; input.style.opacity = \'0\'; document.body.appendChild(input); input.focus(); input.select(); document.execCommand(\'copy\'); input.remove(); }; if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(text).catch(fallback); } else { fallback(); } event.currentTarget.setAttribute(\'title\', \'Link copiado\'); })()'),
-            EditAction::make(), DeleteAction::make(),
+            ActionGroup::make([
+                Action::make('results')->label('Dashboard')->icon('heroicon-o-chart-bar')->url(fn (SatisfactionSurvey $record) => SatisfactionSurveyResource::getUrl('results', ['record' => $record]))->openUrlInNewTab(),
+                Action::make('open')->label('Abrir link')->icon('heroicon-o-arrow-top-right-on-square')->url(fn (SatisfactionSurvey $record) => $record->publicUrl())->openUrlInNewTab(),
+                Action::make('copy')->label('Copiar link')->icon('heroicon-o-clipboard')
+                    ->alpineClickHandler(fn (SatisfactionSurvey $record): string => '(async () => { const text = '.Js::from($record->publicUrl()).'; const fallback = () => { const input = document.createElement(\'textarea\'); input.value = text; input.style.position = \'fixed\'; input.style.opacity = \'0\'; document.body.appendChild(input); input.focus(); input.select(); document.execCommand(\'copy\'); input.remove(); }; try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); } else { fallback(); } } catch (error) { fallback(); } new FilamentNotification().title(\'Link copiado\').success().send(); })()'),
+                Action::make('duplicate')
+                    ->label('Duplicar')
+                    ->icon('heroicon-o-document-duplicate')
+                    ->color('gray')
+                    ->modalHeading('Duplicar avaliação de satisfação')
+                    ->modalDescription('A nova edição copiará as configurações e perguntas, mas começará inativa e sem respostas.')
+                    ->modalSubmitActionLabel('Criar nova edição')
+                    ->fillForm(fn (SatisfactionSurvey $record): array => [
+                        'description' => $record->description.' - Cópia',
+                        'starts_at' => $record->starts_at->copy()->addYear(),
+                        'ends_at' => $record->ends_at->copy()->addYear(),
+                    ])
+                    ->form([
+                        TextInput::make('description')->label('Descrição da nova edição')->required()->maxLength(255),
+                        DateTimePicker::make('starts_at')->label('Disponível a partir de')->required()->seconds(false)->displayFormat('d/m/Y H:i'),
+                        DateTimePicker::make('ends_at')->label('Disponível até')->required()->seconds(false)->displayFormat('d/m/Y H:i')->after('starts_at'),
+                    ])
+                    ->action(function (array $data, SatisfactionSurvey $record) {
+                        $copy = app(SatisfactionSurveyDuplicator::class)->duplicate(
+                            $record,
+                            $data['description'],
+                            Carbon::parse($data['starts_at']),
+                            Carbon::parse($data['ends_at']),
+                            auth()->id(),
+                        );
+
+                        Notification::make()
+                            ->title('Nova edição criada')
+                            ->body('A pesquisa foi duplicada como inativa. Revise-a e ative quando estiver pronta.')
+                            ->success()
+                            ->send();
+
+                        return redirect()->to(SatisfactionSurveyResource::getUrl('edit', ['record' => $copy]));
+                    }),
+                EditAction::make(),
+                DeleteAction::make(),
+            ]),
         ]);
     }
 }
