@@ -26,6 +26,23 @@ class BankRemessasTable
                     ->label('Layout')
                     ->placeholder('—'),
 
+                TextColumn::make('resultado_bancario')
+                    ->label('Resultado bancário')
+                    ->badge()
+                    ->color(fn (?string $state): string => match ($state) {
+                        'aceita' => 'success',
+                        'rejeitada' => 'danger',
+                        'parcialmente_rejeitada' => 'warning',
+                        default => 'gray',
+                    })
+                    ->formatStateUsing(fn (?string $state): string => match ($state) {
+                        'aceita' => 'Aceita',
+                        'rejeitada' => 'Rejeitada',
+                        'parcialmente_rejeitada' => 'Parcialmente rejeitada',
+                        'pendente' => 'Pendente',
+                        default => 'Aguardando retorno',
+                    }),
+
                 TextColumn::make('data_geracao')
                     ->label('Gerada em')
                     ->dateTime('d/m/Y H:i')
@@ -79,7 +96,7 @@ class BankRemessasTable
                         $record->registrarDownloadArquivo(auth()->id());
 
                         return response()->streamDownload(
-                            fn () => print(Storage::disk('local')->get($record->caminho_arquivo)),
+                            fn () => print (Storage::disk('local')->get($record->caminho_arquivo)),
                             basename($record->caminho_arquivo),
                             ['Content-Type' => 'text/plain']
                         );

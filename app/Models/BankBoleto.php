@@ -25,6 +25,8 @@ class BankBoleto extends Model
         'valor',
         'valor_pago',
         'status',
+        'registro_bancario_status',
+        'registro_bancario_motivo',
         'instrucao_remessa',
         'created_by',
         'deleted_by',

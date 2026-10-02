@@ -10,8 +10,10 @@ use App\Models\Client;
 use App\Models\Receivable;
 use App\Models\User;
 use App\Services\CnabRemessaService;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 use Tests\TestCase;
 
 class CnabRemessaServiceTest extends TestCase
@@ -111,11 +113,74 @@ class CnabRemessaServiceTest extends TestCase
         $this->assertNotNull($remessa->fresh()->arquivo_baixado_at);
     }
 
+    public function test_bradesco_remessa_formats_cpf_type_and_number_in_the_official_positions(): void
+    {
+        Storage::fake('local');
+
+        [$user, $client, $category] = $this->dependencies();
+        $client->update([
+            'tipo_pessoa' => 'pf',
+            'cnpj_cpf' => '615.674.340-53',
+        ]);
+        $this->bankAccount($user);
+
+        $boleto = $this->pendingBoleto($user, $client, $category);
+        $remessa = CnabRemessaService::generate(new Collection([$boleto]));
+        $lines = preg_split('/\r\n|\n|\r/', Storage::disk('local')->get($remessa->caminho_arquivo));
+        $detail = $lines[1];
+
+        $this->assertSame(400, strlen($detail));
+        $this->assertSame('01', substr($detail, 218, 2));
+        $this->assertSame('00061567434053', substr($detail, 220, 14));
+    }
+
+    public function test_caepf_accepts_a_valid_cnpj_and_serializes_it_as_cnpj(): void
+    {
+        Storage::fake('local');
+
+        [$user, $client, $category] = $this->dependencies();
+        $client->update([
+            'tipo_pessoa' => 'caepf',
+            'cnpj_cpf' => '12.547.355/0001-84',
+        ]);
+        $this->bankAccount($user);
+
+        $remessa = CnabRemessaService::generate(new Collection([
+            $this->pendingBoleto($user, $client, $category),
+        ]));
+        $lines = preg_split('/\r\n|\n|\r/', Storage::disk('local')->get($remessa->caminho_arquivo));
+
+        $this->assertSame('02', substr($lines[1], 218, 2));
+        $this->assertSame('12547355000184', substr($lines[1], 220, 14));
+    }
+
+    public function test_invalid_document_blocks_remessa_before_consuming_sequence(): void
+    {
+        Storage::fake('local');
+
+        [$user, $client, $category] = $this->dependencies();
+        $client->update(['tipo_pessoa' => 'pf', 'cnpj_cpf' => '111.111.111-11']);
+        $account = $this->bankAccount($user, ['proximo_sequencial_remessa' => 8]);
+
+        try {
+            CnabRemessaService::generate(new Collection([
+                $this->pendingBoleto($user, $client, $category),
+            ]));
+            $this->fail('A remessa deveria ter sido bloqueada.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('CPF/CNPJ do pagador é inválido', $exception->getMessage());
+        }
+
+        $this->assertSame(8, $account->fresh()->proximo_sequencial_remessa);
+        $this->assertDatabaseCount('bank_remessas', 0);
+    }
+
     private function dependencies(): array
     {
         $user = User::factory()->create();
         $client = Client::create([
-            'cnpj_cpf' => '12.345.678/0001-90',
+            'tipo_pessoa' => 'pj',
+            'cnpj_cpf' => '12.547.355/0001-84',
             'razao_social' => 'Cliente Teste',
             'endereco' => 'Rua Teste',
             'numero' => '10',
@@ -201,6 +266,32 @@ class CnabRemessaServiceTest extends TestCase
             'data_vencimento' => $dueDate,
             'valor' => $value,
             'status' => 'emitido',
+            'created_by' => $user->id,
+        ]);
+    }
+
+    private function pendingBoleto(User $user, Client $client, Category $category): BankBoleto
+    {
+        $receivable = Receivable::create([
+            'client_id' => $client->id,
+            'category_id' => $category->id,
+            'descricao' => 'Parcela para remessa',
+            'valor' => 100,
+            'data_vencimento' => '2026-12-10',
+            'forma_pagamento' => 'boleto',
+            'numero_parcela' => 1,
+            'status' => 'pendente',
+            'created_by' => $user->id,
+        ]);
+
+        return BankBoleto::create([
+            'receivable_id' => $receivable->id,
+            'nosso_numero' => '00000000108',
+            'numero_documento' => (string) $receivable->id,
+            'carteira' => '09',
+            'data_vencimento' => '2026-12-10',
+            'valor' => 100,
+            'status' => 'pendente',
             'created_by' => $user->id,
         ]);
     }

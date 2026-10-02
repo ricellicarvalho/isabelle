@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Clients\Schemas;
 
+use App\Support\FiscalDocument;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
@@ -53,22 +54,45 @@ class ClientForm
                                                 'caepf' => 'CAEPF',
                                                 default => 'CNPJ',
                                             })
-                                            ->mask(fn (Get $get): ?string => match ($get('tipo_pessoa')) {
+                                            ->mask(fn (Get $get) => match ($get('tipo_pessoa')) {
                                                 'pf' => '999.999.999-99',
-                                                'caepf' => null,
+                                                'caepf' => RawJs::make(<<<'JS'
+                                                    $input.replace(/\D/g, '').length <= 11
+                                                        ? '999.999.999-99'
+                                                        : '99.999.999/9999-99'
+                                                JS),
                                                 default => '99.999.999/9999-99',
                                             })
                                             ->placeholder(fn (Get $get): string => match ($get('tipo_pessoa')) {
                                                 'pf' => '000.000.000-00',
-                                                'caepf' => 'Digite o CAEPF',
+                                                'caepf' => 'Digite o CPF ou CNPJ vinculado ao CAEPF',
                                                 default => '00.000.000/0000-00',
                                             })
                                             ->maxLength(fn (Get $get): int => match ($get('tipo_pessoa')) {
                                                 'pf' => 14,
-                                                'caepf' => 30,
+                                                'caepf' => 18,
                                                 default => 18,
                                             })
                                             ->required()
+                                            ->rule(function (Get $get): \Closure {
+                                                return function (string $attribute, mixed $value, \Closure $fail) use ($get): void {
+                                                    $personType = $get('tipo_pessoa');
+
+                                                    if (! FiscalDocument::isValid($value)) {
+                                                        $fail('Informe um CPF ou CNPJ válido.');
+
+                                                        return;
+                                                    }
+
+                                                    if (! FiscalDocument::isCompatibleWithPersonType($value, $personType)) {
+                                                        $fail(match ($personType) {
+                                                            'pf' => 'Pessoa Física deve possuir um CPF.',
+                                                            'pj' => 'Pessoa Jurídica deve possuir um CNPJ.',
+                                                            default => 'CAEPF deve possuir um CPF ou CNPJ válido.',
+                                                        });
+                                                    }
+                                                };
+                                            })
                                             ->unique(ignoreRecord: true),
 
                                         TextInput::make('razao_social')

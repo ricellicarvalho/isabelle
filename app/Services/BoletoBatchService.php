@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\BankAccount;
 use App\Models\Receivable;
+use App\Support\FiscalDocument;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -131,8 +132,15 @@ class BoletoBatchService
                 throw new RuntimeException("{$label} está com status {$receivable->status} e não pode gerar boleto.");
             }
 
-            if (! $receivable->client || blank($receivable->client->cnpj_cpf)) {
-                throw new RuntimeException("{$label}: o cliente não possui CPF/CNPJ informado.");
+            if (! $receivable->client || ! FiscalDocument::isValid($receivable->client->cnpj_cpf)) {
+                throw new RuntimeException("{$label}: o cliente não possui CPF/CNPJ válido.");
+            }
+
+            if (! FiscalDocument::isCompatibleWithPersonType(
+                $receivable->client->cnpj_cpf,
+                $receivable->client->tipo_pessoa,
+            )) {
+                throw new RuntimeException("{$label}: o CPF/CNPJ é incompatível com o tipo de pessoa do cliente.");
             }
 
             if ((float) $receivable->valor <= 0 || ! $receivable->data_vencimento) {

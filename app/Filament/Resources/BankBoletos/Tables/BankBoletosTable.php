@@ -83,6 +83,21 @@ class BankBoletosTable
                         'pago' => 'Pago',
                         'cancelado' => 'Cancelado',
                     }),
+
+                TextColumn::make('registro_bancario_status')
+                    ->label('Registro no banco')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'registrado' => 'success',
+                        'rejeitado' => 'danger',
+                        default => 'warning',
+                    })
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        'registrado' => 'Registrado',
+                        'rejeitado' => 'Rejeitado',
+                        default => 'Aguardando retorno',
+                    })
+                    ->tooltip(fn (BankBoleto $record): ?string => $record->registro_bancario_motivo),
             ])
             ->filters([
                 SelectFilter::make('status')
@@ -101,6 +116,14 @@ class BankBoletosTable
                         ->distinct()
                         ->pluck('carteira', 'carteira')
                         ->toArray()),
+
+                SelectFilter::make('registro_bancario_status')
+                    ->label('Registro no banco')
+                    ->options([
+                        'pendente' => 'Aguardando retorno',
+                        'registrado' => 'Registrado',
+                        'rejeitado' => 'Rejeitado',
+                    ]),
             ])
             ->actions([
                 // URL assinada com validade de 30 min — abre em nova aba sem passar pelo Livewire
@@ -108,8 +131,7 @@ class BankBoletosTable
                     ->label('PDF')
                     ->icon('heroicon-o-document-arrow-down')
                     ->color('danger')
-                    ->url(fn (BankBoleto $record): string =>
-                        URL::signedRoute('boleto.pdf', ['boleto' => $record->id], now()->addMinutes(30))
+                    ->url(fn (BankBoleto $record): string => URL::signedRoute('boleto.pdf', ['boleto' => $record->id], now()->addMinutes(30))
                     )
                     ->openUrlInNewTab(),
                 EditAction::make(),
@@ -130,7 +152,7 @@ class BankBoletosTable
 
                                 Notification::make()
                                     ->title("Remessa #{$remessa->sequencial_arquivo} gerada")
-                                    ->body("{$remessa->quantidade_titulos} título(s) — R$ " . number_format((float) $remessa->valor_total, 2, ',', '.'))
+                                    ->body("{$remessa->quantidade_titulos} título(s) — R$ ".number_format((float) $remessa->valor_total, 2, ',', '.'))
                                     ->success()
                                     ->send();
                             } catch (Throwable $e) {

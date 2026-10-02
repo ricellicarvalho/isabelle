@@ -47,7 +47,7 @@ class BradescoRemessa extends LibBradescoCnab
         $idempresa .= Util::modulo11($this->getConta());
 
         $dvNossoNumero = Util::modulo11(
-            Util::formatCnab('N', $this->getCarteira('21'), 2) . Util::formatCnab('N', $detalhe->getNumero(), 11),
+            Util::formatCnab('N', $this->getCarteira('21'), 2).Util::formatCnab('N', $detalhe->getNumero(), 11),
             2,
             7,
             0,
@@ -104,8 +104,10 @@ class BradescoRemessa extends LibBradescoCnab
         $this->add(180, 192, Util::formatCnab('N', 0, 13, 2));
         $this->add(193, 205, Util::formatCnab('N', $detalhe->getvalorIOF(), 13, 2));
         $this->add(206, 218, Util::formatCnab('N', $detalhe->getValorAbatimento(), 13, 2));
-        $this->add(219, 220, Util::formatCnab('NL', $detalhe->getSacadoTipoDocumento(), 2));
-        $this->add(221, 234, Util::formatCnab('L', $detalhe->getSacadoDocumento(), 14));
+        $documento = Util::onlyNumbers($detalhe->getSacadoDocumento());
+        $tipoDocumento = strlen($documento) === 11 ? '01' : '02';
+        $this->add(219, 220, $tipoDocumento);
+        $this->add(221, 234, Util::formatCnab('N', $documento, 14));
         $this->add(235, 274, Util::formatCnab('A', $detalhe->getSacadoNome(), 40));
         $this->add(275, 314, Util::formatCnab('A', $detalhe->getSacadoEndereco(), 40));
         $this->add(315, 326, '');

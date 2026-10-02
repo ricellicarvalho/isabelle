@@ -4,11 +4,12 @@ namespace App\Services;
 
 use App\Models\BankAccount;
 use App\Models\BankBoleto;
+use App\Models\BankRemessa;
 use App\Models\BankRetorno;
 use App\Models\Receivable;
+use Carbon\CarbonInterface;
 use Eduardokum\LaravelBoleto\Cnab\Retorno\Detalhe;
 use Eduardokum\LaravelBoleto\Cnab\Retorno\Factory as RetornoFactory;
-use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -27,9 +28,9 @@ class CnabRetornoService
     /**
      * Processa um arquivo de retorno e retorna o registro BankRetorno criado.
      *
-     * @param string $absolutePath Caminho absoluto do arquivo .ret
-     * @param string $originalName Nome original do arquivo (para exibição)
-     * @param BankAccount|null $bankAccount Conta bancária associada (opcional)
+     * @param  string  $absolutePath  Caminho absoluto do arquivo .ret
+     * @param  string  $originalName  Nome original do arquivo (para exibição)
+     * @param  BankAccount|null  $bankAccount  Conta bancária associada (opcional)
      */
     public function processar(string $absolutePath, string $originalName, ?BankAccount $bankAccount = null): BankRetorno
     {
@@ -106,6 +107,8 @@ class CnabRetornoService
                 'valor_total' => $totais['valor_total'],
                 'log' => $log,
             ]);
+
+            $this->atualizarResultadosDasRemessas($retorno);
 
             return $retorno->fresh();
         });
@@ -217,6 +220,8 @@ class CnabRetornoService
             case Detalhe::OCORRENCIA_ENTRADA:
                 $boleto->update([
                     'status' => 'emitido',
+                    'registro_bancario_status' => 'registrado',
+                    'registro_bancario_motivo' => null,
                     'bank_retorno_id' => $retorno->id,
                 ]);
 
@@ -227,12 +232,17 @@ class CnabRetornoService
                 ];
 
             case Detalhe::OCORRENCIA_ERRO:
+                $mensagem = $this->mensagemRejeicao($detalhe);
+                $boleto->update([
+                    'registro_bancario_status' => 'rejeitado',
+                    'registro_bancario_motivo' => $mensagem,
+                    'bank_retorno_id' => $retorno->id,
+                ]);
+
                 return [
                     'nosso_numero' => $nossoNumero,
                     'status' => 'erro',
-                    'mensagem' => method_exists($detalhe, 'getErro')
-                        ? (string) $detalhe->getErro()
-                        : 'Erro reportado pelo banco',
+                    'mensagem' => $mensagem,
                 ];
 
             case Detalhe::OCORRENCIA_ALTERACAO:
@@ -245,6 +255,60 @@ class CnabRetornoService
         }
     }
 
+    protected function mensagemRejeicao($detalhe): string
+    {
+        $descriptions = [
+            '45' => 'Nome do pagador inválido',
+            '46' => 'Tipo ou número de inscrição do pagador inválido',
+            '47' => 'Endereço do pagador não informado',
+            '48' => 'CEP inválido',
+            '53' => 'CPF/CNPJ do pagador ou avalista inválido',
+        ];
+        $codes = method_exists($detalhe, 'get') ? (array) $detalhe->get('rejeicao', []) : [];
+        $messages = [];
+
+        foreach ($codes as $code) {
+            $code = trim((string) $code, " 0\t\n\r\0\x0B");
+            if ($code !== '') {
+                $messages[] = $descriptions[$code] ?? "Rejeição bancária código {$code}";
+            }
+        }
+
+        if ($messages !== []) {
+            return implode('; ', array_unique($messages));
+        }
+
+        $error = method_exists($detalhe, 'getErro') ? trim((string) $detalhe->getErro()) : '';
+
+        return $error !== '' && $error !== 'Desconhecido' ? $error : 'Título rejeitado pelo banco';
+    }
+
+    protected function atualizarResultadosDasRemessas(BankRetorno $retorno): void
+    {
+        $remessaIds = BankBoleto::query()
+            ->where('bank_retorno_id', $retorno->id)
+            ->whereNotNull('remessa_id')
+            ->pluck('remessa_id')
+            ->unique();
+
+        foreach ($remessaIds as $remessaId) {
+            $statuses = BankBoleto::query()
+                ->where('remessa_id', $remessaId)
+                ->pluck('registro_bancario_status');
+            $hasRejected = $statuses->contains('rejeitado');
+            $hasRegistered = $statuses->contains('registrado');
+
+            BankRemessa::query()->whereKey($remessaId)->update([
+                'resultado_bancario' => match (true) {
+                    $hasRejected && $hasRegistered => 'parcialmente_rejeitada',
+                    $hasRejected => 'rejeitada',
+                    $hasRegistered && ! $statuses->contains('pendente') => 'aceita',
+                    default => 'pendente',
+                },
+            ]);
+        }
+    }
+
     protected function storeFile(string $absolutePath, string $originalName): string
     {
         $contents = @file_get_contents($absolutePath);
@@ -252,7 +316,7 @@ class CnabRetornoService
             return '';
         }
 
-        $filename = 'retornos/' . date('Ymd_His') . '_' . $originalName;
+        $filename = 'retornos/'.date('Ymd_His').'_'.$originalName;
         Storage::disk('local')->put($filename, $contents);
 
         return $filename;

@@ -6,6 +6,7 @@ use App\Models\BankAccount;
 use App\Models\BankBoleto;
 use App\Models\BankRemessa;
 use App\Services\Boleto\Cnab\BradescoRemessa as Bradesco;
+use App\Support\FiscalDocument;
 use Eduardokum\LaravelBoleto\Cnab\Remessa\AbstractCnab;
 use Eduardokum\LaravelBoleto\Cnab\Remessa\Banco\Bb;
 use Eduardokum\LaravelBoleto\Cnab\Remessa\Banco\Caixa;
@@ -40,6 +41,8 @@ class CnabRemessaService
             throw new RuntimeException('Nenhum boleto elegível para remessa (apenas pendentes ou cancelados).');
         }
 
+        self::validateForGeneration($elegiveis);
+
         return DB::transaction(function () use ($account, $elegiveis) {
             $sequencial = $account->reserveSequencialRemessa();
 
@@ -63,6 +66,8 @@ class CnabRemessaService
         if ($boletos->isEmpty()) {
             throw new RuntimeException('Nenhum boleto informado para remessa corretiva.');
         }
+
+        self::validateForGeneration($boletos);
 
         if (BankRemessa::query()->where('sequencial_arquivo', $sequencial)->exists()) {
             throw new RuntimeException("A remessa sequencial {$sequencial} já existe.");
@@ -144,7 +149,7 @@ class CnabRemessaService
         if ($client) {
             $detalhe->sacadoDocumento = preg_replace('/\D/', '', $client->cnpj_cpf ?? '');
             $detalhe->sacadoNome = $client->razao_social ?? '';
-            $detalhe->sacadoEndereco = trim(($client->endereco ?? '') . ', ' . ($client->numero ?? ''));
+            $detalhe->sacadoEndereco = trim(($client->endereco ?? '').', '.($client->numero ?? ''));
             $detalhe->sacadoBairro = $client->bairro ?? '';
             $detalhe->sacadoCEP = preg_replace('/\D/', '', $client->cep ?? '00000000');
             $detalhe->sacadoCidade = $client->cidade ?? '';
@@ -152,6 +157,49 @@ class CnabRemessaService
         }
 
         $cnab->addDetalhe($detalhe);
+    }
+
+    /**
+     * @param  Collection<int, BankBoleto>  $boletos
+     */
+    protected static function validateForGeneration(Collection $boletos): void
+    {
+        $errors = [];
+
+        foreach ($boletos as $boleto) {
+            $boleto->loadMissing(['receivable.client']);
+            $client = $boleto->receivable?->client;
+            $label = "Boleto #{$boleto->id}";
+
+            if (! $client) {
+                $errors[] = "{$label}: cliente/pagador não localizado.";
+
+                continue;
+            }
+
+            if (! FiscalDocument::isValid($client->cnpj_cpf)) {
+                $errors[] = "{$label}: CPF/CNPJ do pagador é inválido.";
+            } elseif (! FiscalDocument::isCompatibleWithPersonType($client->cnpj_cpf, $client->tipo_pessoa)) {
+                $errors[] = "{$label}: CPF/CNPJ é incompatível com o tipo de pessoa do pagador.";
+            }
+
+            if (blank($client->razao_social)) {
+                $errors[] = "{$label}: nome do pagador não informado.";
+            }
+            if (blank($client->endereco) || blank($client->numero)) {
+                $errors[] = "{$label}: endereço completo do pagador não informado.";
+            }
+            if (strlen(FiscalDocument::digits($client->cep)) !== 8) {
+                $errors[] = "{$label}: CEP do pagador deve possuir 8 dígitos.";
+            }
+            if ((float) $boleto->valor <= 0 || ! $boleto->data_vencimento) {
+                $errors[] = "{$label}: valor ou vencimento inválido.";
+            }
+        }
+
+        if ($errors !== []) {
+            throw new RuntimeException("A remessa não pode ser gerada:\n- ".implode("\n- ", array_unique($errors)));
+        }
     }
 
     /**
@@ -166,7 +214,8 @@ class CnabRemessaService
         }
 
         $conteudo = $cnab->gerar();
-        $path = 'remessas/' . self::filename($sequencial);
+        self::validateCnabContent($conteudo, $boletos->count());
+        $path = 'remessas/'.self::filename($sequencial);
 
         Storage::disk('local')->put($path, $conteudo);
 
@@ -176,7 +225,7 @@ class CnabRemessaService
             'caminho_arquivo' => $path,
             'quantidade_titulos' => $boletos->count(),
             'valor_total' => $boletos->sum('valor'),
-            'layout' => 'cnab' . $account->layout_remessa,
+            'layout' => 'cnab'.$account->layout_remessa,
             'status' => 'gerado',
             'created_by' => auth()->id() ?? $boletos->first()->created_by,
         ]);
@@ -185,9 +234,34 @@ class CnabRemessaService
             $boleto->update([
                 'remessa_id' => $remessa->id,
                 'status' => $boleto->status === 'cancelado' ? 'cancelado' : 'emitido',
+                'registro_bancario_status' => 'pendente',
+                'registro_bancario_motivo' => null,
             ]);
         }
 
         return $remessa;
+    }
+
+    protected static function validateCnabContent(string $content, int $titleCount): void
+    {
+        $lines = preg_split('/\r\n|\n|\r/', rtrim($content, "\r\n\x1A")) ?: [];
+
+        if (count($lines) !== $titleCount + 2) {
+            throw new RuntimeException('CNAB inválido: quantidade de registros não corresponde aos títulos.');
+        }
+
+        foreach ($lines as $index => $line) {
+            if (strlen($line) !== 400) {
+                throw new RuntimeException(sprintf(
+                    'CNAB inválido: o registro %d possui %d posições, esperado 400.',
+                    $index + 1,
+                    strlen($line),
+                ));
+            }
+        }
+
+        if ($lines[0][0] !== '0' || end($lines)[0] !== '9') {
+            throw new RuntimeException('CNAB inválido: header ou trailer ausente.');
+        }
     }
 }

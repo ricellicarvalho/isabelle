@@ -77,7 +77,8 @@ class BoletoBatchServiceTest extends TestCase
     {
         $user = User::factory()->create();
         $client = Client::create([
-            'cnpj_cpf' => '12.345.678/0001-90',
+            'tipo_pessoa' => 'pj',
+            'cnpj_cpf' => '12.547.355/0001-84',
             'razao_social' => 'Cliente Teste',
             'endereco' => 'Rua Teste',
             'numero' => '10',

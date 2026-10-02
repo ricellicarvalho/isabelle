@@ -20,6 +20,7 @@ class BankRemessa extends Model
         'valor_total',
         'layout',
         'status',
+        'resultado_bancario',
         'arquivo_baixado_at',
         'arquivo_baixado_by',
         'created_by',
