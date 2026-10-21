@@ -8,7 +8,9 @@ use App\Models\Contract;
 use App\Models\Nr1Cycle;
 use App\Models\User;
 use App\Services\Contracts\ContractRenewalService;
+use App\Services\Nr1\Nr1CycleService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class Nr1AnnualCycleTest extends TestCase
@@ -60,6 +62,48 @@ class Nr1AnnualCycleTest extends TestCase
         ]);
     }
 
+    public function test_renewing_in_a_year_that_already_has_a_cycle_preserves_it_and_allows_manual_next_cycle(): void
+    {
+        [$user, $client, $category] = $this->dependencies();
+        $contract = $this->contract($user, $client, $category)->fresh();
+        $existingCycle = $contract->nr1Cycles()->firstOrFail();
+        $existingCycle->update([
+            'status' => 'finalizada',
+            'checklist' => array_fill_keys(['etapa1', 'etapa2', 'etapa3', 'etapa4', 'etapa5'], true),
+        ]);
+
+        $version = app(ContractRenewalService::class)->renew($contract, [
+            'client_id' => $client->id,
+            'category_id' => $category->id,
+            'numero' => $contract->numero,
+            'tipo_servico' => 'nr1',
+            'descricao' => 'NR-1 renovada no mesmo ano',
+            'valor_total' => 2400,
+            'forma_pagamento' => 'pix',
+            'quantidade_parcelas' => 2,
+            'data_inicio' => '2026-10-21',
+            'data_fim' => '2027-10-20',
+            'arquivo_pdf' => null,
+            'observacoes' => null,
+            'change_reason' => 'Renovação anual.',
+        ], $user->id);
+
+        $this->assertSame(1, $contract->nr1Cycles()->count());
+        $this->assertNull($version->openedNr1Cycle);
+        $this->assertDatabaseHas('nr1_cycles', [
+            'id' => $existingCycle->id,
+            'opened_by_contract_version_id' => $contract->getOriginal('current_version_id'),
+            'reference_year' => 2026,
+            'status' => 'finalizada',
+        ]);
+
+        $nextCycle = app(Nr1CycleService::class)->createManually($contract->fresh(), 2027, $user->id);
+
+        $this->assertSame(2027, $nextCycle->reference_year);
+        $this->assertSame($version->id, $nextCycle->opened_by_contract_version_id);
+        $this->assertSame(2, $contract->nr1Cycles()->count());
+    }
+
     public function test_cycle_status_is_calculated_without_modifying_the_legacy_client_copy(): void
     {
         [$user, $client] = $this->dependencies();
@@ -75,6 +119,17 @@ class Nr1AnnualCycleTest extends TestCase
 
         $this->assertSame('finalizada', $cycle->status);
         $this->assertSame($legacyChecklist, $client->fresh()->nr1_checklist);
+    }
+
+    public function test_it_rejects_manual_creation_for_a_year_that_already_has_a_cycle(): void
+    {
+        [$user, $client, $category] = $this->dependencies();
+        $contract = $this->contract($user, $client, $category)->fresh();
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Já existe uma NR-1/2026 para este contrato.');
+
+        app(Nr1CycleService::class)->createManually($contract, 2026, $user->id);
     }
 
     private function dependencies(): array

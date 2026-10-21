@@ -75,9 +75,17 @@ class RenewContractAction
                 $data['valor_total'] = ContractForm::parseMoney($data['valor_total']) ?? 0;
                 $version = app(ContractRenewalService::class)->renew($record, $data, (int) auth()->id());
 
+                $cycle = $version->openedNr1Cycle;
+
+                $message = match (true) {
+                    $version->tipo_servico !== 'nr1' => 'A nova vigência foi criada e o histórico anterior foi preservado.',
+                    $cycle !== null => "A NR-1/{$cycle->reference_year} foi criada. Use “Preencher checklist NR-1/ANO” nas ações do contrato para preenchê-la.",
+                    default => "A NR-1/{$version->data_inicio->format('Y')} existente foi preservada. Crie manualmente o próximo ciclo NR-1 no ano adequado.",
+                };
+
                 Notification::make()
                     ->title("Contrato renovado — Versão {$version->version_number}")
-                    ->body("A NR-1/{$version->data_inicio->format('Y')} foi criada. Use “Preencher checklist NR-1/ANO” nas ações do contrato para preenchê-la.")
+                    ->body($message)
                     ->success()
                     ->send();
             });

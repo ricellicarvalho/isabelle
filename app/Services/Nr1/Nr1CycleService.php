@@ -35,15 +35,10 @@ class Nr1CycleService
             ->first();
 
         if ($sameYear) {
-            if ($sameYear->opened_by_contract_version_id === null && $sameYear->migrated_from_client) {
-                $sameYear->update(['opened_by_contract_version_id' => $version->id]);
-
-                return $sameYear;
-            }
-
-            throw ValidationException::withMessages([
-                'data_inicio' => "Já existe uma NR-1/{$year} para este contrato.",
-            ]);
+            // A renovação contratual pode ocorrer dentro de um ano que já possui
+            // ciclo NR-1. Nesse caso, preservamos o ciclo existente e o próximo
+            // ciclo deverá ser aberto manualmente no ano de referência adequado.
+            return null;
         }
 
         return Nr1Cycle::query()->create([
@@ -56,5 +51,33 @@ class Nr1CycleService
                 'migrated_from_client' => false,
                 'created_by' => $userId ?? $contract->created_by,
             ]);
+    }
+
+    public function createManually(Contract $contract, int $year, int $userId): Nr1Cycle
+    {
+        if ($contract->tipo_servico !== 'nr1') {
+            throw ValidationException::withMessages([
+                'reference_year' => 'Ciclos NR-1 só podem ser criados para contratos NR-1.',
+            ]);
+        }
+
+        if ($contract->nr1Cycles()->where('reference_year', $year)->exists()) {
+            throw ValidationException::withMessages([
+                'reference_year' => "Já existe uma NR-1/{$year} para este contrato.",
+            ]);
+        }
+
+        $currentVersion = $contract->currentVersion;
+        $versionAlreadyOpenedCycle = $currentVersion?->openedNr1Cycle()->exists() ?? false;
+
+        return $contract->nr1Cycles()->create([
+            'client_id' => $contract->client_id,
+            'opened_by_contract_version_id' => $versionAlreadyOpenedCycle ? null : $currentVersion?->id,
+            'reference_year' => $year,
+            'status' => 'pendente',
+            'checklist' => [],
+            'migrated_from_client' => false,
+            'created_by' => $userId,
+        ]);
     }
 }
