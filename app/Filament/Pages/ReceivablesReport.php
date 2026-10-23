@@ -22,13 +22,11 @@ class ReceivablesReport extends Page
 
     protected static string|UnitEnum|null $navigationGroup = 'Relatórios';
 
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 5;
 
     protected static ?string $title = 'Recebimentos';
 
     public ?array $data = [];
-
-    public array $report = [];
 
     public static function canAccess(): bool
     {
@@ -46,7 +44,6 @@ class ReceivablesReport extends Page
             'forma_pagamento' => null,
         ]);
 
-        $this->generateReport();
     }
 
     public function form(Schema $schema): Schema
@@ -124,14 +121,14 @@ class ReceivablesReport extends Page
             ->columns(6);
     }
 
-    public function updatedData(): void
+    protected function getViewData(): array
     {
-        $this->generateReport();
-    }
-
-    public function generateReport(): void
-    {
-        $this->report = ReceivablesReportService::generate($this->data ?? []);
+        return [
+            // O relatório é um estado derivado dos filtros. Calculá-lo durante a
+            // renderização impede que respostas Livewire concorrentes deixem os
+            // campos visíveis e a listagem em estados diferentes.
+            'report' => ReceivablesReportService::generate($this->data ?? []),
+        ];
     }
 
     protected function getHeaderActions(): array

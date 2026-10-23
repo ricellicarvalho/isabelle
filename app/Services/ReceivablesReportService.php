@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Client;
 use App\Models\Contract;
 use App\Models\Receivable;
+use Carbon\Carbon;
 
 class ReceivablesReportService
 {
@@ -12,8 +13,12 @@ class ReceivablesReportService
     {
         $clientId = $filters['client_id'] ?? null;
         $contractId = $filters['contract_id'] ?? null;
-        $dataInicio = $filters['data_inicio'] ?? null;
-        $dataFim = $filters['data_fim'] ?? null;
+        $dataInicio = filled($filters['data_inicio'] ?? null)
+            ? Carbon::parse($filters['data_inicio'])->toDateString()
+            : null;
+        $dataFim = filled($filters['data_fim'] ?? null)
+            ? Carbon::parse($filters['data_fim'])->toDateString()
+            : null;
         $situacao = $filters['situacao'] ?? 'pago';
         $formaPagamento = $filters['forma_pagamento'] ?? null;
         $isPaid = $situacao === 'pago';

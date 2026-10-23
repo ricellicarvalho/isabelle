@@ -7,6 +7,7 @@ use App\Models\ClientDocument;
 use App\Models\Nfse;
 use App\Models\Pricing;
 use App\Services\BankBoletoService;
+use App\Services\ContractsReportService;
 use App\Services\ExpiringContractsReportService;
 use App\Services\PayablesReportService;
 use App\Services\PaymentsReportService;
@@ -132,6 +133,25 @@ Route::get('/relatorios/contas-a-receber/pdf', function (Request $request) {
         'Content-Disposition' => 'inline; filename="recebimentos-' . now()->format('Y-m-d') . '.pdf"',
     ]);
 })->name('reports.receivables.pdf')->middleware(['signed', 'auth:web']);
+
+// Relatório de movimentação de contratos em PDF — abre inline em nova aba, URL assinada
+Route::get('/relatorios/movimentacao-de-contratos/pdf', function (Request $request) {
+    $filters = $request->only(['client_id', 'movement_type', 'data_inicio', 'data_fim']);
+    $report = ContractsReportService::generate($filters);
+
+    $logoPath = public_path('images/logo.png');
+    $logoBase64 = file_exists($logoPath)
+        ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath))
+        : null;
+
+    $pdf = Pdf::loadView('pdf.contracts-report', compact('report', 'logoBase64'))
+        ->setPaper('a4', 'landscape');
+
+    return response($pdf->output(), 200, [
+        'Content-Type' => 'application/pdf',
+        'Content-Disposition' => 'inline; filename="movimentacao-de-contratos-' . now()->format('Y-m-d') . '.pdf"',
+    ]);
+})->name('reports.contracts.pdf')->middleware(['signed', 'auth:web']);
 
 // Relatório de Contas a Pagar em PDF — abre inline em nova aba, URL assinada
 Route::get('/relatorios/contas-a-pagar/pdf', function (Request $request) {
