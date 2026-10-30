@@ -64,6 +64,36 @@
         </div>
     </div>
 
+    {{-- Devolutiva vinculada ao ciclo atual --}}
+    <div style="margin-bottom:1.5rem;border-radius:.875rem;padding:1rem 1.125rem;border:1.5px solid {{ count($devolutivas) ? '#86efac' : '#e2e8f0' }};background:{{ count($devolutivas) ? 'linear-gradient(145deg,#f0fdf4,#ecfdf5)' : '#f8fafc' }};">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+            <div>
+                <p style="font-size:.9rem;font-weight:800;color:#166534;margin:0;">Devolutiva NR-1{{ $referenceYear ? '/'.$referenceYear : '' }}</p>
+                <p style="font-size:.75rem;color:#475569;margin:.25rem 0 0;">
+                    {{ count($devolutivas) ? 'Resultado consolidado disponível para visualização e download.' : 'A devolutiva será disponibilizada após a apresentação dos resultados.' }}
+                </p>
+            </div>
+            @if(count($devolutivas))
+                <span style="font-size:.68rem;font-weight:700;color:#166534;background:#bbf7d0;border:1px solid #86efac;border-radius:9999px;padding:3px 9px;">Disponível</span>
+            @endif
+        </div>
+
+        @foreach($devolutivas as $document)
+            <div style="margin-top:.85rem;padding-top:.85rem;border-top:1px solid #bbf7d0;">
+                <p style="font-size:.82rem;font-weight:700;color:#14532d;margin:0;">{{ $document['title'] }}</p>
+                @if($document['description'])
+                    <p style="font-size:.73rem;color:#475569;margin:.2rem 0 0;">{{ $document['description'] }}</p>
+                @endif
+                <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.65rem;">
+                    @foreach($document['files'] as $file)
+                        <a href="{{ $file['view_url'] }}" target="_blank" style="display:inline-flex;align-items:center;gap:5px;border-radius:.5rem;padding:.45rem .7rem;background:#16a34a;color:white;font-size:.72rem;font-weight:700;text-decoration:none;">Visualizar {{ $file['name'] }}</a>
+                        <a href="{{ $file['download_url'] }}" style="display:inline-flex;align-items:center;gap:5px;border-radius:.5rem;padding:.45rem .7rem;background:white;color:#166534;border:1px solid #86efac;font-size:.72rem;font-weight:700;text-decoration:none;">Baixar</a>
+                    @endforeach
+                </div>
+            </div>
+        @endforeach
+    </div>
+
     {{-- ── Grade de etapas ── --}}
     <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:.875rem;">
         @foreach ($etapas as $key => $etapa)
@@ -200,6 +230,15 @@
                             </div>
                         @endforeach
                     </div>
+                    @if(count($item['devolutivas']))
+                        <div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid #e2e8f0;display:flex;flex-wrap:wrap;gap:.5rem;">
+                            @foreach($item['devolutivas'] as $document)
+                                @foreach($document['files'] as $file)
+                                    <a href="{{ $file['view_url'] }}" target="_blank" style="font-size:.73rem;font-weight:700;color:#15803d;text-decoration:underline;">Ver devolutiva: {{ $file['name'] }}</a>
+                                @endforeach
+                            @endforeach
+                        </div>
+                    @endif
                 </details>
             @endforeach
         </div>

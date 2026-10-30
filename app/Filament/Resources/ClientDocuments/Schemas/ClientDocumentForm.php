@@ -8,6 +8,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 
 class ClientDocumentForm
@@ -38,22 +39,40 @@ class ClientDocumentForm
                             ->label('Tipo')
                             ->options(function (): array {
                                 $options = [
-                                    'laudo'        => 'Laudo',
-                                    'foto'         => 'Foto',
-                                    'relatorio'    => 'Relatório',
+                                    'laudo' => 'Laudo',
+                                    'foto' => 'Foto',
+                                    'relatorio' => 'Relatório',
                                     'matriz_risco' => 'Matriz de Risco',
-                                    'certificado'  => 'Certificado',
-                                    'boleto'       => 'Boleto',
-                                    'nota_fiscal'  => 'Nota Fiscal',
-                                    'outro'        => 'Outro',
+                                    'certificado' => 'Certificado',
+                                    'boleto' => 'Boleto',
+                                    'nota_fiscal' => 'Nota Fiscal',
+                                    'devolutiva_nr1' => 'Devolutiva NR-1',
+                                    'outro' => 'Outro',
                                 ];
                                 if (auth()->user()?->hasAnyRole(['super_admin', 'administrador', 'financeiro'])) {
                                     $options['proposta'] = 'Proposta';
                                 }
+
                                 return $options;
                             })
                             ->default('outro')
                             ->required()
+                            ->live()
+                            ->native(false),
+
+                        Select::make('nr1_cycle_id')
+                            ->label('Ciclo NR-1')
+                            ->relationship(
+                                name: 'nr1Cycle',
+                                titleAttribute: 'reference_year',
+                                modifyQueryUsing: fn ($query, Get $get) => $query
+                                    ->where('client_id', $get('client_id'))
+                                    ->orderByDesc('reference_year'),
+                            )
+                            ->getOptionLabelFromRecordUsing(fn ($record): string => "NR-1/{$record->reference_year}")
+                            ->visible(fn (Get $get): bool => $get('tipo') === 'devolutiva_nr1')
+                            ->required(fn (Get $get): bool => $get('tipo') === 'devolutiva_nr1')
+                            ->dehydrateStateUsing(fn ($state, Get $get) => $get('tipo') === 'devolutiva_nr1' ? $state : null)
                             ->native(false),
 
                         Toggle::make('visivel_portal')

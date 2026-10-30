@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Nr1Cycle extends Model
@@ -43,6 +44,12 @@ class Nr1Cycle extends Model
     public function contract(): BelongsTo
     {
         return $this->belongsTo(Contract::class);
+    }
+
+    public function devolutivas(): HasMany
+    {
+        return $this->hasMany(ClientDocument::class)
+            ->where('tipo', 'devolutiva_nr1');
     }
 
     public function openedByContractVersion(): BelongsTo

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Validation\ValidationException;
 
 class ClientDocument extends Model
 {
@@ -13,6 +14,7 @@ class ClientDocument extends Model
 
     protected $fillable = [
         'client_id',
+        'nr1_cycle_id',
         'titulo',
         'tipo',
         'caminho_arquivo',
@@ -30,9 +32,36 @@ class ClientDocument extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::saving(function (ClientDocument $document): void {
+            if ($document->tipo !== 'devolutiva_nr1') {
+                $document->nr1_cycle_id = null;
+
+                return;
+            }
+
+            $cycleBelongsToClient = Nr1Cycle::query()
+                ->whereKey($document->nr1_cycle_id)
+                ->where('client_id', $document->client_id)
+                ->exists();
+
+            if (! $cycleBelongsToClient) {
+                throw ValidationException::withMessages([
+                    'nr1_cycle_id' => 'Selecione um ciclo NR-1 pertencente a este cliente.',
+                ]);
+            }
+        });
+    }
+
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class);
+    }
+
+    public function nr1Cycle(): BelongsTo
+    {
+        return $this->belongsTo(Nr1Cycle::class);
     }
 
     public function createdBy(): BelongsTo

@@ -14,6 +14,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Pages\ManageRelatedRecords;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -27,7 +28,7 @@ class ManageClientDocuments extends ManageRelatedRecords
 
     public function getTitle(): string
     {
-        return 'Documentos: ' . $this->getOwnerRecord()->razao_social;
+        return 'Documentos: '.$this->getOwnerRecord()->razao_social;
     }
 
     protected function getHeaderActions(): array
@@ -55,14 +56,15 @@ class ManageClientDocuments extends ManageRelatedRecords
                     ->label('Tipo')
                     ->options(function (): array {
                         $options = [
-                            'laudo'        => 'Laudo',
-                            'foto'         => 'Foto',
-                            'relatorio'    => 'Relatório',
+                            'laudo' => 'Laudo',
+                            'foto' => 'Foto',
+                            'relatorio' => 'Relatório',
                             'matriz_risco' => 'Matriz de Risco',
-                            'certificado'  => 'Certificado',
-                            'boleto'       => 'Boleto',
-                            'nota_fiscal'  => 'Nota Fiscal',
-                            'outro'        => 'Outro',
+                            'certificado' => 'Certificado',
+                            'boleto' => 'Boleto',
+                            'nota_fiscal' => 'Nota Fiscal',
+                            'devolutiva_nr1' => 'Devolutiva NR-1',
+                            'outro' => 'Outro',
                         ];
                         if (auth()->user()?->hasAnyRole(['super_admin', 'administrador', 'financeiro'])) {
                             $options['proposta'] = 'Proposta';
@@ -72,6 +74,22 @@ class ManageClientDocuments extends ManageRelatedRecords
                     })
                     ->default('outro')
                     ->required()
+                    ->live()
+                    ->native(false),
+
+                Select::make('nr1_cycle_id')
+                    ->label('Ciclo NR-1')
+                    ->options(fn (): array => $this->getOwnerRecord()
+                        ->nr1Cycles()
+                        ->get()
+                        ->mapWithKeys(fn ($cycle): array => [
+                            $cycle->id => "NR-1/{$cycle->reference_year}".($cycle->contract?->numero ? " · Contrato {$cycle->contract->numero}" : ''),
+                        ])
+                        ->all())
+                    ->visible(fn (Get $get): bool => $get('tipo') === 'devolutiva_nr1')
+                    ->required(fn (Get $get): bool => $get('tipo') === 'devolutiva_nr1')
+                    ->dehydrateStateUsing(fn ($state, Get $get) => $get('tipo') === 'devolutiva_nr1' ? $state : null)
+                    ->helperText('Identifica em qual NR-1 anual a devolutiva será exibida.')
                     ->native(false),
 
                 Toggle::make('visivel_portal')
@@ -139,26 +157,28 @@ class ManageClientDocuments extends ManageRelatedRecords
                     ->label('Tipo')
                     ->badge()
                     ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'laudo'        => 'Laudo',
-                        'foto'         => 'Foto',
-                        'relatorio'    => 'Relatório',
+                        'laudo' => 'Laudo',
+                        'foto' => 'Foto',
+                        'relatorio' => 'Relatório',
                         'matriz_risco' => 'Matriz de Risco',
-                        'certificado'  => 'Certificado',
-                        'proposta'     => 'Proposta',
-                        'boleto'       => 'Boleto',
-                        'nota_fiscal'  => 'Nota Fiscal',
-                        default        => 'Outro',
+                        'certificado' => 'Certificado',
+                        'proposta' => 'Proposta',
+                        'boleto' => 'Boleto',
+                        'nota_fiscal' => 'Nota Fiscal',
+                        'devolutiva_nr1' => 'Devolutiva NR-1',
+                        default => 'Outro',
                     })
                     ->color(fn (string $state): string => match ($state) {
-                        'laudo'        => 'info',
-                        'foto'         => 'default',
-                        'relatorio'    => 'success',
+                        'laudo' => 'info',
+                        'foto' => 'default',
+                        'relatorio' => 'success',
                         'matriz_risco' => 'warning',
-                        'certificado'  => 'primary',
-                        'proposta'     => 'danger',
-                        'boleto'       => 'danger',
-                        'nota_fiscal'  => 'amber',
-                        default        => 'gray',
+                        'certificado' => 'primary',
+                        'proposta' => 'danger',
+                        'boleto' => 'danger',
+                        'nota_fiscal' => 'amber',
+                        'devolutiva_nr1' => 'success',
+                        default => 'gray',
                     }),
 
                 IconColumn::make('visivel_portal')

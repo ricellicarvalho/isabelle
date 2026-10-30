@@ -40,17 +40,17 @@ Route::get('/pricing/{pricing}/pdf', function (Pricing $pricing) {
 
     $timbradoPath = public_path('images/timbrado.jpg');
     $timbradoBase64 = file_exists($timbradoPath)
-        ? 'data:image/jpeg;base64,' . base64_encode(file_get_contents($timbradoPath))
+        ? 'data:image/jpeg;base64,'.base64_encode(file_get_contents($timbradoPath))
         : null;
 
     $pdf = Pdf::loadView('pdf.pricing', [
-        'pricing'         => $pricing,
-        'timbradoBase64'  => $timbradoBase64,
+        'pricing' => $pricing,
+        'timbradoBase64' => $timbradoBase64,
     ]);
 
     return response()->streamDownload(
-        fn () => print($pdf->output()),
-        'precificacao-' . Str::slug($pricing->nome) . '.pdf',
+        fn () => print ($pdf->output()),
+        'precificacao-'.Str::slug($pricing->nome).'.pdf',
         ['Content-Type' => 'application/pdf']
     );
 })->name('pricing.pdf')->middleware(['signed', 'auth:web']);
@@ -60,8 +60,8 @@ Route::get('/boleto/{boleto}/pdf', function (BankBoleto $boleto) {
     $pdf = BankBoletoService::renderPdf($boleto);
 
     return response($pdf, 200, [
-        'Content-Type'        => 'application/pdf',
-        'Content-Disposition' => 'inline; filename="boleto-' . $boleto->nosso_numero . '.pdf"',
+        'Content-Type' => 'application/pdf',
+        'Content-Disposition' => 'inline; filename="boleto-'.$boleto->nosso_numero.'.pdf"',
     ]);
 })->name('boleto.pdf')->middleware(['signed', 'auth:web']);
 
@@ -72,7 +72,7 @@ Route::get('/nfse/{nfse}/pdf', function (Nfse $nfse) {
     $numero = $nfse->numero ?? "RPS-{$nfse->numero_rps}";
 
     return response(hex2bin($nfse->pdf), 200, [
-        'Content-Type'        => 'application/pdf',
+        'Content-Type' => 'application/pdf',
         'Content-Disposition' => "inline; filename=\"NFSe-{$numero}.pdf\"",
     ]);
 })->name('nfse.pdf')->middleware(['signed', 'auth:web']);
@@ -84,7 +84,7 @@ Route::get('/nfse/{nfse}/xml', function (Nfse $nfse) {
     $numero = $nfse->numero ?? "RPS-{$nfse->numero_rps}";
 
     return response(hex2bin($nfse->xml), 200, [
-        'Content-Type'        => 'application/xml',
+        'Content-Type' => 'application/xml',
         'Content-Disposition' => "attachment; filename=\"NFSe-{$numero}.xml\"",
     ]);
 })->name('nfse.xml')->middleware(['signed', 'auth:web']);
@@ -122,7 +122,7 @@ Route::get('/relatorios/contas-a-receber/pdf', function (Request $request) {
 
     $logoPath = public_path('images/logo.png');
     $logoBase64 = file_exists($logoPath)
-        ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath))
+        ? 'data:image/png;base64,'.base64_encode(file_get_contents($logoPath))
         : null;
 
     $pdf = Pdf::loadView('pdf.receivables-report', compact('report', 'logoBase64'))
@@ -130,7 +130,7 @@ Route::get('/relatorios/contas-a-receber/pdf', function (Request $request) {
 
     return response($pdf->output(), 200, [
         'Content-Type' => 'application/pdf',
-        'Content-Disposition' => 'inline; filename="recebimentos-' . now()->format('Y-m-d') . '.pdf"',
+        'Content-Disposition' => 'inline; filename="recebimentos-'.now()->format('Y-m-d').'.pdf"',
     ]);
 })->name('reports.receivables.pdf')->middleware(['signed', 'auth:web']);
 
@@ -141,7 +141,7 @@ Route::get('/relatorios/movimentacao-de-contratos/pdf', function (Request $reque
 
     $logoPath = public_path('images/logo.png');
     $logoBase64 = file_exists($logoPath)
-        ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath))
+        ? 'data:image/png;base64,'.base64_encode(file_get_contents($logoPath))
         : null;
 
     $pdf = Pdf::loadView('pdf.contracts-report', compact('report', 'logoBase64'))
@@ -149,7 +149,7 @@ Route::get('/relatorios/movimentacao-de-contratos/pdf', function (Request $reque
 
     return response($pdf->output(), 200, [
         'Content-Type' => 'application/pdf',
-        'Content-Disposition' => 'inline; filename="movimentacao-de-contratos-' . now()->format('Y-m-d') . '.pdf"',
+        'Content-Disposition' => 'inline; filename="movimentacao-de-contratos-'.now()->format('Y-m-d').'.pdf"',
     ]);
 })->name('reports.contracts.pdf')->middleware(['signed', 'auth:web']);
 
@@ -160,7 +160,7 @@ Route::get('/relatorios/contas-a-pagar/pdf', function (Request $request) {
 
     $logoPath = public_path('images/logo.png');
     $logoBase64 = file_exists($logoPath)
-        ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath))
+        ? 'data:image/png;base64,'.base64_encode(file_get_contents($logoPath))
         : null;
 
     $pdf = Pdf::loadView('pdf.payables-report', compact('report', 'logoBase64'))
@@ -168,7 +168,7 @@ Route::get('/relatorios/contas-a-pagar/pdf', function (Request $request) {
 
     return response($pdf->output(), 200, [
         'Content-Type' => 'application/pdf',
-        'Content-Disposition' => 'inline; filename="contas-a-pagar-' . now()->format('Y-m-d') . '.pdf"',
+        'Content-Disposition' => 'inline; filename="contas-a-pagar-'.now()->format('Y-m-d').'.pdf"',
     ]);
 })->name('reports.payables.pdf')->middleware(['signed', 'auth:web']);
 
@@ -179,7 +179,7 @@ Route::get('/relatorios/pagamentos/pdf', function (Request $request) {
 
     $logoPath = public_path('images/logo.png');
     $logoBase64 = file_exists($logoPath)
-        ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath))
+        ? 'data:image/png;base64,'.base64_encode(file_get_contents($logoPath))
         : null;
 
     $pdf = Pdf::loadView('pdf.payments-report', compact('report', 'logoBase64'))
@@ -187,7 +187,7 @@ Route::get('/relatorios/pagamentos/pdf', function (Request $request) {
 
     return response($pdf->output(), 200, [
         'Content-Type' => 'application/pdf',
-        'Content-Disposition' => 'inline; filename="pagamentos-' . now()->format('Y-m-d') . '.pdf"',
+        'Content-Disposition' => 'inline; filename="pagamentos-'.now()->format('Y-m-d').'.pdf"',
     ]);
 })->name('reports.payments.pdf')->middleware(['signed', 'auth:web']);
 
@@ -222,24 +222,26 @@ Route::get('/portal/documents/{document}/file/{index}', function (ClientDocument
 
     $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
     $mimeMap = [
-        'pdf'  => 'application/pdf',
-        'jpg'  => 'image/jpeg',
+        'pdf' => 'application/pdf',
+        'jpg' => 'image/jpeg',
         'jpeg' => 'image/jpeg',
-        'png'  => 'image/png',
-        'gif'  => 'image/gif',
+        'png' => 'image/png',
+        'gif' => 'image/gif',
         'webp' => 'image/webp',
-        'svg'  => 'image/svg+xml',
-        'mp4'  => 'video/mp4',
+        'svg' => 'image/svg+xml',
+        'mp4' => 'video/mp4',
         'webm' => 'video/webm',
-        'ogg'  => 'video/ogg',
+        'ogg' => 'video/ogg',
     ];
 
     $mimeType = $mimeMap[$ext] ?? (Storage::disk('local')->mimeType($path) ?: 'application/octet-stream');
-    $disposition = isset($mimeMap[$ext]) ? 'inline' : 'attachment';
+    $disposition = request()->boolean('download')
+        ? 'attachment'
+        : (isset($mimeMap[$ext]) ? 'inline' : 'attachment');
 
     return response(Storage::disk('local')->get($path), 200, [
-        'Content-Type'        => $mimeType,
-        'Content-Disposition' => $disposition . '; filename="' . basename($path) . '"',
-        'Cache-Control'       => 'private, max-age=3600',
+        'Content-Type' => $mimeType,
+        'Content-Disposition' => $disposition.'; filename="'.basename($path).'"',
+        'Cache-Control' => 'private, max-age=3600',
     ]);
 })->name('portal.document.file')->middleware(['auth:portal']);

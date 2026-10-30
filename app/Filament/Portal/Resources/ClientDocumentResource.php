@@ -6,12 +6,10 @@ use App\Filament\Portal\Resources\ClientDocumentResource\Pages\ListClientDocumen
 use App\Models\ClientDocument;
 use App\Support\PortalAccess;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
-use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
-use Filament\Actions\Action;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -81,25 +79,27 @@ class ClientDocumentResource extends PortalResource
                     ->label('Tipo')
                     ->badge()
                     ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'laudo'        => 'Laudo',
-                        'foto'         => 'Foto',
-                        'relatorio'    => 'Relatório',
+                        'laudo' => 'Laudo',
+                        'foto' => 'Foto',
+                        'relatorio' => 'Relatório',
                         'matriz_risco' => 'Matriz de Risco',
-                        'certificado'  => 'Certificado',
-                        'proposta'     => 'Proposta',
-                        'boleto'       => 'Boleto',
-                        'nota_fiscal'  => 'Nota Fiscal',
-                        default        => 'Outro',
+                        'certificado' => 'Certificado',
+                        'proposta' => 'Proposta',
+                        'boleto' => 'Boleto',
+                        'nota_fiscal' => 'Nota Fiscal',
+                        'devolutiva_nr1' => 'Devolutiva NR-1',
+                        default => 'Outro',
                     })
                     ->color(fn (string $state): string => match ($state) {
-                        'laudo'        => 'info',
-                        'relatorio'    => 'success',
+                        'laudo' => 'info',
+                        'relatorio' => 'success',
                         'matriz_risco' => 'warning',
-                        'certificado'  => 'purple',
-                        'proposta'     => 'primary',
-                        'boleto'       => 'danger',
-                        'nota_fiscal'  => 'amber',
-                        default        => 'gray',
+                        'certificado' => 'purple',
+                        'proposta' => 'primary',
+                        'boleto' => 'danger',
+                        'nota_fiscal' => 'amber',
+                        'devolutiva_nr1' => 'success',
+                        default => 'gray',
                     }),
 
                 TextColumn::make('descricao')
@@ -117,59 +117,59 @@ class ClientDocumentResource extends PortalResource
                     ->label('Visualizar')
                     ->icon('heroicon-o-eye')
                     ->color('primary')
-                    ->modalHeading(fn (ClientDocument $record): string => 'Arquivos: ' . $record->titulo)
+                    ->modalHeading(fn (ClientDocument $record): string => 'Arquivos: '.$record->titulo)
                     ->modalWidth('3xl')
                     ->modalCancelActionLabel('Fechar')
                     ->modalSubmitAction(false)
                     ->modalContent(function (ClientDocument $record): HtmlString {
-                            $arquivos = array_values(array_filter((array) ($record->caminho_arquivo ?? [])));
+                        $arquivos = array_values(array_filter((array) ($record->caminho_arquivo ?? [])));
 
-                            if (empty($arquivos)) {
-                                return new HtmlString('<p class="text-sm text-gray-500 p-4 text-center">Nenhum arquivo disponível.</p>');
+                        if (empty($arquivos)) {
+                            return new HtmlString('<p class="text-sm text-gray-500 p-4 text-center">Nenhum arquivo disponível.</p>');
+                        }
+
+                        $html = '<div class="space-y-5 p-1">';
+
+                        foreach ($arquivos as $index => $path) {
+                            if (! Storage::disk('local')->exists($path)) {
+                                continue;
                             }
 
-                            $html = '<div class="space-y-5 p-1">';
+                            $filename = basename($path);
+                            $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+                            $url = route('portal.document.file', [$record->id, $index]);
 
-                            foreach ($arquivos as $index => $path) {
-                                if (! Storage::disk('local')->exists($path)) {
-                                    continue;
-                                }
-
-                                $filename = basename($path);
-                                $ext      = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-                                $url      = route('portal.document.file', [$record->id, $index]);
-
-                                $html .= '<div class="border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden">';
-                                $html .= '<div class="flex items-center justify-between bg-gray-50 dark:bg-white/5 px-4 py-2">';
-                                $html .= '<span class="text-sm font-medium text-gray-700 dark:text-gray-200 truncate">' . e($filename) . '</span>';
-                                $html .= '<a href="' . $url . '" target="_blank" class="text-xs text-blue-500 hover:underline whitespace-nowrap ml-2">Abrir em nova aba ↗</a>';
-                                $html .= '</div>';
-                                $html .= '<div class="p-3">';
-
-                                if (in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
-                                    $html .= '<img src="' . $url . '" class="max-w-full max-h-[480px] object-contain rounded mx-auto block" alt="' . e($filename) . '" loading="lazy" />';
-                                } elseif ($ext === 'pdf') {
-                                    $html .= '<iframe src="' . $url . '" class="w-full rounded border border-gray-200" style="height:520px;" title="' . e($filename) . '"></iframe>';
-                                } elseif (in_array($ext, ['mp4', 'webm', 'ogg'])) {
-                                    $html .= '<video controls class="w-full rounded max-h-96">';
-                                    $html .= '<source src="' . $url . '" />';
-                                    $html .= '<p class="text-sm text-gray-500">Seu navegador não suporta reprodução de vídeo.</p>';
-                                    $html .= '</video>';
-                                } else {
-                                    $html .= '<div class="flex flex-col items-center justify-center py-6 gap-3">';
-                                    $html .= '<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>';
-                                    $html .= '<p class="text-sm text-gray-500">Visualização não disponível para este formato.</p>';
-                                    $html .= '<a href="' . $url . '" target="_blank" class="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline font-medium">Abrir arquivo ↗</a>';
-                                    $html .= '</div>';
-                                }
-
-                                $html .= '</div></div>';
-                            }
-
+                            $html .= '<div class="border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden">';
+                            $html .= '<div class="flex items-center justify-between bg-gray-50 dark:bg-white/5 px-4 py-2">';
+                            $html .= '<span class="text-sm font-medium text-gray-700 dark:text-gray-200 truncate">'.e($filename).'</span>';
+                            $html .= '<a href="'.$url.'" target="_blank" class="text-xs text-blue-500 hover:underline whitespace-nowrap ml-2">Abrir em nova aba ↗</a>';
                             $html .= '</div>';
+                            $html .= '<div class="p-3">';
 
-                            return new HtmlString($html);
-                        }),
+                            if (in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
+                                $html .= '<img src="'.$url.'" class="max-w-full max-h-[480px] object-contain rounded mx-auto block" alt="'.e($filename).'" loading="lazy" />';
+                            } elseif ($ext === 'pdf') {
+                                $html .= '<iframe src="'.$url.'" class="w-full rounded border border-gray-200" style="height:520px;" title="'.e($filename).'"></iframe>';
+                            } elseif (in_array($ext, ['mp4', 'webm', 'ogg'])) {
+                                $html .= '<video controls class="w-full rounded max-h-96">';
+                                $html .= '<source src="'.$url.'" />';
+                                $html .= '<p class="text-sm text-gray-500">Seu navegador não suporta reprodução de vídeo.</p>';
+                                $html .= '</video>';
+                            } else {
+                                $html .= '<div class="flex flex-col items-center justify-center py-6 gap-3">';
+                                $html .= '<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>';
+                                $html .= '<p class="text-sm text-gray-500">Visualização não disponível para este formato.</p>';
+                                $html .= '<a href="'.$url.'" target="_blank" class="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline font-medium">Abrir arquivo ↗</a>';
+                                $html .= '</div>';
+                            }
+
+                            $html .= '</div></div>';
+                        }
+
+                        $html .= '</div>';
+
+                        return new HtmlString($html);
+                    }),
 
                 Action::make('download_all')
                     ->label('Baixar arquivo(s)')
@@ -188,13 +188,13 @@ class ClientDocumentResource extends PortalResource
                             $path = $arquivos->first();
 
                             return response()->streamDownload(
-                                fn () => print(Storage::disk('local')->get($path)),
+                                fn () => print (Storage::disk('local')->get($path)),
                                 basename($path)
                             );
                         }
 
-                        $zipPath = sys_get_temp_dir() . '/' . uniqid('docs_') . '.zip';
-                        $zip     = new ZipArchive();
+                        $zipPath = sys_get_temp_dir().'/'.uniqid('docs_').'.zip';
+                        $zip = new ZipArchive;
                         $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
 
                         foreach ($arquivos as $path) {
@@ -204,7 +204,7 @@ class ClientDocumentResource extends PortalResource
                         $zip->close();
 
                         return response()
-                            ->download($zipPath, Str::slug($record->titulo) . '.zip')
+                            ->download($zipPath, Str::slug($record->titulo).'.zip')
                             ->deleteFileAfterSend(true);
                     }),
             ])
