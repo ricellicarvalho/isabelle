@@ -43,12 +43,14 @@ class ReceivablesReportServiceTest extends TestCase
             'data_inicio' => '2026-08-01',
             'data_fim' => '2026-08-31',
             'forma_pagamento' => 'pix',
+            'ordenacao' => 'desc',
         ]);
 
         $this->assertSame(['Recebimento recente', 'Recebimento antigo'], array_column($report['items'], 'descricao'));
         $this->assertSame(['25/08/2026', '20/08/2026'], array_column($report['items'], 'data'));
         $this->assertSame(250.0, $report['total']);
         $this->assertSame(2, $report['count']);
+        $this->assertSame('desc', $report['filters']['ordenacao']);
     }
 
     public function test_it_ignores_the_time_added_by_the_date_picker(): void
@@ -83,7 +85,7 @@ class ReceivablesReportServiceTest extends TestCase
         $this->assertSame('15/10/2026', $report['items'][0]['data']);
     }
 
-    public function test_it_filters_unpaid_receivables_by_due_date_and_keeps_the_order(): void
+    public function test_it_filters_unpaid_receivables_by_due_date_in_ascending_order_by_default(): void
     {
         $user = User::factory()->create();
         $client = Client::create([
@@ -112,10 +114,11 @@ class ReceivablesReportServiceTest extends TestCase
             'situacao' => 'nao_pago',
         ]);
 
-        $this->assertSame(['Pendente recente', 'Pendente antigo'], array_column($report['items'], 'descricao'));
-        $this->assertSame(['25/08/2026', '05/08/2026'], array_column($report['items'], 'data'));
+        $this->assertSame(['Pendente antigo', 'Pendente recente'], array_column($report['items'], 'descricao'));
+        $this->assertSame(['05/08/2026', '25/08/2026'], array_column($report['items'], 'data'));
         $this->assertSame(250.0, $report['total']);
         $this->assertSame(2, $report['count']);
+        $this->assertSame('asc', $report['filters']['ordenacao']);
     }
 
     public function test_the_page_renders_the_report_from_the_current_filter_state(): void

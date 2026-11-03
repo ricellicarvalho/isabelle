@@ -1,5 +1,5 @@
 <x-filament-panels::page>
-    <form wire:submit.prevent="generateReport">
+    <form>
         {{ $this->form }}
     </form>
 

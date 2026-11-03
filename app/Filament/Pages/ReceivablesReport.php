@@ -42,6 +42,7 @@ class ReceivablesReport extends Page
             'data_fim' => now()->endOfMonth()->format('Y-m-d'),
             'situacao' => 'pago',
             'forma_pagamento' => null,
+            'ordenacao' => 'asc',
         ]);
 
     }
@@ -114,6 +115,18 @@ class ReceivablesReport extends Page
                         'cartao' => 'Cartão',
                     ])
                     ->placeholder('Todas as formas')
+                    ->native(false)
+                    ->live()
+                    ->columnSpan(2),
+
+                Select::make('ordenacao')
+                    ->label('Ordenação')
+                    ->options([
+                        'asc' => 'Mais antigo primeiro',
+                        'desc' => 'Mais recente primeiro',
+                    ])
+                    ->default('asc')
+                    ->required()
                     ->native(false)
                     ->live()
                     ->columnSpan(2),

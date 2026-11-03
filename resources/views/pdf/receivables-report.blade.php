@@ -51,6 +51,9 @@
             'cartao' => 'Cartão',
             default => 'Todas',
         };
+        $ordenacaoLabel = ($filters['ordenacao'] ?? 'asc') === 'desc'
+            ? 'Mais recente primeiro'
+            : 'Mais antigo primeiro';
         $itemFormaPagamentoLabel = fn (?string $forma): string => match ($forma) {
             'boleto' => 'Boleto',
             'pix' => 'PIX',
@@ -70,6 +73,7 @@
         {{ $filters['data_inicio'] ? \Illuminate\Support\Carbon::parse($filters['data_inicio'])->format('d/m/Y') : 'Início' }}
         a
         {{ $filters['data_fim'] ? \Illuminate\Support\Carbon::parse($filters['data_fim'])->format('d/m/Y') : 'Fim' }}
+        &nbsp;|&nbsp; <strong>Ordenação:</strong> {{ $ordenacaoLabel }}
         &nbsp;|&nbsp; <strong>Registros:</strong> {{ $report['count'] }}
     </div>
 

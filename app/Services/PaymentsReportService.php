@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Category;
 use App\Models\Payable;
 use App\Models\Supplier;
+use Carbon\Carbon;
 
 class PaymentsReportService
 {
@@ -12,10 +13,15 @@ class PaymentsReportService
     {
         $supplierId = $filters['supplier_id'] ?? null;
         $categoryId = $filters['category_id'] ?? null;
-        $dataInicio = $filters['data_inicio'] ?? null;
-        $dataFim = $filters['data_fim'] ?? null;
+        $dataInicio = filled($filters['data_inicio'] ?? null)
+            ? Carbon::parse($filters['data_inicio'])->toDateString()
+            : null;
+        $dataFim = filled($filters['data_fim'] ?? null)
+            ? Carbon::parse($filters['data_fim'])->toDateString()
+            : null;
         $situacao = $filters['situacao'] ?? 'pago';
         $formaPagamento = $filters['forma_pagamento'] ?? null;
+        $ordenacao = ($filters['ordenacao'] ?? 'asc') === 'desc' ? 'desc' : 'asc';
         $isPaid = $situacao === 'pago';
         $dateColumn = $isPaid ? 'data_pagamento' : 'data_vencimento';
 
@@ -31,8 +37,8 @@ class PaymentsReportService
             ->when($dataInicio, fn ($query, $date) => $query->whereDate($dateColumn, '>=', $date))
             ->when($dataFim, fn ($query, $date) => $query->whereDate($dateColumn, '<=', $date))
             ->when($isPaid && $formaPagamento, fn ($query) => $query->where('forma_pagamento', $formaPagamento))
-            ->orderByDesc($dateColumn)
-            ->orderByDesc('id');
+            ->orderBy($dateColumn, $ordenacao)
+            ->orderBy('id', $ordenacao);
 
         $payments = $query->get();
 
@@ -55,6 +61,7 @@ class PaymentsReportService
                 'data_fim' => $dataFim,
                 'situacao' => $situacao,
                 'forma_pagamento' => $formaPagamento,
+                'ordenacao' => $ordenacao,
             ],
         ];
     }

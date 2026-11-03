@@ -28,8 +28,6 @@ class PaymentsReport extends Page
 
     public ?array $data = [];
 
-    public array $report = [];
-
     public static function canAccess(): bool
     {
         return auth()->user()?->can('ViewAny:Payable') ?? false;
@@ -44,9 +42,8 @@ class PaymentsReport extends Page
             'data_fim' => now()->endOfMonth()->format('Y-m-d'),
             'situacao' => 'pago',
             'forma_pagamento' => null,
+            'ordenacao' => 'asc',
         ]);
-
-        $this->generateReport();
     }
 
     public function form(Schema $schema): Schema
@@ -113,18 +110,30 @@ class PaymentsReport extends Page
                     ->native(false)
                     ->live()
                     ->columnSpan(2),
+
+                Select::make('ordenacao')
+                    ->label('Ordenação')
+                    ->options([
+                        'asc' => 'Mais antigo primeiro',
+                        'desc' => 'Mais recente primeiro',
+                    ])
+                    ->default('asc')
+                    ->required()
+                    ->native(false)
+                    ->live()
+                    ->columnSpan(2),
             ])
             ->columns(6);
     }
 
-    public function updatedData(): void
+    protected function getViewData(): array
     {
-        $this->generateReport();
-    }
-
-    public function generateReport(): void
-    {
-        $this->report = PaymentsReportService::generate($this->data ?? []);
+        return [
+            // O relatório é derivado diretamente dos filtros em cada renderização.
+            // Isso evita que respostas Livewire concorrentes exibam filtros novos
+            // com uma listagem calculada a partir de um estado anterior.
+            'report' => PaymentsReportService::generate($this->data ?? []),
+        ];
     }
 
     protected function getHeaderActions(): array

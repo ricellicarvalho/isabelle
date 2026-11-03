@@ -21,6 +21,7 @@ class ReceivablesReportService
             : null;
         $situacao = $filters['situacao'] ?? 'pago';
         $formaPagamento = $filters['forma_pagamento'] ?? null;
+        $ordenacao = ($filters['ordenacao'] ?? 'asc') === 'desc' ? 'desc' : 'asc';
         $isPaid = $situacao === 'pago';
         $dateColumn = $isPaid ? 'data_pagamento' : 'data_vencimento';
 
@@ -36,8 +37,8 @@ class ReceivablesReportService
             ->when($dataInicio, fn ($query, $date) => $query->whereDate($dateColumn, '>=', $date))
             ->when($dataFim, fn ($query, $date) => $query->whereDate($dateColumn, '<=', $date))
             ->when($isPaid && $formaPagamento, fn ($query) => $query->where('forma_pagamento', $formaPagamento))
-            ->orderByDesc($dateColumn)
-            ->orderByDesc('id');
+            ->orderBy($dateColumn, $ordenacao)
+            ->orderBy('id', $ordenacao);
 
         $receivables = $query->get();
 
@@ -62,6 +63,7 @@ class ReceivablesReportService
                 'data_fim' => $dataFim,
                 'situacao' => $situacao,
                 'forma_pagamento' => $formaPagamento,
+                'ordenacao' => $ordenacao,
             ],
         ];
     }
