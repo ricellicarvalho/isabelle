@@ -8,6 +8,7 @@ use App\Models\Nfse;
 use App\Models\Pricing;
 use App\Services\BankBoletoService;
 use App\Services\ContractsReportService;
+use App\Services\CollaboratorsReportService;
 use App\Services\ExpiringContractsReportService;
 use App\Services\PayablesReportService;
 use App\Services\PaymentsReportService;
@@ -152,6 +153,40 @@ Route::get('/relatorios/movimentacao-de-contratos/pdf', function (Request $reque
         'Content-Disposition' => 'inline; filename="movimentacao-de-contratos-'.now()->format('Y-m-d').'.pdf"',
     ]);
 })->name('reports.contracts.pdf')->middleware(['signed', 'auth:web']);
+
+// Relatório de Colaboradores em PDF — abre inline em nova aba, URL assinada
+Route::get('/relatorios/colaboradores/pdf', function (Request $request) {
+    $report = CollaboratorsReportService::generate($request->only(['client_id', 'search']));
+
+    $logoPath = public_path('images/logo.png');
+    $logoBase64 = null;
+    if (file_exists($logoPath)) {
+        $source = imagecreatefrompng($logoPath);
+        $sourceWidth = imagesx($source);
+        $sourceHeight = imagesy($source);
+        $targetWidth = 320;
+        $targetHeight = (int) round($sourceHeight * ($targetWidth / $sourceWidth));
+        $resized = imagecreatetruecolor($targetWidth, $targetHeight);
+        imagealphablending($resized, false);
+        imagesavealpha($resized, true);
+        imagecopyresampled($resized, $source, 0, 0, 0, 0, $targetWidth, $targetHeight, $sourceWidth, $sourceHeight);
+
+        ob_start();
+        imagepng($resized, null, 8);
+        $logoBase64 = 'data:image/png;base64,'.base64_encode((string) ob_get_clean());
+
+        imagedestroy($resized);
+        imagedestroy($source);
+    }
+
+    $pdf = Pdf::loadView('pdf.collaborators-report', compact('report', 'logoBase64'))
+        ->setPaper('a4', 'portrait');
+
+    return response($pdf->output(), 200, [
+        'Content-Type' => 'application/pdf',
+        'Content-Disposition' => 'inline; filename="colaboradores-'.now()->format('Y-m-d').'.pdf"',
+    ]);
+})->name('reports.collaborators.pdf')->middleware(['signed', 'auth:web']);
 
 // Relatório de Contas a Pagar em PDF — abre inline em nova aba, URL assinada
 Route::get('/relatorios/contas-a-pagar/pdf', function (Request $request) {
